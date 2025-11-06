@@ -36,8 +36,9 @@ const DesignerPage: React.FC = () => {
     'select' | 'move' | 'rotate'
   >('select');
 
-  const [selectedModelId, setSelectedModelId] = React.useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = React.useState(0);
+  const [selectedModelId, setSelectedModelId] = React.useState<string | null>(
+    null
+  );
 
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
@@ -78,7 +79,6 @@ const DesignerPage: React.FC = () => {
 
   // 刷新界面
   const handleRefresh = React.useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
     forceUpdate();
   }, []);
 
@@ -214,15 +214,18 @@ const DesignerPage: React.FC = () => {
   );
 
   // 从侧边栏选择模型
-  const handleSelectModelFromSidebar = React.useCallback((modelId: string | null) => {
-    setSelectedModelId(modelId);
+  const handleSelectModelFromSidebar = React.useCallback(
+    (modelId: string | null) => {
+      setSelectedModelId(modelId);
 
-    // 同步高亮
-    const interactionService = interactionServiceRef.current;
-    if (interactionService) {
-      interactionService.highlightModel(modelId);
-    }
-  }, []);
+      // 同步高亮
+      const interactionService = interactionServiceRef.current;
+      if (interactionService) {
+        interactionService.highlightModel(modelId);
+      }
+    },
+    []
+  );
 
   // 获取当前选中模型的信息
   const selectedModel = React.useMemo(() => {
@@ -232,7 +235,7 @@ const DesignerPage: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div ref={containerRef} className="relative flex-1 w-full">
+      <div className="relative shrink w-full">
         <Toolbar
           onCreateCube={handleCreateCube}
           onCreateBox={handleCreateBox}
@@ -245,7 +248,7 @@ const DesignerPage: React.FC = () => {
         />
       </div>
       {/* 主内容区域 */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex grow flex-1 min-h-0">
         {/* 左侧对象管理器边栏 */}
         <ObjectManagerSidebar
           objectManager={objectManagerRef.current}
