@@ -79,8 +79,6 @@ export interface ToolbarProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
-  onCreateCube,
-  onCreateBox,
   onCreateAluminumProfile,
   onCreatePanel,
   onCreateConnector,
@@ -117,18 +115,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
         {/* 模型创建 */}
         <ButtonGroup title="插入">
-          <ToolButton
-            icon="🟦"
-            label="立方体"
-            onClick={onCreateCube}
-            variant="primary"
-          />
-          <ToolButton
-            icon="📦"
-            label="长方体"
-            onClick={onCreateBox}
-            variant="success"
-          />
           <ToolButton
             icon="🔩"
             label="铝型材"
