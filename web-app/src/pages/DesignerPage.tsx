@@ -5,6 +5,7 @@ import ControlPanel, {
 } from '../components/camera/ControlPanel.tsx';
 import ContextMenu from '../components/menu/ContextMenu.tsx';
 import Toolbar from '../components/toolbar/Toolbar.tsx';
+import ObjectManagerSidebar from '../components/sidebar/ObjectManagerSidebar.tsx';
 import { ObjectManager } from '../service/ObjectManager';
 import { ModelCreationService } from '../service/ModelCreationService';
 import { ModelInteractionService } from '../service/ModelInteractionService';
@@ -34,6 +35,9 @@ const DesignerPage: React.FC = () => {
   const [selectedTool, setSelectedTool] = React.useState<
     'select' | 'move' | 'rotate'
   >('select');
+
+  const [selectedModelId, setSelectedModelId] = React.useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0);
 
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
@@ -72,6 +76,12 @@ const DesignerPage: React.FC = () => {
     }
   }, [getScene]);
 
+  // 刷新界面
+  const handleRefresh = React.useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+    forceUpdate();
+  }, []);
+
   // 处理点击事件（左键选中）
   React.useEffect(() => {
     const container = containerRef.current;
@@ -84,13 +94,14 @@ const DesignerPage: React.FC = () => {
       const interactionService = interactionServiceRef.current;
       if (!camera || !interactionService) return;
 
-      interactionService.handleClick(event, container, camera);
-      forceUpdate(); // 强制更新以反映选中状态
+      const modelId = interactionService.handleClick(event, container, camera);
+      setSelectedModelId(modelId);
+      handleRefresh();
     };
 
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
-  }, [getCamera]);
+  }, [getCamera, handleRefresh]);
 
   // 处理右键点击事件（上下文菜单）
   React.useEffect(() => {
@@ -117,13 +128,17 @@ const DesignerPage: React.FC = () => {
         modelId: result.modelId,
       });
 
-      forceUpdate();
+      if (result.modelId) {
+        setSelectedModelId(result.modelId);
+      }
+
+      handleRefresh();
     };
 
     container.addEventListener('contextmenu', handleContextMenu);
     return () =>
       container.removeEventListener('contextmenu', handleContextMenu);
-  }, [getCamera]);
+  }, [getCamera, handleRefresh]);
 
   // 视角切换
   const onViewPosChange = React.useCallback(
@@ -140,14 +155,14 @@ const DesignerPage: React.FC = () => {
   const handleEdit = React.useCallback(() => {
     if (!contextMenu.modelId || !editorServiceRef.current) return;
     editorServiceRef.current.editModel(contextMenu.modelId);
-    forceUpdate();
-  }, [contextMenu.modelId]);
+    handleRefresh();
+  }, [contextMenu.modelId, handleRefresh]);
 
   const handleToggleVisibility = React.useCallback(() => {
     if (!contextMenu.modelId || !editorServiceRef.current) return;
     editorServiceRef.current.toggleVisibility(contextMenu.modelId);
-    forceUpdate();
-  }, [contextMenu.modelId]);
+    handleRefresh();
+  }, [contextMenu.modelId, handleRefresh]);
 
   const handleShowProperties = React.useCallback(() => {
     if (!contextMenu.modelId || !editorServiceRef.current) return;
@@ -156,30 +171,38 @@ const DesignerPage: React.FC = () => {
 
   const handleDelete = React.useCallback(() => {
     if (!contextMenu.modelId || !editorServiceRef.current) return;
-    editorServiceRef.current.deleteModel(contextMenu.modelId);
-    forceUpdate();
-  }, [contextMenu.modelId]);
+    const deleted = editorServiceRef.current.deleteModel(contextMenu.modelId);
+    if (deleted && selectedModelId === contextMenu.modelId) {
+      setSelectedModelId(null);
+    }
+    handleRefresh();
+  }, [contextMenu.modelId, selectedModelId, handleRefresh]);
 
   // 模型创建处理器（委托给 CreationService）
   const handleCreateCube = React.useCallback(() => {
     creationServiceRef.current?.createCube();
-  }, []);
+    handleRefresh();
+  }, [handleRefresh]);
 
   const handleCreateBox = React.useCallback(() => {
     creationServiceRef.current?.createBox();
-  }, []);
+    handleRefresh();
+  }, [handleRefresh]);
 
   const handleCreateAluminumProfile = React.useCallback(() => {
     creationServiceRef.current?.createAluminumProfile();
-  }, []);
+    handleRefresh();
+  }, [handleRefresh]);
 
   const handleCreatePanel = React.useCallback(() => {
     creationServiceRef.current?.createPanel();
-  }, []);
+    handleRefresh();
+  }, [handleRefresh]);
 
   const handleCreateConnector = React.useCallback(() => {
     creationServiceRef.current?.createConnector();
-  }, []);
+    handleRefresh();
+  }, [handleRefresh]);
 
   // 工具切换处理器
   const handleToolChange = React.useCallback(
@@ -190,6 +213,17 @@ const DesignerPage: React.FC = () => {
     []
   );
 
+  // 从侧边栏选择模型
+  const handleSelectModelFromSidebar = React.useCallback((modelId: string | null) => {
+    setSelectedModelId(modelId);
+
+    // 同步高亮
+    const interactionService = interactionServiceRef.current;
+    if (interactionService) {
+      interactionService.highlightModel(modelId);
+    }
+  }, []);
+
   // 获取当前选中模型的信息
   const selectedModel = React.useMemo(() => {
     if (!contextMenu.modelId || !objectManagerRef.current) return null;
@@ -198,36 +232,46 @@ const DesignerPage: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      {/* 顶部工具栏 */}
-      <Toolbar
-        onCreateCube={handleCreateCube}
-        onCreateBox={handleCreateBox}
-        onCreateAluminumProfile={handleCreateAluminumProfile}
-        onCreatePanel={handleCreatePanel}
-        onCreateConnector={handleCreateConnector}
-        onResetCamera={resetCamera}
-        selectedTool={selectedTool}
-        onToolChange={handleToolChange}
-      />
-
-      {/* 3D 视图容器 */}
       <div ref={containerRef} className="relative flex-1 w-full">
-        {/* 右上角视角控制面板 */}
-        <ControlPanel onView={onViewPosChange} />
-
-        {/* 上下文菜单 */}
-        <ContextMenu
-          visible={contextMenu.visible}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu({ ...contextMenu, visible: false })}
-          onEdit={handleEdit}
-          onToggleVisibility={handleToggleVisibility}
-          onShowProperties={handleShowProperties}
-          onDelete={handleDelete}
-          targetName={selectedModel?.name || '对象'}
-          isVisible={selectedModel?.isVisible ?? true}
+        <Toolbar
+          onCreateCube={handleCreateCube}
+          onCreateBox={handleCreateBox}
+          onCreateAluminumProfile={handleCreateAluminumProfile}
+          onCreatePanel={handleCreatePanel}
+          onCreateConnector={handleCreateConnector}
+          onResetCamera={resetCamera}
+          selectedTool={selectedTool}
+          onToolChange={handleToolChange}
         />
+      </div>
+      {/* 主内容区域 */}
+      <div className="flex flex-1 min-h-0">
+        {/* 左侧对象管理器边栏 */}
+        <ObjectManagerSidebar
+          objectManager={objectManagerRef.current}
+          selectedModelId={selectedModelId}
+          onSelectModel={handleSelectModelFromSidebar}
+          onRefresh={handleRefresh}
+        />
+
+        {/* 3D 视图容器 */}
+        <div ref={containerRef} className="relative flex-1">
+          {/* 右上角视角控制面板 */}
+          <ControlPanel onView={onViewPosChange} />
+          {/* 上下文菜单 */}
+          <ContextMenu
+            visible={contextMenu.visible}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            onClose={() => setContextMenu({ ...contextMenu, visible: false })}
+            onEdit={handleEdit}
+            onToggleVisibility={handleToggleVisibility}
+            onShowProperties={handleShowProperties}
+            onDelete={handleDelete}
+            targetName={selectedModel?.name || '对象'}
+            isVisible={selectedModel?.isVisible ?? true}
+          />
+        </div>
       </div>
     </div>
   );
