@@ -4,6 +4,7 @@ import ControlPanel, {
   type ViewPos,
 } from '../components/camera/ControlPanel.tsx';
 import ContextMenu from '../components/menu/ContextMenu.tsx';
+import Toolbar from '../components/toolbar/Toolbar.tsx';
 import { ObjectManager } from '../service/ObjectManager';
 import { ModelCreationService } from '../service/ModelCreationService';
 import { ModelInteractionService } from '../service/ModelInteractionService';
@@ -29,6 +30,10 @@ const DesignerPage: React.FC = () => {
     y: 0,
     modelId: null,
   });
+
+  const [selectedTool, setSelectedTool] = React.useState<
+    'select' | 'move' | 'rotate'
+  >('select');
 
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
@@ -156,17 +161,34 @@ const DesignerPage: React.FC = () => {
   }, [contextMenu.modelId]);
 
   // 模型创建处理器（委托给 CreationService）
-  const addCube = React.useCallback(() => {
+  const handleCreateCube = React.useCallback(() => {
     creationServiceRef.current?.createCube();
   }, []);
 
-  const addBox = React.useCallback(() => {
+  const handleCreateBox = React.useCallback(() => {
     creationServiceRef.current?.createBox();
   }, []);
 
-  const addAluminumProfile = React.useCallback(() => {
+  const handleCreateAluminumProfile = React.useCallback(() => {
     creationServiceRef.current?.createAluminumProfile();
   }, []);
+
+  const handleCreatePanel = React.useCallback(() => {
+    creationServiceRef.current?.createPanel();
+  }, []);
+
+  const handleCreateConnector = React.useCallback(() => {
+    creationServiceRef.current?.createConnector();
+  }, []);
+
+  // 工具切换处理器
+  const handleToolChange = React.useCallback(
+    (tool: 'select' | 'move' | 'rotate') => {
+      setSelectedTool(tool);
+      console.log('切换工具:', tool);
+    },
+    []
+  );
 
   // 获取当前选中模型的信息
   const selectedModel = React.useMemo(() => {
@@ -176,37 +198,23 @@ const DesignerPage: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="p-4 bg-gray-800 text-white flex items-center justify-between">
-        <h2 className="text-lg font-semibold">3D 视图</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={addCube}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
-          >
-            添加立方体
-          </button>
-          <button
-            onClick={addBox}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md transition-colors"
-          >
-            添加长方体
-          </button>
-          <button
-            onClick={addAluminumProfile}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-md transition-colors"
-          >
-            添加铝型材
-          </button>
-          <button
-            onClick={resetCamera}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md transition-colors"
-          >
-            重置视角
-          </button>
-        </div>
-      </div>
       <div ref={containerRef} className="relative flex-1 w-full">
+        {/* 左侧工具栏 */}
+        <Toolbar
+          onCreateCube={handleCreateCube}
+          onCreateBox={handleCreateBox}
+          onCreateAluminumProfile={handleCreateAluminumProfile}
+          onCreatePanel={handleCreatePanel}
+          onCreateConnector={handleCreateConnector}
+          onResetCamera={resetCamera}
+          selectedTool={selectedTool}
+          onToolChange={handleToolChange}
+        />
+
+        {/* 右上角视角控制面板 */}
         <ControlPanel onView={onViewPosChange} />
+
+        {/* 上下文菜单 */}
         <ContextMenu
           visible={contextMenu.visible}
           x={contextMenu.x}

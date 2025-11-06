@@ -22,12 +22,14 @@ export interface Model {
 }
 
 // 模型类型
-export enum ModelType {
-  ALUMINUM_PROFILE = 'aluminum_profile', // 铝型材
-  CONNECTOR = 'connector', // 连接件
-  PANEL = 'panel', // 面板
-  CUSTOM = 'custom', // 自定义
-}
+export const ModelType = {
+  ALUMINUM_PROFILE: 'aluminum_profile',
+  CONNECTOR: 'connector',
+  PANEL: 'panel',
+  CUSTOM: 'custom',
+} as const;
+
+export type ModelType = (typeof ModelType)[keyof typeof ModelType];
 
 // 模型参数
 export interface ModelParameters {
@@ -69,13 +71,16 @@ export interface CollisionInfo {
 }
 
 // 约束类型
-export enum ConstraintType {
-  FIXED = 'fixed', // 固定约束
-  ALIGN = 'align', // 对齐约束
-  DISTANCE = 'distance', // 距离约束
-  PARALLEL = 'parallel', // 平行约束
-  PERPENDICULAR = 'perpendicular', // 垂直约束
-}
+export const ConstraintType = {
+  FIXED: 'fixed',
+  ALIGN: 'align',
+  DISTANCE: 'distance',
+  PARALLEL: 'parallel',
+  PERPENDICULAR: 'perpendicular',
+} as const;
+
+export type ConstraintType =
+  (typeof ConstraintType)[keyof typeof ConstraintType];
 
 // 约束定义
 export interface Constraint {
