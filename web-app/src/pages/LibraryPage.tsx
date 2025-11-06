@@ -17,6 +17,7 @@ const example20 = (
       </div>
       <div className="flex flex-col">
         <svg className="bg-amber-400 w-40 h-32" />
+
         <span>2020W</span>
       </div>
       <div className="flex flex-col">
