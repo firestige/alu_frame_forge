@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { ObjectManager } from '../service/ObjectManager';
-import { ModelCreationService } from '../service/ModelCreationService';
-import { ModelInteractionService } from '../service/ModelInteractionService';
-import { ModelEditorService } from '../service/ModelEditorService';
+import { ObjectManager } from '../../../core/object/ObjectManager.ts';
+import { ModelCreationService } from '../services/ModelCreationService.ts';
+import { ModelInteractionService } from '../services/ModelInteractionService.ts';
+import { ModelEditorService } from '../services/ModelEditorService.ts';
 
 /**
  * 关于在 Hook 中用 useRef 存储服务实例的说明：

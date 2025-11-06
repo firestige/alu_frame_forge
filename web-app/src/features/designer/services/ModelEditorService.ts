@@ -1,5 +1,5 @@
-import { ObjectManager, type Model } from './ObjectManager';
-import { ModelInteractionService } from './ModelInteractionService';
+import { ObjectManager, type Model } from '../../../core/object/ObjectManager.ts';
+import { ModelInteractionService } from './ModelInteractionService.ts';
 
 /**
  * 模型编辑服务

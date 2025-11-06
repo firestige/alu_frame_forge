@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { ModelInteractionService } from '../service/ModelInteractionService';
+import { ModelInteractionService } from '../services/ModelInteractionService.ts';
 
 export interface ModelInteractionOptions {
   containerRef: React.RefObject<HTMLDivElement | null>;

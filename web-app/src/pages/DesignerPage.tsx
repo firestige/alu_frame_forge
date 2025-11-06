@@ -1,13 +1,13 @@
 import * as React from 'react';
-import { use3DViewer } from '../hooks/use3DViewer';
-import { useDesignerServices } from '../hooks/useDesignerServices';
-import { useModelInteraction } from '../hooks/useModelInteraction';
-import { useModelOperations } from '../hooks/useModelOperations';
+import { use3DViewer } from '../features/designer/hooks/use3DViewer.ts';
+import { useDesignerServices } from '../features/designer/hooks/useDesignerServices.ts';
+import { useModelInteraction } from '../features/designer/hooks/useModelInteraction.ts';
+import { useModelOperations } from '../features/designer/hooks/useModelOperations.ts';
 import ControlPanel, {
   type ViewPos,
-} from '../components/camera/ControlPanel.tsx';
+} from '../features/designer/ui/camera/ControlPanel.tsx';
 import ContextMenuContainer from '../components/menu/ContextMenuContainer.tsx';
-import Toolbar from '../components/toolbar/Toolbar.tsx';
+import Toolbar from '../components/toolbar/DesignerToolbar.tsx';
 import ObjectManagerSidebar from '../components/sidebar/ObjectManagerSidebar.tsx';
 
 const DesignerPage: React.FC = () => {

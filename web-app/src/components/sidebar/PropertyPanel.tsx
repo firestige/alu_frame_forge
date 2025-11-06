@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { type Model } from '../../service/ObjectManager';
+import { type Model } from '../../core/object/ObjectManager.ts';
 
 interface PropertyPanelProps {
   model: Model | null;

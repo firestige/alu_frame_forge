@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ObjectManager, type Model } from '../../service/ObjectManager';
+import { ObjectManager, type Model } from '../../core/object/ObjectManager.ts';
 import ObjectTree from './ObjectTree';
 import PropertyPanel from './PropertyPanel';
 

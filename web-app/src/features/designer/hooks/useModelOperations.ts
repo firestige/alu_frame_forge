@@ -1,6 +1,6 @@
 import { useCallback, useReducer } from 'react';
-import { ModelCreationService } from '../service/ModelCreationService';
-import { ModelEditorService } from '../service/ModelEditorService';
+import { ModelCreationService } from '../services/ModelCreationService.ts';
+import { ModelEditorService } from '../services/ModelEditorService.ts';
 
 export interface ModelOperationsOptions {
   creationService: ModelCreationService | null;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ObjectManager, ModelType } from './ObjectManager';
+import { ObjectManager, ModelType } from '../../../core/object/ObjectManager.ts';
 
 /**
  * 模型创建服务
