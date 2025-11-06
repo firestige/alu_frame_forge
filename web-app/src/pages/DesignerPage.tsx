@@ -198,19 +198,20 @@ const DesignerPage: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div ref={containerRef} className="relative flex-1 w-full">
-        {/* 左侧工具栏 */}
-        <Toolbar
-          onCreateCube={handleCreateCube}
-          onCreateBox={handleCreateBox}
-          onCreateAluminumProfile={handleCreateAluminumProfile}
-          onCreatePanel={handleCreatePanel}
-          onCreateConnector={handleCreateConnector}
-          onResetCamera={resetCamera}
-          selectedTool={selectedTool}
-          onToolChange={handleToolChange}
-        />
+      {/* 顶部工具栏 */}
+      <Toolbar
+        onCreateCube={handleCreateCube}
+        onCreateBox={handleCreateBox}
+        onCreateAluminumProfile={handleCreateAluminumProfile}
+        onCreatePanel={handleCreatePanel}
+        onCreateConnector={handleCreateConnector}
+        onResetCamera={resetCamera}
+        selectedTool={selectedTool}
+        onToolChange={handleToolChange}
+      />
 
+      {/* 3D 视图容器 */}
+      <div ref={containerRef} className="relative flex-1 w-full">
         {/* 右上角视角控制面板 */}
         <ControlPanel onView={onViewPosChange} />
 
