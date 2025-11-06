@@ -1,8 +1,8 @@
-import {createBrowserRouter} from "react-router";
-import App from './App.tsx'
-import BaseLayout from "./layouts/BaseLayout.tsx";
-import DesignerPage from "./pages/DesignerPage.tsx";
-import LibraryPage from "./pages/LibraryPage.tsx";
+import { createBrowserRouter } from 'react-router';
+import App from './App.tsx';
+import BaseLayout from './layouts/BaseLayout.tsx';
+import DesignerPage from './pages/DesignerPage.tsx';
+import LibraryPage from './pages/LibraryPage.tsx';
 
 export const routes = createBrowserRouter([
   {
@@ -10,16 +10,16 @@ export const routes = createBrowserRouter([
     Component: App,
   },
   {
-    Component:BaseLayout,
+    Component: BaseLayout,
     children: [
       {
-        path: "/designer",
+        path: '/designer',
         Component: DesignerPage,
       },
       {
-        path: "/library",
+        path: '/library',
         Component: LibraryPage,
       },
     ],
-  }
-])
+  },
+]);

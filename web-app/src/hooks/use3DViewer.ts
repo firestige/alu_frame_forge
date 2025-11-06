@@ -1,8 +1,7 @@
-import {useEffect, useRef} from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import * as React from "react";
-
+import { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import * as React from 'react';
 
 export interface ViewerOptions {
   containerRef: React.RefObject<HTMLDivElement>;
@@ -58,7 +57,7 @@ export function use3DViewer(options: ViewerOptions) {
     // 创建渲染器
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true
+      alpha: true,
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -101,7 +100,7 @@ export function use3DViewer(options: ViewerOptions) {
     const material = new THREE.MeshStandardMaterial({
       color: 0x00ff00,
       roughness: 0.5,
-      metalness: 0.2
+      metalness: 0.2,
     });
     const cube = new THREE.Mesh(geometry, material);
     cube.castShadow = true;
@@ -166,7 +165,7 @@ export function use3DViewer(options: ViewerOptions) {
       }
 
       // 清理几何体和材质
-      scene.traverse((object) => {
+      scene.traverse(object => {
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose();
           if (Array.isArray(object.material)) {

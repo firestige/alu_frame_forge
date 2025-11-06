@@ -1,6 +1,6 @@
-import * as React from 'react'
-import { use3DViewer } from "../hooks/use3DViewer";
-import * as THREE from "three";
+import * as React from 'react';
+import { use3DViewer } from '../hooks/use3DViewer';
+import * as THREE from 'three';
 
 const DesignerPage: React.FC = () => {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -17,7 +17,7 @@ const DesignerPage: React.FC = () => {
   });
 
   const addCube = React.useCallback(() => {
-    console.log("Adding cube");
+    console.log('Adding cube');
     console.log(getScene());
     const scene = getScene();
     console.log(scene);
@@ -33,7 +33,7 @@ const DesignerPage: React.FC = () => {
     );
     console.log(cube);
     scene.add(cube);
-  },[getScene]);
+  }, [getScene]);
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -55,6 +55,6 @@ const DesignerPage: React.FC = () => {
       <div ref={containerRef} className="flex-1 w-full" />
     </div>
   );
-}
+};
 
-export default DesignerPage
+export default DesignerPage;

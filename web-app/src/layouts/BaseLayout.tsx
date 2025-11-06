@@ -1,7 +1,7 @@
 import * as React from 'react';
-import {Outlet} from "react-router";
-import AppBar from "../components/appbar/AppBar.tsx";
-import Footer from "../components/footer/Footer.tsx";
+import { Outlet } from 'react-router';
+import AppBar from '../components/appbar/AppBar.tsx';
+import Footer from '../components/footer/Footer.tsx';
 
 const BaseLayout: React.FC = () => {
   return (

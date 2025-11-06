@@ -1,6 +1,6 @@
-import * as React from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { useDrawerStore } from "../../stores/drawerStore";
+import * as React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useDrawerStore } from '../../stores/drawerStore';
 
 const Drawer: React.FC = () => {
   const isOpen = useDrawerStore(state => state.isOpen);
@@ -30,7 +30,7 @@ const Drawer: React.FC = () => {
           opacity: isOpen ? 1 : 0,
         }}
         transition={{
-          type: "spring",
+          type: 'spring',
           stiffness: 300,
           damping: 30,
           mass: 0.8,
@@ -44,7 +44,7 @@ const Drawer: React.FC = () => {
             opacity: isOpen ? 1 : 0,
           }}
           transition={{
-            type: "spring",
+            type: 'spring',
             stiffness: 300,
             damping: 30,
             mass: 0.8,
@@ -173,4 +173,3 @@ const Drawer: React.FC = () => {
 };
 
 export default Drawer;
-

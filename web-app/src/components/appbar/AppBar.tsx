@@ -1,5 +1,5 @@
-import * as React from "react";
-import { useDrawerStore } from "../../stores/drawerStore";
+import * as React from 'react';
+import { useDrawerStore } from '../../stores/drawerStore';
 
 const AppBar: React.FC = () => {
   const toggleDrawer = useDrawerStore(state => state.toggle);
