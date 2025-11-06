@@ -61,6 +61,7 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = React.useState({
     top: 0,
     left: 0,
@@ -91,7 +92,9 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        !containerRef.current.contains(event.target as Node) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
       }
@@ -131,6 +134,7 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
       {/* 下拉面板 - 使用 fixed 定位悬浮显示 */}
       {isOpen && dropdownContent && (
         <div
+          ref={dropdownRef}
           className="fixed w-[480px] h-[640px] bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden"
           style={{
             top: `${dropdownPosition.top}px`,
