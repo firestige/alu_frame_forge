@@ -26,7 +26,7 @@ const Drawer: React.FC = () => {
       <motion.div
         initial={false}
         animate={{
-          width: isOpen ? 256 : 0,
+          width: isOpen ? 'var(--width-drawer-sm)' : 0,
           opacity: isOpen ? 1 : 0,
         }}
         transition={{
@@ -35,7 +35,7 @@ const Drawer: React.FC = () => {
           damping: 30,
           mass: 0.8,
         }}
-        className="drawer bg-gray-100 shadow-lg overflow-hidden z-30 relative"
+        className="drawer bg-secondary-50 shadow-lg overflow-hidden z-30 relative"
       >
         <motion.div
           initial={false}
@@ -49,13 +49,13 @@ const Drawer: React.FC = () => {
             damping: 30,
             mass: 0.8,
           }}
-          className="w-64 h-full p-4 overflow-y-auto"
+          className="w-[var(--width-drawer-sm)] h-full p-4 overflow-y-auto"
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">导航菜单</h2>
+            <h2 className="text-xl font-bold text-secondary-900">导航菜单</h2>
             <button
               onClick={close}
-              className="p-1 hover:bg-gray-200 rounded-md transition-colors md:hidden"
+              className="p-1 hover:bg-secondary-200 rounded-md transition-colors md:hidden"
               aria-label="Close drawer"
             >
               <svg
@@ -83,7 +83,7 @@ const Drawer: React.FC = () => {
               >
                 <a
                   href="/"
-                  className="block p-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors"
+                  className="block p-3 text-secondary-700 hover:bg-primary-50 hover:text-primary-600 rounded-md transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <svg
@@ -110,7 +110,7 @@ const Drawer: React.FC = () => {
               >
                 <a
                   href="/designer"
-                  className="block p-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors"
+                  className="block p-3 text-secondary-700 hover:bg-primary-50 hover:text-primary-600 rounded-md transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <svg
@@ -137,7 +137,7 @@ const Drawer: React.FC = () => {
               >
                 <a
                   href="/library"
-                  className="block p-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md transition-colors"
+                  className="block p-3 text-secondary-700 hover:bg-primary-50 hover:text-primary-600 rounded-md transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <svg

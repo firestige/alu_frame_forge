@@ -7,7 +7,7 @@ import ControlPanel, {
   type ViewPos,
 } from '../features/designer/ui/camera/ControlPanel.tsx';
 import ContextMenuContainer from '../components/menu/ContextMenuContainer.tsx';
-import Toolbar from '../components/toolbar/DesignerToolbar.tsx';
+import Toolbar from '../features/designer/ui/DesignerToolbar.tsx';
 import ObjectManagerSidebar from '../components/sidebar/ObjectManagerSidebar.tsx';
 
 const DesignerPage: React.FC = () => {
