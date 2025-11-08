@@ -14,11 +14,9 @@ import { series20Profiles, series30Profiles } from '@/data/profiles';
 const LibraryPage: React.FC = () => {
   const {
     assets,
-    viewMode,
     searchQuery,
     selectedAssets,
     setAssets,
-    setViewMode,
     setSearchQuery,
     removeAssets,
     toggleSelectAsset,
@@ -105,8 +103,6 @@ const LibraryPage: React.FC = () => {
 
   return (
     <LibraryPageUI
-      viewMode={viewMode}
-      onViewModeChange={setViewMode}
       onSearch={setSearchQuery}
       onAdd={handleAdd}
       onDelete={handleDelete}

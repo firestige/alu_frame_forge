@@ -11,13 +11,11 @@ export interface Asset {
 
 interface LibraryState {
   assets: Asset[];
-  viewMode: 'gallery' | 'list';
   searchQuery: string;
   selectedAssets: string[];
 
   // Actions
   setAssets: (assets: Asset[]) => void;
-  setViewMode: (mode: 'gallery' | 'list') => void;
   setSearchQuery: (query: string) => void;
   addAsset: (asset: Asset) => void;
   removeAssets: (ids: string[]) => void;
@@ -27,12 +25,10 @@ interface LibraryState {
 
 export const useLibraryStore = create<LibraryState>(set => ({
   assets: [],
-  viewMode: 'gallery',
   searchQuery: '',
   selectedAssets: [],
 
   setAssets: assets => set({ assets }),
-  setViewMode: mode => set({ viewMode: mode }),
   setSearchQuery: query => set({ searchQuery: query }),
 
   addAsset: asset => set(state => ({ assets: [...state.assets, asset] })),

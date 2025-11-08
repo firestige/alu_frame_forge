@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import LibraryToolbar from './LibraryToolbar';
 import GalleryView from './GalleryView';
 import ListView from './ListView';
@@ -12,8 +12,6 @@ interface Asset {
 }
 
 export interface LibraryPageUIProps {
-  viewMode: 'gallery' | 'list';
-  onViewModeChange: (mode: 'gallery' | 'list') => void;
   onSearch: (query: string) => void;
   onAdd: () => void;
   onDelete: () => void;
@@ -31,8 +29,6 @@ export interface LibraryPageUIProps {
  * 负责组织具体的显示层实现，通过 props 接收数据和回调
  */
 const LibraryPageUI: React.FC<LibraryPageUIProps> = ({
-  viewMode,
-  onViewModeChange,
   onSearch,
   onAdd,
   onDelete,
@@ -44,11 +40,13 @@ const LibraryPageUI: React.FC<LibraryPageUIProps> = ({
   onSelectAsset,
   onSelectAll,
 }) => {
+  // viewMode 是内部状态：生产者（toolbar）和消费者（渲染逻辑）都在组件内部
+  const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery');
   return (
     <div className="library-page-ui flex flex-col h-full">
       <LibraryToolbar
         viewMode={viewMode}
-        onViewModeChange={onViewModeChange}
+        onViewModeChange={setViewMode}
         onSearch={onSearch}
         onAdd={onAdd}
         onDelete={onDelete}
