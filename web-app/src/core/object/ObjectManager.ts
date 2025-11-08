@@ -1,81 +1,79 @@
+/**
+ * 对象管理器（基于新架构）
+ * 使用 SceneObject + Asset 的双模型架构
+ *
+ * 核心职责：
+ * - 管理场景对象（SceneObject）的生命周期
+ * - 提供对象的增删改查接口
+ * - 发布对象变更事件供 UI 层订阅
+ * - 协调 AssetRegistry、ModelFactory 等核心服务
+ */
+
 import type { IRenderer, Vector3, Euler } from '../renderer/renderer-types';
-import type {
-  Model,
-  ModelType,
-  ModelParameters,
-  PrebuiltAsset,
-  Constraint,
-  CollisionInfo,
-  ICollisionDetector,
-  IConstraintSolver,
-  SceneExportData,
-  ObjectManagerEvents,
-} from './types';
+import type { SceneObject, Asset, Transform, InstanceOptions } from './types';
+import type { AssetType } from './types/enums';
 import mitt, { type Emitter } from 'mitt';
-import { AssetRegistry } from './AssetRegistry';
-import { ModelRepository } from './ModelRepository';
-import { ModelFactory } from './ModelFactory';
-import { ModelOperations } from './ModelOperations';
-import { ConstraintManager } from './ConstraintManager';
+import { AssetRegistry } from './AssetRegistry.new';
+import { ModelFactory } from './ModelFactory.new';
 
 /**
- * 对象管理器（重构版本 - 使用组合模式 + 事件驱动）
- * 负责模型、资产、约束等的统一管理
- *
- * 注意：从 v2.0 开始，渲染同步已迁移到 RenderSyncService
- * 建议使用 RenderSyncService 代替直接传入 renderer
- *
- * @template TMetadata - 模型元数据类型，默认为 Record<string, unknown>
+ * 对象管理器事件
  */
-export class ObjectManager<TMetadata = Record<string, unknown>> {
-  // 子模块
-  private assetRegistry: AssetRegistry;
-  private modelRepository: ModelRepository<TMetadata>;
-  private modelFactory: ModelFactory<TMetadata>;
-  private modelOperations: ModelOperations<TMetadata>;
-  private constraintManager: ConstraintManager<TMetadata>;
+export interface ObjectManagerEvents {
+  'object:added': { object: SceneObject };
+  'object:removed': { objectId: string };
+  'object:updated': {
+    objectId: string;
+    object: SceneObject;
+    updates: Partial<SceneObject>;
+  };
+  'object:transform-changed': { objectId: string; transform: Transform };
+  'object:visibility-changed': { objectId: string; visible: boolean };
+  'objects:cleared': undefined;
+}
+
+/**
+ * 场景导出数据格式
+ */
+export interface SceneExportData {
+  objects: Array<{
+    id: string;
+    name: string;
+    assetId: string;
+    transform: {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      scale: [number, number, number];
+    };
+    userParams: Record<string, unknown>;
+    isVisible: boolean;
+  }>;
+  exportedAt: string;
+}
+
+/**
+ * 对象管理器
+ */
+export class ObjectManager {
+  // 对象存储
+  private objects = new Map<string, SceneObject>();
+  private objectIdCounter = 0;
 
   // 事件总线
-  private eventBus: Emitter<ObjectManagerEvents<TMetadata>>;
+  private eventBus: Emitter<ObjectManagerEvents>;
 
-  // 渲染器引用（向后兼容，建议使用 RenderSyncService 代替）
-  /** @deprecated 使用 RenderSyncService 代替直接渲染器依赖 */
+  // 核心服务
+  private assetRegistry: AssetRegistry;
+  private modelFactory: ModelFactory;
+
+  // 渲染器引用
   private renderer?: IRenderer;
-  private collisionDetector?: ICollisionDetector<TMetadata>;
 
-  constructor(
-    renderer?: IRenderer,
-    collisionDetector?: ICollisionDetector<TMetadata>,
-    constraintSolver?: IConstraintSolver<TMetadata>
-  ) {
+  constructor(renderer?: IRenderer) {
     this.renderer = renderer;
-    this.collisionDetector = collisionDetector;
-
-    // 初始化事件总线
-    this.eventBus = mitt<ObjectManagerEvents<TMetadata>>();
-
-    // 初始化子模块
+    this.eventBus = mitt<ObjectManagerEvents>();
     this.assetRegistry = new AssetRegistry();
-    this.modelRepository = new ModelRepository<TMetadata>();
-    this.modelFactory = new ModelFactory<TMetadata>(this.assetRegistry, () =>
-      this.modelRepository.generateId()
-    );
-    this.modelOperations = new ModelOperations<TMetadata>(
-      this.modelRepository,
-      this.assetRegistry,
-      this.modelFactory
-    );
-    this.constraintManager = new ConstraintManager<TMetadata>(constraintSolver);
-  }
-
-  // ==================== 渲染器管理 ====================
-
-  /**
-   * 设置渲染器
-   * @deprecated 使用 RenderSyncService 代替直接渲染器依赖
-   */
-  public setRenderer(renderer: IRenderer): void {
-    this.renderer = renderer;
+    this.modelFactory = new ModelFactory(this.assetRegistry);
   }
 
   // ==================== 事件管理 ====================
@@ -83,9 +81,9 @@ export class ObjectManager<TMetadata = Record<string, unknown>> {
   /**
    * 订阅事件
    */
-  public on<K extends keyof ObjectManagerEvents<TMetadata>>(
+  public on<K extends keyof ObjectManagerEvents>(
     event: K,
-    handler: (data: ObjectManagerEvents<TMetadata>[K]) => void
+    handler: (data: ObjectManagerEvents[K]) => void
   ): void {
     this.eventBus.on(event, handler);
   }
@@ -93,9 +91,9 @@ export class ObjectManager<TMetadata = Record<string, unknown>> {
   /**
    * 取消订阅
    */
-  public off<K extends keyof ObjectManagerEvents<TMetadata>>(
+  public off<K extends keyof ObjectManagerEvents>(
     event: K,
-    handler: (data: ObjectManagerEvents<TMetadata>[K]) => void
+    handler: (data: ObjectManagerEvents[K]) => void
   ): void {
     this.eventBus.off(event, handler);
   }
@@ -103,333 +101,295 @@ export class ObjectManager<TMetadata = Record<string, unknown>> {
   /**
    * 发布事件
    */
-  private emit<K extends keyof ObjectManagerEvents<TMetadata>>(
+  private emit<K extends keyof ObjectManagerEvents>(
     event: K,
-    data: ObjectManagerEvents<TMetadata>[K]
+    data: ObjectManagerEvents[K]
   ): void {
     this.eventBus.emit(event, data);
   }
 
-  // ==================== 模型基础操作 ====================
+  // ==================== 渲染器管理 ====================
 
   /**
-   * 添加模型到管理器
+   * 设置渲染器
    */
-  public addModel(model: Model<TMetadata>): void {
-    this.modelRepository.add(model);
+  public setRenderer(renderer: IRenderer): void {
+    this.renderer = renderer;
+  }
+
+  // ==================== ID 生成 ====================
+
+  /**
+   * 生成唯一 ID
+   */
+  private generateId(): string {
+    return `obj_${Date.now()}_${this.objectIdCounter++}`;
+  }
+
+  // ==================== 对象基础操作 ====================
+
+  /**
+   * 添加对象到场景
+   */
+  public addObject(object: SceneObject): void {
+    this.objects.set(object.id, object);
 
     // 发布事件
-    this.emit('model:added', { model });
+    this.emit('object:added', { object });
 
     // 同步到渲染器
-    if (this.renderer && model.renderObject) {
-      this.renderer.addObject(model.renderObject, {
+    if (this.renderer && object.visual && object.visual.mesh) {
+      this.renderer.addObject(object.visual.mesh, {
         interactive: true,
-        modelId: model.id,
-        name: model.name,
+        modelId: object.id,
+        name: object.name,
       });
     }
 
-    console.log(`Model ${model.name} (${model.id}) added`);
+    console.log(`Object ${object.name} (${object.id}) added`);
   }
 
   /**
-   * 根据 ID 移除模型
+   * 移除对象
    */
-  public removeModel(modelId: string): boolean {
-    const model = this.modelRepository.getById(modelId);
-    if (!model) {
-      console.warn(`Model ${modelId} not found`);
+  public removeObject(objectId: string): boolean {
+    const object = this.objects.get(objectId);
+    if (!object) {
+      console.warn(`Object ${objectId} not found`);
       return false;
     }
 
     // 从渲染器移除
-    if (this.renderer && model.renderObject) {
-      this.renderer.removeObject(model.renderObject);
-      this.renderer.disposeObject(model.renderObject);
+    if (this.renderer && object.visual && object.visual.mesh) {
+      this.renderer.removeObject(object.visual.mesh);
+      this.renderer.disposeObject(object.visual.mesh);
     }
 
-    // 从仓储移除
-    this.modelRepository.remove(modelId);
-
-    // 移除相关约束
-    this.constraintManager.removeByModel(modelId);
+    // 从存储移除
+    this.objects.delete(objectId);
 
     // 发布事件
-    this.emit('model:removed', { modelId });
+    this.emit('object:removed', { objectId });
 
-    console.log(`Model ${model.name} (${modelId}) removed`);
+    console.log(`Object ${object.name} (${objectId}) removed`);
     return true;
   }
 
   /**
-   * 根据 ID 获取模型
+   * 根据 ID 获取对象
    */
-  public getModel(modelId: string): Model<TMetadata> | undefined {
-    return this.modelRepository.getById(modelId);
+  public getObject(objectId: string): SceneObject | undefined {
+    return this.objects.get(objectId);
   }
 
   /**
-   * 根据名称获取模型
+   * 根据名称获取对象
    */
-  public getModelByName(name: string): Model<TMetadata> | undefined {
-    return this.modelRepository.getByName(name);
+  public getObjectByName(name: string): SceneObject | undefined {
+    return Array.from(this.objects.values()).find(obj => obj.name === name);
   }
 
   /**
-   * 获取所有模型
+   * 获取所有对象
    */
-  public getAllModels(): Model<TMetadata>[] {
-    return this.modelRepository.getAll();
+  public getAllObjects(): SceneObject[] {
+    return Array.from(this.objects.values());
   }
 
   /**
-   * 根据类型获取模型列表
+   * 根据资产类型获取对象列表
    */
-  public getModelsByType(type: ModelType): Model<TMetadata>[] {
-    return this.modelRepository.getByType(type);
+  public getObjectsByAssetType(assetType: AssetType): SceneObject[] {
+    return Array.from(this.objects.values()).filter(obj => {
+      const asset = this.assetRegistry.get(obj.assetId);
+      return asset?.type === assetType;
+    });
   }
 
   /**
-   * 更新模型属性
+   * 更新对象
    */
-  public updateModel(
-    modelId: string,
-    updates: Partial<Model<TMetadata>>
-  ): void {
-    const model = this.modelRepository.update(modelId, updates);
+  public updateObject(objectId: string, updates: Partial<SceneObject>): void {
+    const object = this.objects.get(objectId);
+    if (!object) {
+      console.warn(`Object ${objectId} not found`);
+      return;
+    }
+
+    // 更新对象
+    const updatedObject = { ...object, ...updates };
+    this.objects.set(objectId, updatedObject);
 
     // 发布事件
-    this.emit('model:updated', { modelId, model, updates });
+    this.emit('object:updated', { objectId, object: updatedObject, updates });
 
     // 同步到渲染器
-    if (this.renderer && model.renderObject) {
-      this.renderer.updateObjectTransform(model.renderObject, {
-        position: updates.position,
-        rotation: updates.rotation,
-        scale: updates.scale,
-      });
+    if (this.renderer && object.visual) {
+      if (updates.transform) {
+        this.renderer.updateObjectTransform(object.visual.mesh, {
+          position: updates.transform.position,
+          rotation: updates.transform.rotation,
+          scale: updates.transform.scale,
+        });
+        this.emit('object:transform-changed', {
+          objectId,
+          transform: updates.transform,
+        });
+      }
 
-      if (updates.isVisible !== undefined) {
+      if (updates.visual && updates.visual.isVisible !== undefined) {
         this.renderer.setObjectVisibility(
-          model.renderObject,
-          updates.isVisible
+          object.visual.mesh,
+          updates.visual.isVisible
         );
+        this.emit('object:visibility-changed', {
+          objectId,
+          visible: updates.visual.isVisible,
+        });
       }
     }
+  }
+
+  /**
+   * 设置对象可见性（便捷方法）
+   */
+  public setObjectVisibility(objectId: string, visible: boolean): void {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+
+    this.updateObject(objectId, {
+      visual: { ...object.visual, isVisible: visible },
+    });
+  }
+
+  /**
+   * 更新对象的 Transform
+   */
+  public updateTransform(
+    objectId: string,
+    transform: Partial<Transform>
+  ): void {
+    const object = this.objects.get(objectId);
+    if (!object) {
+      console.warn(`Object ${objectId} not found`);
+      return;
+    }
+
+    const updatedTransform: Transform = {
+      ...object.transform,
+      ...transform,
+    };
+
+    this.updateObject(objectId, { transform: updatedTransform });
+  }
+
+  /**
+   * 更新对象的位置
+   */
+  public updatePosition(objectId: string, position: Partial<Vector3>): void {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+
+    this.updateTransform(objectId, {
+      position: { ...object.transform.position, ...position },
+    });
+  }
+
+  /**
+   * 更新对象的旋转
+   */
+  public updateRotation(objectId: string, rotation: Partial<Euler>): void {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+
+    this.updateTransform(objectId, {
+      rotation: { ...object.transform.rotation, ...rotation },
+    });
+  }
+
+  /**
+   * 更新对象的缩放
+   */
+  public updateScale(objectId: string, scale: Partial<Vector3>): void {
+    const object = this.objects.get(objectId);
+    if (!object) return;
+
+    this.updateTransform(objectId, {
+      scale: { ...object.transform.scale, ...scale },
+    });
+  }
+
+  /**
+   * 更新对象的用户参数
+   */
+  public updateUserParams(
+    objectId: string,
+    params: Record<string, unknown>
+  ): void {
+    const object = this.objects.get(objectId);
+    if (!object) {
+      console.warn(`Object ${objectId} not found`);
+      return;
+    }
+
+    const updatedParams = { ...object.userParams, ...params };
+    this.updateObject(objectId, { userParams: updatedParams });
   }
 
   // ==================== 资产管理 ====================
 
   /**
-   * 注册预制资产
+   * 获取资产注册表
    */
-  public registerPrebuiltAsset(asset: PrebuiltAsset): void {
-    this.assetRegistry.registerAsset(asset);
+  public getAssetRegistry(): AssetRegistry {
+    return this.assetRegistry;
   }
 
   /**
-   * 获取所有预制资产
+   * 注册资产
    */
-  public getAllPrebuiltAssets(): PrebuiltAsset[] {
-    return this.assetRegistry.getAllAssets();
+  public registerAsset(asset: Asset): void {
+    this.assetRegistry.register(asset);
   }
 
   /**
-   * 根据 ID 获取预制资产
+   * 获取所有资产
    */
-  public getPrebuiltAsset(assetId: string): PrebuiltAsset | undefined {
-    return this.assetRegistry.getAsset(assetId);
+  public getAllAssets(): Asset[] {
+    return this.assetRegistry.getAll();
   }
 
   /**
-   * 根据类型获取预制资产
+   * 根据类型获取资产
    */
-  public getPrebuiltAssetsByType(type: ModelType): PrebuiltAsset[] {
-    return this.assetRegistry.getAssetsByType(type);
+  public getAssetsByType(type: AssetType): Asset[] {
+    return this.assetRegistry.getByType(type);
   }
 
   /**
-   * 从预制资产创建模型
+   * 根据 ID 获取资产
    */
-  public createModelFromAsset(
+  public getAsset(assetId: string): Asset | undefined {
+    return this.assetRegistry.get(assetId);
+  }
+
+  // ==================== 对象创建 ====================
+
+  /**
+   * 从资产创建对象
+   */
+  public createObjectFromAsset(
     assetId: string,
-    options?: {
-      name?: string;
-      position?: Vector3;
-      rotation?: Euler;
-      parameters?: Partial<ModelParameters>;
-      metadata?: TMetadata;
-    }
-  ): Model<TMetadata> {
-    const model = this.modelFactory.createFromAsset(assetId, options);
-
-    // 设置位置和旋转（通过渲染器）
-    if (this.renderer && model.renderObject) {
-      if (options?.position || options?.rotation) {
-        this.renderer.updateObjectTransform(model.renderObject, {
-          position: options?.position,
-          rotation: options?.rotation,
-        });
-      }
-    }
-
-    this.addModel(model);
-    return model;
-  }
-
-  // ==================== 参数化调整 ====================
-
-  /**
-   * 更新模型参数（参数化调整）
-   */
-  public updateModelParameters(
-    modelId: string,
-    parameters: Partial<ModelParameters>
-  ): void {
-    this.modelOperations.updateParameters(
-      modelId,
-      parameters,
-      (oldMesh, newMesh) => {
-        if (!this.renderer) return;
-
-        const model = this.modelRepository.getById(modelId);
-        if (!model) return;
-
-        // 移除旧网格
-        this.renderer.removeObject(oldMesh);
-        this.renderer.disposeObject(oldMesh);
-
-        // 添加新网格
-        this.renderer.addObject(newMesh, {
-          interactive: true,
-          modelId: model.id,
-          name: model.name,
-        });
-
-        // 恢复变换
-        this.renderer.updateObjectTransform(newMesh, {
-          position: model.position,
-          rotation: model.rotation,
-          scale: model.scale,
-        });
-
-        this.renderer.setObjectVisibility(newMesh, model.isVisible);
-      }
-    );
-  }
-
-  /**
-   * 拉伸模型长度（针对型材）
-   */
-  public stretchModel(modelId: string, length: number): void {
-    this.modelOperations.stretchLength(modelId, length);
-  }
-
-  /**
-   * 扩大面的面积（调整宽度和高度）
-   */
-  public resizeFace(modelId: string, width?: number, height?: number): void {
-    this.modelOperations.resizeFace(modelId, width, height);
-  }
-
-  // ==================== 碰撞检测 ====================
-
-  /**
-   * 设置碰撞检测器
-   */
-  public setCollisionDetector(detector: ICollisionDetector<TMetadata>): void {
-    this.collisionDetector = detector;
-  }
-
-  /**
-   * 检测所有模型的碰撞
-   */
-  public detectCollisions(): CollisionInfo[] {
-    if (!this.collisionDetector) {
-      console.warn('Collision detector not set');
-      return [];
-    }
-
-    const models = this.modelRepository.getAll();
-    return this.collisionDetector.detectCollisions(models);
-  }
-
-  /**
-   * 检测单个模型的碰撞
-   */
-  public detectCollision(modelId: string): CollisionInfo {
-    if (!this.collisionDetector) {
-      throw new Error('Collision detector not set');
-    }
-
-    const model = this.modelRepository.getById(modelId);
-    if (!model) {
-      throw new Error(`Model ${modelId} not found`);
-    }
-
-    const models = this.modelRepository.getAll();
-    const otherModel = models.find(m => m.id !== modelId);
-    if (!otherModel) {
-      throw new Error('Need at least two models for collision detection');
-    }
-
-    return this.collisionDetector.checkCollision(model, otherModel);
-  }
-
-  // ==================== 约束管理 ====================
-
-  /**
-   * 设置约束求解器
-   */
-  public setConstraintSolver(solver: IConstraintSolver<TMetadata>): void {
-    this.constraintManager.setSolver(solver);
-  }
-
-  /**
-   * 添加约束
-   */
-  public addConstraint(constraint: Constraint): void {
-    this.constraintManager.add(constraint, (modelId: string) =>
-      this.modelRepository.has(modelId)
-    );
-  }
-
-  /**
-   * 移除约束
-   */
-  public removeConstraint(constraintId: string): boolean {
-    return this.constraintManager.remove(constraintId);
-  }
-
-  /**
-   * 获取所有约束
-   */
-  public getAllConstraints(): Constraint[] {
-    return this.constraintManager.getAll();
-  }
-
-  /**
-   * 获取与某个模型相关的约束
-   */
-  public getConstraintsByModel(modelId: string): Constraint[] {
-    return this.constraintManager.getByModel(modelId);
-  }
-
-  /**
-   * 求解约束
-   */
-  public solveConstraints(): void {
-    const models = this.modelRepository.getAll();
-    this.constraintManager.solve(models, model => {
-      if (model.renderObject && this.renderer) {
-        this.renderer.updateObjectTransform(model.renderObject, {
-          position: model.position,
-          rotation: model.rotation,
-          scale: model.scale,
-        });
-      }
+    options?: Partial<InstanceOptions>
+  ): SceneObject {
+    const object = this.modelFactory.createFromAsset(assetId, {
+      name: options?.name,
+      transform: options?.transform,
+      userParams: options?.userParams || {},
     });
+
+    this.addObject(object);
+    return object;
   }
 
   // ==================== 场景 I/O ====================
@@ -437,36 +397,34 @@ export class ObjectManager<TMetadata = Record<string, unknown>> {
   /**
    * 导出场景数据
    */
-  public exportScene(): SceneExportData<TMetadata> {
-    const models = this.modelRepository.getAll().map(model => ({
-      id: model.id,
-      name: model.name,
-      type: model.type,
-      position: [model.position.x, model.position.y, model.position.z] as [
-        number,
-        number,
-        number,
-      ],
-      rotation: [model.rotation.x, model.rotation.y, model.rotation.z] as [
-        number,
-        number,
-        number,
-      ],
-      scale: [model.scale.x, model.scale.y, model.scale.z] as [
-        number,
-        number,
-        number,
-      ],
-      parameters: model.parameters,
-      metadata: model.metadata,
-      isVisible: model.isVisible,
+  public exportScene(): SceneExportData {
+    const objects = Array.from(this.objects.values()).map(obj => ({
+      id: obj.id,
+      name: obj.name,
+      assetId: obj.assetId,
+      transform: {
+        position: [
+          obj.transform.position.x,
+          obj.transform.position.y,
+          obj.transform.position.z,
+        ] as [number, number, number],
+        rotation: [
+          obj.transform.rotation.x,
+          obj.transform.rotation.y,
+          obj.transform.rotation.z,
+        ] as [number, number, number],
+        scale: [
+          obj.transform.scale.x,
+          obj.transform.scale.y,
+          obj.transform.scale.z,
+        ] as [number, number, number],
+      },
+      userParams: obj.userParams,
+      isVisible: obj.visual?.isVisible ?? true,
     }));
 
-    const constraints = this.constraintManager.getAll();
-
     return {
-      models,
-      constraints,
+      objects,
       exportedAt: new Date().toISOString(),
     };
   }
@@ -474,40 +432,42 @@ export class ObjectManager<TMetadata = Record<string, unknown>> {
   /**
    * 导入场景数据
    */
-  public importScene(data: SceneExportData<TMetadata>): void {
+  public importScene(data: SceneExportData): void {
     this.clear();
 
-    // 导入模型
-    if (data.models && Array.isArray(data.models)) {
-      data.models.forEach(modelData => {
-        const assetId = (modelData.metadata as Record<string, unknown>).assetId;
-        if (assetId && typeof assetId === 'string') {
-          this.createModelFromAsset(assetId, {
-            name: modelData.name,
-            position: {
-              x: modelData.position[0],
-              y: modelData.position[1],
-              z: modelData.position[2],
-            },
-            rotation: {
-              x: modelData.rotation[0],
-              y: modelData.rotation[1],
-              z: modelData.rotation[2],
-              order: 'XYZ',
-            },
-            parameters: modelData.parameters,
-            metadata: modelData.metadata,
-          });
-        }
+    data.objects.forEach(objData => {
+      // 通过工厂重新创建对象
+      const recreated = this.modelFactory.createFromAsset(objData.assetId, {
+        name: objData.name,
+        transform: {
+          position: {
+            x: objData.transform.position[0],
+            y: objData.transform.position[1],
+            z: objData.transform.position[2],
+          },
+          rotation: {
+            x: objData.transform.rotation[0],
+            y: objData.transform.rotation[1],
+            z: objData.transform.rotation[2],
+            order: 'XYZ',
+          },
+          scale: {
+            x: objData.transform.scale[0],
+            y: objData.transform.scale[1],
+            z: objData.transform.scale[2],
+          },
+        },
+        userParams: objData.userParams,
       });
-    }
 
-    // 导入约束
-    if (data.constraints && Array.isArray(data.constraints)) {
-      data.constraints.forEach((constraint: Constraint) => {
-        this.addConstraint(constraint);
-      });
-    }
+      // 恢复原始 ID 和可见性
+      recreated.id = objData.id;
+      if (recreated.visual) {
+        recreated.visual.isVisible = objData.isVisible;
+      }
+
+      this.addObject(recreated);
+    });
 
     console.log('Scene imported', data);
   }
@@ -515,23 +475,29 @@ export class ObjectManager<TMetadata = Record<string, unknown>> {
   // ==================== 辅助方法 ====================
 
   /**
-   * 清空所有模型
+   * 清空所有对象
    */
   public clear(): void {
     // 清理渲染对象
-    const models = this.modelRepository.getAll();
-    models.forEach(model => {
-      if (this.renderer && model.renderObject) {
-        this.renderer.removeObject(model.renderObject);
-        this.renderer.disposeObject(model.renderObject);
+    this.objects.forEach(object => {
+      if (this.renderer && object.visual && object.visual.mesh) {
+        this.renderer.removeObject(object.visual.mesh);
+        this.renderer.disposeObject(object.visual.mesh);
       }
     });
 
-    this.modelRepository.clear();
+    this.objects.clear();
 
     // 发布事件
-    this.emit('models:cleared', undefined);
+    this.emit('objects:cleared', undefined);
 
-    console.log('All models cleared');
+    console.log('All objects cleared');
+  }
+
+  /**
+   * 获取对象数量
+   */
+  public getObjectCount(): number {
+    return this.objects.size;
   }
 }

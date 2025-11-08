@@ -1,13 +1,14 @@
 import * as React from 'react';
-import type { Model } from '@/core/object';
+import type { SceneObject } from '@/core/object/types/scene-object';
+import type { PropertyUpdateHandler, TransformPropertyPath } from '../models';
 
 interface PropertyPanelProps {
-  model: Model | null;
-  onUpdateProperty: (property: string, value: any) => void;
+  object: SceneObject | null;
+  onUpdateProperty: PropertyUpdateHandler;
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
-  model,
+  object,
   onUpdateProperty,
 }) => {
   const [editingValues, setEditingValues] = React.useState<
@@ -15,22 +16,22 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   >({});
 
   React.useEffect(() => {
-    if (model) {
+    if (object) {
       setEditingValues({
-        posX: model.position.x.toFixed(2),
-        posY: model.position.y.toFixed(2),
-        posZ: model.position.z.toFixed(2),
-        rotX: ((model.rotation.x * 180) / Math.PI).toFixed(2),
-        rotY: ((model.rotation.y * 180) / Math.PI).toFixed(2),
-        rotZ: ((model.rotation.z * 180) / Math.PI).toFixed(2),
-        scaleX: model.scale.x.toFixed(2),
-        scaleY: model.scale.y.toFixed(2),
-        scaleZ: model.scale.z.toFixed(2),
+        posX: object.transform.position.x.toFixed(2),
+        posY: object.transform.position.y.toFixed(2),
+        posZ: object.transform.position.z.toFixed(2),
+        rotX: ((object.transform.rotation.x * 180) / Math.PI).toFixed(2),
+        rotY: ((object.transform.rotation.y * 180) / Math.PI).toFixed(2),
+        rotZ: ((object.transform.rotation.z * 180) / Math.PI).toFixed(2),
+        scaleX: object.transform.scale.x.toFixed(2),
+        scaleY: object.transform.scale.y.toFixed(2),
+        scaleZ: object.transform.scale.z.toFixed(2),
       });
     }
-  }, [model]);
+  }, [object]);
 
-  if (!model) {
+  if (!object) {
     return (
       <div className="flex-1 flex items-center justify-center text-slate-500 text-xs">
         未选中对象
@@ -42,7 +43,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     setEditingValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleInputBlur = (property: string, key: string) => {
+  const handleInputBlur = (property: TransformPropertyPath, key: string) => {
     const value = parseFloat(editingValues[key]);
     if (!isNaN(value)) {
       onUpdateProperty(property, value);
@@ -78,16 +79,16 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           <div className="space-y-1.5 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-400">名称:</span>
-              <span className="text-white">{model.name}</span>
+              <span className="text-white">{object.name}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">类型:</span>
-              <span className="text-white">{model.type}</span>
+              <span className="text-white">{object.assetType}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">可见:</span>
               <span className="text-white">
-                {model.isVisible ? '是' : '否'}
+                {object.visual?.isVisible ? '是' : '否'}
               </span>
             </div>
           </div>
@@ -171,11 +172,11 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
 
         {/* 参数 */}
-        {model.parameters && Object.keys(model.parameters).length > 0 && (
+        {object.userParams && Object.keys(object.userParams).length > 0 && (
           <div>
             <div className="text-xs text-slate-400 mb-2 font-medium">参数</div>
             <div className="space-y-1.5 text-xs">
-              {Object.entries(model.parameters).map(([key, value]) => (
+              {Object.entries(object.userParams).map(([key, value]) => (
                 <div key={key} className="flex justify-between">
                   <span className="text-slate-400">{key}:</span>
                   <span className="text-white">{String(value)}</span>

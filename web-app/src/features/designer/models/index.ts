@@ -4,3 +4,4 @@
 
 export * from './DesignerState';
 export * from './InteractionState';
+export * from './PropertyTypes';

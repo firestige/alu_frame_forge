@@ -1,9 +1,9 @@
 import type { ObjectManager } from '@/core/object';
-import { ModelType } from '@/core/object';
+import { AssetType, AssetSource } from '@/core/object';
 
 /**
- * 模型创建服务
- * 负责注册素材和创建各种类型的模型
+ * 对象创建服务
+ * 负责注册资产和创建场景对象
  */
 export class ModelCreationService {
   private objectManager: ObjectManager;
@@ -14,57 +14,68 @@ export class ModelCreationService {
   }
 
   /**
-   * 注册所有自定义素材
+   * 注册所有自定义资产
    */
   private registerAssets(): void {
     if (this.assetsRegistered) return;
 
-    // 注册立方体素材
-    if (!this.objectManager.getPrebuiltAsset('custom_cube')) {
-      this.objectManager.registerPrebuiltAsset({
-        id: 'custom_cube',
-        name: '立方体',
-        type: ModelType.CUSTOM,
-        description: '简单的立方体',
-        createGeometry: () => ({
-          width: 1000,
-          height: 1000,
-          thickness: 1000,
-        }),
-        defaultMaterial: 'standard',
-        defaultParameters: {
-          width: 1,
-          height: 1,
-          thickness: 1,
-        },
-      });
-    }
+    // 注册立方体资产（作为 ACCESSORY）
+    const cubeAsset = {
+      id: 'custom_cube',
+      name: '立方体',
+      type: AssetType.ACCESSORY,
+      source: AssetSource.CUSTOM,
+      description: '简单的立方体',
+      category: 'basic_shape',
+      defaultParams: {
+        size: 1000,
+      },
+      dimensions: {
+        width: 1000,
+        height: 1000,
+        depth: 1000,
+      },
+      material: {
+        type: 'aluminum' as const,
+        density: 2700,
+        youngsModulus: 69000,
+        poissonsRatio: 0.33,
+        yieldStrength: 240,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.objectManager.registerAsset(cubeAsset as any);
 
-    // 注册长方体素材
-    if (!this.objectManager.getPrebuiltAsset('custom_box')) {
-      this.objectManager.registerPrebuiltAsset({
-        id: 'custom_box',
-        name: '长方体',
-        type: ModelType.CUSTOM,
-        description: '可调整的长方体',
-        createGeometry: params => {
-          const width = (params.width || 1) * 1000;
-          const height = (params.height || 2) * 1000;
-          const depth = (params.thickness || 1) * 1000;
-          return {
-            width,
-            height,
-            thickness: depth,
-          };
-        },
-        defaultMaterial: 'standard',
-        defaultParameters: {
-          width: 1,
-          height: 2,
-          thickness: 1,
-        },
-      });
-    }
+    // 注册长方体资产
+    const boxAsset = {
+      id: 'custom_box',
+      name: '长方体',
+      type: AssetType.ACCESSORY,
+      source: AssetSource.CUSTOM,
+      description: '可调整的长方体',
+      category: 'basic_shape',
+      defaultParams: {
+        width: 1000,
+        height: 2000,
+        depth: 1000,
+      },
+      dimensions: {
+        width: 1000,
+        height: 2000,
+        depth: 1000,
+      },
+      material: {
+        type: 'aluminum' as const,
+        density: 2700,
+        youngsModulus: 69000,
+        poissonsRatio: 0.33,
+        yieldStrength: 240,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.objectManager.registerAsset(boxAsset as any);
 
     this.assetsRegistered = true;
   }
@@ -75,16 +86,21 @@ export class ModelCreationService {
   public createCube(): void {
     this.registerAssets();
 
-    const model = this.objectManager.createModelFromAsset('custom_cube', {
+    const object = this.objectManager.createObjectFromAsset('custom_cube', {
       name: `立方体_${Date.now()}`,
-      position: {
-        x: (Math.random() - 0.5) * 4,
-        y: (Math.random() - 0.5) * 4,
-        z: (Math.random() - 0.5) * 4,
+      transform: {
+        position: {
+          x: (Math.random() - 0.5) * 4000,
+          y: (Math.random() - 0.5) * 4000,
+          z: (Math.random() - 0.5) * 4000,
+        },
+      },
+      userParams: {
+        size: 1000,
       },
     });
 
-    console.log('添加立方体:', model);
+    console.log('添加立方体:', object);
   }
 
   /**
@@ -93,76 +109,88 @@ export class ModelCreationService {
   public createBox(): void {
     this.registerAssets();
 
-    const model = this.objectManager.createModelFromAsset('custom_box', {
+    const object = this.objectManager.createObjectFromAsset('custom_box', {
       name: `长方体_${Date.now()}`,
-      position: {
-        x: (Math.random() - 0.5) * 4,
-        y: (Math.random() - 0.5) * 4,
-        z: (Math.random() - 0.5) * 4,
+      transform: {
+        position: {
+          x: (Math.random() - 0.5) * 4000,
+          y: (Math.random() - 0.5) * 4000,
+          z: (Math.random() - 0.5) * 4000,
+        },
       },
-      parameters: {
-        width: 1,
-        height: 2,
-        thickness: 1,
+      userParams: {
+        width: 1000,
+        height: 2000,
+        depth: 1000,
       },
     });
 
-    console.log('添加长方体:', model);
+    console.log('添加长方体:', object);
   }
 
   /**
    * 创建铝型材
    */
   public createAluminumProfile(): void {
-    const model = this.objectManager.createModelFromAsset('alu_profile_40x40', {
+    const object = this.objectManager.createObjectFromAsset('profile_2020', {
       name: `铝型材_${Date.now()}`,
-      position: {
-        x: (Math.random() - 0.5) * 4,
-        y: (Math.random() - 0.5) * 4,
-        z: (Math.random() - 0.5) * 4,
+      transform: {
+        position: {
+          x: (Math.random() - 0.5) * 4000,
+          y: (Math.random() - 0.5) * 4000,
+          z: (Math.random() - 0.5) * 4000,
+        },
       },
-      parameters: {
+      userParams: {
         length: 1500,
       },
     });
 
-    console.log('添加铝型材:', model);
+    console.log('添加铝型材:', object);
   }
 
   /**
    * 创建面板
    */
   public createPanel(): void {
-    const model = this.objectManager.createModelFromAsset('acrylic_panel', {
+    const object = this.objectManager.createObjectFromAsset('acrylic_panel', {
       name: `面板_${Date.now()}`,
-      position: {
-        x: (Math.random() - 0.5) * 4,
-        y: (Math.random() - 0.5) * 4,
-        z: (Math.random() - 0.5) * 4,
+      transform: {
+        position: {
+          x: (Math.random() - 0.5) * 4000,
+          y: (Math.random() - 0.5) * 4000,
+          z: (Math.random() - 0.5) * 4000,
+        },
       },
-      parameters: {
+      userParams: {
         width: 500,
         height: 500,
         thickness: 3,
       },
     });
 
-    console.log('添加面板:', model);
+    console.log('添加面板:', object);
   }
 
   /**
    * 创建连接件
    */
   public createConnector(): void {
-    const model = this.objectManager.createModelFromAsset('corner_connector', {
-      name: `连接件_${Date.now()}`,
-      position: {
-        x: (Math.random() - 0.5) * 4,
-        y: (Math.random() - 0.5) * 4,
-        z: (Math.random() - 0.5) * 4,
-      },
-    });
+    const object = this.objectManager.createObjectFromAsset(
+      'corner_connector',
+      {
+        name: `连接件_${Date.now()}`,
+        transform: {
+          position: {
+            x: (Math.random() - 0.5) * 4000,
+            y: (Math.random() - 0.5) * 4000,
+            z: (Math.random() - 0.5) * 4000,
+          },
+        },
+        userParams: {},
+      }
+    );
 
-    console.log('添加连接件:', model);
+    console.log('添加连接件:', object);
   }
 }

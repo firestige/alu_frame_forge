@@ -1,4 +1,10 @@
-// 重新导出核心类型
+// 重新导出新架构的核心类型
+export type * from './types';
+
+// 重新导出新架构的枚举（作为值）
+export { AssetType, AssetSource, MachiningOpType } from './types/enums';
+
+// 重新导出旧类型（兼容性，逐步废弃）
 export type {
   Model,
   ModelParameters,
@@ -19,13 +25,13 @@ export type {
 // 重新导出常量和枚举（作为值）
 export { ModelType } from './types';
 
-// 重新导出主类
+// 重新导出主类（新架构）
 export { ObjectManager } from './ObjectManager';
-
-// 重新导出子模块（按需导出）
 export { AssetRegistry } from './AssetRegistry';
-export { ModelRepository } from './ModelRepository';
 export { ModelFactory } from './ModelFactory';
+
+// 重新导出旧的子模块（按需导出，兼容性）
+export { ModelRepository } from './ModelRepository';
 export { ModelOperations } from './ModelOperations';
 export { ConstraintManager } from './ConstraintManager';
 export { SceneIO } from './SceneIO';
