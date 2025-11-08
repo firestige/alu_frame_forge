@@ -5,3 +5,10 @@
 
 export * from './renderer-types';
 export { ThreeRenderer, createThreeRenderer } from './threejs/ThreeRenderer';
+export {
+  GeometryFactory,
+  MaterialFactory,
+  MeshFactory,
+  type GeometryParams,
+  type MaterialConfig,
+} from './threejs/GeometryFactory';

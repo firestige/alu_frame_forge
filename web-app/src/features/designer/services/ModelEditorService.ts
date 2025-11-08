@@ -1,8 +1,5 @@
-import {
-  ObjectManager,
-  type Model,
-} from '../../../core/object/ObjectManager.ts';
-import { ModelInteractionService } from './ModelInteractionService.ts';
+import type { ObjectManager, Model } from '@/core/object';
+import type { ModelInteractionService } from './ModelInteractionService';
 
 /**
  * 模型编辑服务
@@ -126,8 +123,8 @@ export class ModelEditorService {
     const model = this.objectManager.getModel(modelId);
     if (!model) return null;
 
-    const assetId = model.metadata.assetId;
-    if (!assetId) {
+    const assetId = (model.metadata as Record<string, unknown>).assetId;
+    if (!assetId || typeof assetId !== 'string') {
       console.warn('无法复制模型：缺少 assetId');
       return null;
     }
@@ -135,10 +132,12 @@ export class ModelEditorService {
     // 创建副本，位置稍微偏移
     const duplicate = this.objectManager.createModelFromAsset(assetId, {
       name: `${model.name}_副本`,
-      position: model.position
-        .clone()
-        .add(new (model.position.constructor as any)(0.5, 0.5, 0.5)),
-      rotation: model.rotation.clone(),
+      position: {
+        x: model.position.x + 0.5,
+        y: model.position.y + 0.5,
+        z: model.position.z + 0.5,
+      },
+      rotation: { ...model.rotation },
       parameters: { ...model.parameters },
     });
 
@@ -154,9 +153,9 @@ export class ModelEditorService {
     if (!model) return;
 
     this.objectManager.updateModel(model.id, {
-      position: new (model.position.constructor as any)(0, 0, 0),
-      rotation: new (model.rotation.constructor as any)(0, 0, 0),
-      scale: new (model.scale.constructor as any)(1, 1, 1),
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+      scale: { x: 1, y: 1, z: 1 },
     });
 
     console.log(`模型 ${model.name} 变换已重置`);

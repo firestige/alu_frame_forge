@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { type Model } from '../../core/object/ObjectManager.ts';
+import type { Model } from '@/core/object';
 
 interface ObjectTreeProps {
   models: Model[];

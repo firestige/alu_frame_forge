@@ -1,4 +1,4 @@
-import type { AluminumExtrusionAsset } from '../../domain/Asset';
+import type { AluminumExtrusionAsset } from '@/domain/Asset';
 
 /**
  * 30系列铝型材预置数据

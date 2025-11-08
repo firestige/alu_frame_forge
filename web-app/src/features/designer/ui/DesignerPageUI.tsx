@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { ObjectManager } from '../../../core/object/ObjectManager';
+import { ObjectManager } from '@/core/object/ObjectManager';
 import ControlPanel, { type ViewPos } from './camera/ControlPanel';
-import ContextMenuContainer from '../../../components/menu/ContextMenuContainer';
+import ContextMenuContainer from '@/components/menu/ContextMenuContainer';
 import Toolbar from './DesignerToolbar';
-import ObjectManagerSidebar from '../../../components/sidebar/ObjectManagerSidebar';
+import ObjectManagerSidebar from './ObjectManagerSidebar';
 
 export interface ContextMenuState {
   visible: boolean;

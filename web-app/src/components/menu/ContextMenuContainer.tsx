@@ -1,7 +1,7 @@
 import * as React from 'react';
 import ContextMenu from './ContextMenu';
-import { ObjectManager } from '../../core/object/ObjectManager.ts';
-import type { ContextMenuState } from '../../features/designer/hooks/useModelInteraction.ts';
+import { ObjectManager } from '@/core/object/ObjectManager.ts';
+import type { ContextMenuState } from '@/features/designer/hooks/useModelInteraction.ts';
 
 interface ContextMenuContainerProps {
   contextMenu: ContextMenuState;

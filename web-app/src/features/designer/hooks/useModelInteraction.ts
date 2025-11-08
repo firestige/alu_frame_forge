@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import * as THREE from 'three';
 import { ModelInteractionService } from '../services/ModelInteractionService.ts';
 
 export interface ModelInteractionOptions {
   containerRef: React.RefObject<HTMLDivElement | null>;
-  getCamera: () => THREE.Camera | null;
   interactionService: ModelInteractionService | null;
 }
 
@@ -16,7 +14,7 @@ export interface ContextMenuState {
 }
 
 export function useModelInteraction(options: ModelInteractionOptions) {
-  const { containerRef, getCamera, interactionService } = options;
+  const { containerRef, interactionService } = options;
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
@@ -31,28 +29,22 @@ export function useModelInteraction(options: ModelInteractionOptions) {
 
     const handleClick = (event: MouseEvent) => {
       if (event.button !== 0) return;
-      const camera = getCamera();
-      if (!camera || !interactionService) return;
-      const modelId = interactionService.handleClick(event, container, camera);
+      if (!interactionService) return;
+      const modelId = interactionService.handleClick(event, container);
       setSelectedModelId(modelId);
     };
 
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
-  }, [containerRef, getCamera, interactionService]);
+  }, [containerRef, interactionService]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const handleContextMenu = (event: MouseEvent) => {
-      const camera = getCamera();
-      if (!camera || !interactionService) return;
-      const result = interactionService.handleContextMenu(
-        event,
-        container,
-        camera
-      );
+      if (!interactionService) return;
+      const result = interactionService.handleContextMenu(event, container);
 
       if (result.modelId !== null) {
         event.preventDefault();
@@ -76,7 +68,7 @@ export function useModelInteraction(options: ModelInteractionOptions) {
     container.addEventListener('contextmenu', handleContextMenu);
     return () =>
       container.removeEventListener('contextmenu', handleContextMenu);
-  }, [containerRef, getCamera, interactionService]);
+  }, [containerRef, interactionService]);
 
   const selectModel = useCallback(
     (modelId: string | null) => {

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router';
-import { useDrawerStore } from '../../stores/drawerStore';
+import { useDrawerStore } from '@/stores/drawerStore';
 
 const AppBar: React.FC = () => {
   const toggleDrawer = useDrawerStore(state => state.toggle);

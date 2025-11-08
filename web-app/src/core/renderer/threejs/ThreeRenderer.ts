@@ -3,6 +3,7 @@
  * 组合所有子模块，实现 IRenderer 接口
  */
 
+import * as THREE from 'three';
 import type {
   IRenderer,
   RendererConfig,
@@ -10,6 +11,7 @@ import type {
   CameraHandle,
   Vector3,
   Vector2,
+  Euler,
   ColorHex,
   OrbitControlsConfig,
   RaycastHit,
@@ -118,6 +120,164 @@ export class ThreeRenderer implements IRenderer {
 
   enableAxesHelper(size?: number): void {
     this.sceneManager.addAxesHelper(size);
+  }
+
+  // ==================== 场景对象管理 ====================
+
+  addObject(object: unknown, userData?: Record<string, unknown>): void {
+    if (!object || typeof object !== 'object') {
+      console.warn('Invalid object provided to addObject');
+      return;
+    }
+
+    const obj = object as THREE.Object3D;
+    
+    // 设置 userData
+    if (userData) {
+      obj.userData = { ...obj.userData, ...userData };
+    }
+
+    // 添加到场景
+    this.sceneManager.getScene().add(obj);
+  }
+
+  removeObject(object: unknown): void {
+    if (!object || typeof object !== 'object') {
+      console.warn('Invalid object provided to removeObject');
+      return;
+    }
+
+    const obj = object as THREE.Object3D;
+    this.sceneManager.getScene().remove(obj);
+  }
+
+  updateObjectTransform(
+    object: unknown,
+    transform: {
+      position?: Vector3;
+      rotation?: Euler;
+      scale?: Vector3;
+    }
+  ): void {
+    if (!object || typeof object !== 'object') {
+      console.warn('Invalid object provided to updateObjectTransform');
+      return;
+    }
+
+    const obj = object as THREE.Object3D;
+
+    if (transform.position) {
+      obj.position.set(
+        transform.position.x,
+        transform.position.y,
+        transform.position.z
+      );
+    }
+
+    if (transform.rotation) {
+      obj.rotation.set(
+        transform.rotation.x,
+        transform.rotation.y,
+        transform.rotation.z,
+        transform.rotation.order || 'XYZ'
+      );
+    }
+
+    if (transform.scale) {
+      obj.scale.set(transform.scale.x, transform.scale.y, transform.scale.z);
+    }
+  }
+
+  setObjectVisibility(object: unknown, visible: boolean): void {
+    if (!object || typeof object !== 'object') {
+      console.warn('Invalid object provided to setObjectVisibility');
+      return;
+    }
+
+    const obj = object as THREE.Object3D;
+    obj.visible = visible;
+  }
+
+  disposeObject(object: unknown): void {
+    if (!object || typeof object !== 'object') {
+      console.warn('Invalid object provided to disposeObject');
+      return;
+    }
+
+    const obj = object as THREE.Object3D;
+
+    // 遍历并清理资源
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        // 清理几何体
+        if (child.geometry) {
+          child.geometry.dispose();
+        }
+
+        // 清理材质
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach((mat) => mat.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      }
+    });
+  }
+
+  highlightObject(
+    object: unknown,
+    color: number = 0x00ff00,
+    intensity: number = 0.5
+  ): void {
+    if (!object || typeof object !== 'object') {
+      console.warn('Invalid object provided to highlightObject');
+      return;
+    }
+
+    const obj = object as THREE.Object3D;
+
+    obj.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        // 保存原始材质
+        if (!child.userData.originalMaterial) {
+          child.userData.originalMaterial = child.material;
+
+          // 创建高亮材质
+          const material = child.material as THREE.MeshStandardMaterial;
+          const highlightMaterial = material.clone();
+          highlightMaterial.emissive = new THREE.Color(color);
+          highlightMaterial.emissiveIntensity = intensity;
+          child.material = highlightMaterial;
+        }
+      }
+    });
+  }
+
+  unhighlightObject(object: unknown): void {
+    if (!object || typeof object !== 'object') {
+      console.warn('Invalid object provided to unhighlightObject');
+      return;
+    }
+
+    const obj = object as THREE.Object3D;
+
+    obj.traverse((child) => {
+      if (
+        child instanceof THREE.Mesh &&
+        child.userData.originalMaterial
+      ) {
+        // 清理高亮材质
+        if (child.material instanceof THREE.Material) {
+          child.material.dispose();
+        }
+
+        // 恢复原始材质
+        child.material = child.userData.originalMaterial;
+        delete child.userData.originalMaterial;
+      }
+    });
   }
 
   // ==================== 相机管理 ====================

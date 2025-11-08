@@ -1,19 +1,20 @@
 import * as React from 'react';
 import * as THREE from 'three';
-import { use3DViewer } from '../features/designer/hooks/use3DViewer';
-import { useDesignerServices } from '../features/designer/hooks/useDesignerServices';
-import { useModelInteraction } from '../features/designer/hooks/useModelInteraction';
-import { useModelOperations } from '../features/designer/hooks/useModelOperations';
+import { useDesigner } from '../features/designer/hooks/useDesigner';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
 import type { ViewPos } from '../features/designer/ui/camera/ControlPanel';
 
 /**
- * DesignerPage - 设计器页面容器
- * 负责：
- * 1. 初始化 3D 视图和所有服务
- * 2. 管理状态（工具选择、模型选择等）
- * 3. 绑定业务逻辑和数据
- * 4. 将状态和回调传递给显示层组件
+ * DesignerPage - 设计器页面容器（重构后 - 极简版本）
+ *
+ * 职责：
+ * 1. 作为路由入口，只负责挂载 DesignerPageUI 组件
+ * 2. 所有业务逻辑已整合到 useDesigner hook 中
+ *
+ * 架构优势：
+ * - DesignerPage 职责单一，只做组件组合
+ * - useDesigner hook 统一管理所有设计器功能
+ * - DesignerPageUI 专注于 UI 渲染和事件绑定
  */
 const DesignerPage: React.FC = () => {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -21,61 +22,32 @@ const DesignerPage: React.FC = () => {
     'select' | 'move' | 'rotate'
   >('select');
 
-  // 1. 初始化 3D 视图
-  const { resetCamera, getRenderer } = use3DViewer({
-    containerRef: containerRef as React.RefObject<HTMLDivElement>,
-    backgroundColor: '#1a1a1a',
-    cameraPosition: { x: 5, y: 5, z: 5 },
-    orbitControls: {
-      enableDamping: true,
-      dampingFactor: 0.05,
-      minDistance: 2,
-      maxDistance: 20,
+  // 使用统一的设计器 Hook
+  const designer = useDesigner({
+    viewerOptions: {
+      containerRef: containerRef as React.RefObject<HTMLDivElement>,
+      backgroundColor: '#1a1a1a',
+      cameraPosition: { x: 5, y: 5, z: 5 },
+      orbitControls: {
+        enableDamping: true,
+        dampingFactor: 0.05,
+        minDistance: 2,
+        maxDistance: 20,
+      },
     },
-  });
-
-  // 获取渲染器实例
-  const renderer = getRenderer();
-  const getScene = React.useCallback(
-    () => renderer?.getNativeScene() as THREE.Scene | null,
-    [renderer]
-  );
-  const getCamera = React.useCallback(
-    () => renderer?.getNativeCamera() as THREE.Camera | null,
-    [renderer]
-  );
-
-  // 2. 初始化所有服务
-  const services = useDesignerServices(getScene);
-
-  // 3. 初始化模型交互
-  const {
-    selectedModelId,
-    setSelectedModelId,
-    selectModel,
-    contextMenu,
-    closeContextMenu,
-  } = useModelInteraction({
-    containerRef,
-    getCamera,
-    interactionService: services.interactionService,
-  });
-
-  // 4. 初始化模型操作
-  const modelOperations = useModelOperations({
-    creationService: services.creationService,
-    editorService: services.editorService,
   });
 
   // 视角切换
   const handleViewPosChange = React.useCallback(
     (pos: ViewPos) => {
-      const camera = getCamera();
+      const renderer = designer.viewer.getRenderer();
+      if (!renderer) return;
+      const camera = renderer.getNativeCamera() as THREE.Camera | null;
       if (!camera) return;
       camera.position.set(pos.x, pos.y, pos.z);
       camera.lookAt(0, 0, 0);
     },
-    [getCamera]
+    [designer.viewer]
   );
 
   // 工具切换
@@ -90,33 +62,33 @@ const DesignerPage: React.FC = () => {
   // 上下文菜单操作（包装后自动刷新）
   const handleContextMenuEdit = React.useCallback(
     (modelId: string) => {
-      modelOperations.editModel(modelId);
+      designer.operations.editModel(modelId);
     },
-    [modelOperations]
+    [designer.operations]
   );
 
   const handleContextMenuToggleVisibility = React.useCallback(
     (modelId: string) => {
-      modelOperations.toggleVisibility(modelId);
+      designer.operations.toggleVisibility(modelId);
     },
-    [modelOperations]
+    [designer.operations]
   );
 
   const handleContextMenuShowProperties = React.useCallback(
     (modelId: string) => {
-      modelOperations.showProperties(modelId);
+      designer.operations.showProperties(modelId);
     },
-    [modelOperations]
+    [designer.operations]
   );
 
   const handleContextMenuDelete = React.useCallback(
     (modelId: string) => {
-      const deleted = modelOperations.deleteModel(modelId);
-      if (deleted && selectedModelId === modelId) {
-        setSelectedModelId(null);
+      const deleted = designer.operations.deleteModel(modelId);
+      if (deleted && designer.interaction.selectedModelId === modelId) {
+        designer.interaction.selectModel(null);
       }
     },
-    [modelOperations, selectedModelId, setSelectedModelId]
+    [designer.operations, designer.interaction]
   );
 
   return (
@@ -124,19 +96,19 @@ const DesignerPage: React.FC = () => {
       containerRef={containerRef}
       selectedTool={selectedTool}
       onToolChange={handleToolChange}
-      onCreateCube={modelOperations.createCube}
-      onCreateBox={modelOperations.createBox}
-      onCreateAluminumProfile={modelOperations.createAluminumProfile}
-      onCreatePanel={modelOperations.createPanel}
-      onCreateConnector={modelOperations.createConnector}
-      onResetCamera={resetCamera}
+      onCreateCube={designer.operations.createCube}
+      onCreateBox={designer.operations.createBox}
+      onCreateAluminumProfile={designer.operations.createAluminumProfile}
+      onCreatePanel={designer.operations.createPanel}
+      onCreateConnector={designer.operations.createConnector}
+      onResetCamera={designer.viewer.resetCamera}
       onViewPosChange={handleViewPosChange}
-      objectManager={services.objectManager}
-      selectedModelId={selectedModelId}
-      onSelectModel={selectModel}
-      onRefresh={modelOperations.refresh}
-      contextMenu={contextMenu}
-      onCloseContextMenu={closeContextMenu}
+      objectManager={designer.services.objectManager}
+      selectedModelId={designer.interaction.selectedModelId}
+      onSelectModel={designer.interaction.selectModel}
+      onRefresh={designer.operations.refresh}
+      contextMenu={designer.interaction.contextMenu}
+      onCloseContextMenu={designer.interaction.closeContextMenu}
       onContextMenuEdit={handleContextMenuEdit}
       onContextMenuToggleVisibility={handleContextMenuToggleVisibility}
       onContextMenuShowProperties={handleContextMenuShowProperties}

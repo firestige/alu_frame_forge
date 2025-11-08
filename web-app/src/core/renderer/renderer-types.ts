@@ -167,6 +167,62 @@ export interface IRenderer {
    */
   enableAxesHelper(size?: number): void;
 
+  // ==================== 场景对象管理 ====================
+
+  /**
+   * 添加对象到场景
+   * @param object 渲染对象句柄（通常是原生对象）
+   * @param userData 用户数据（用于标识和过滤）
+   */
+  addObject(object: unknown, userData?: Record<string, unknown>): void;
+
+  /**
+   * 从场景移除对象
+   * @param object 渲染对象句柄
+   */
+  removeObject(object: unknown): void;
+
+  /**
+   * 更新对象变换
+   * @param object 渲染对象句柄
+   * @param transform 变换数据
+   */
+  updateObjectTransform(
+    object: unknown,
+    transform: {
+      position?: Vector3;
+      rotation?: Euler;
+      scale?: Vector3;
+    }
+  ): void;
+
+  /**
+   * 设置对象可见性
+   * @param object 渲染对象句柄
+   * @param visible 是否可见
+   */
+  setObjectVisibility(object: unknown, visible: boolean): void;
+
+  /**
+   * 销毁对象资源
+   * @param object 渲染对象句柄
+   */
+  disposeObject(object: unknown): void;
+
+  /**
+   * 高亮对象（添加发光效果）
+   * @param object 渲染对象句柄
+   * @param color 高亮颜色（十六进制）
+   * @param intensity 发光强度（0-1）
+   */
+  highlightObject(object: unknown, color?: ColorHex, intensity?: number): void;
+
+  /**
+   * 取消对象高亮
+   * @param object 渲染对象句柄
+   */
+  unhighlightObject(object: unknown): void;
+
   // ==================== 相机管理 ====================
 
   /**

@@ -1,8 +1,6 @@
-import * as THREE from 'three';
-import {
-  ObjectManager,
-  type Model,
-} from '../../../core/object/ObjectManager.ts';
+import type { ObjectManager, Model } from '@/core/object';
+import type { IRenderer } from '@/core/renderer/renderer-types';
+import type { RenderSyncService } from './RenderSyncService';
 
 /**
  * 模型交互服务
@@ -10,14 +8,32 @@ import {
  */
 export class ModelInteractionService {
   private objectManager: ObjectManager;
-  private raycaster: THREE.Raycaster;
-  private mouse: THREE.Vector2;
+  private renderer?: IRenderer;
+  private renderSync?: RenderSyncService;
   private selectedModelId: string | null = null;
 
-  constructor(objectManager: ObjectManager) {
+  constructor(
+    objectManager: ObjectManager,
+    renderer?: IRenderer,
+    renderSync?: RenderSyncService
+  ) {
     this.objectManager = objectManager;
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
+    this.renderer = renderer;
+    this.renderSync = renderSync;
+  }
+
+  /**
+   * 设置渲染器（用于高亮功能）
+   */
+  public setRenderer(renderer: IRenderer): void {
+    this.renderer = renderer;
+  }
+
+  /**
+   * 设置渲染同步服务
+   */
+  public setRenderSync(renderSync: RenderSyncService): void {
+    this.renderSync = renderSync;
   }
 
   /**
@@ -53,12 +69,12 @@ export class ModelInteractionService {
    * 移除模型高亮
    */
   private removeHighlight(model: Model): void {
-    if (
-      model.object3D instanceof THREE.Mesh &&
-      model.object3D.userData.originalMaterial
-    ) {
-      model.object3D.material = model.object3D.userData.originalMaterial;
-      delete model.object3D.userData.originalMaterial;
+    // 优先通过 RenderSync 获取 renderObject
+    const renderObject =
+      this.renderSync?.getRenderObject(model.id) || model.renderObject;
+
+    if (renderObject && this.renderer) {
+      this.renderer.unhighlightObject(renderObject);
     }
   }
 
@@ -66,40 +82,33 @@ export class ModelInteractionService {
    * 应用高亮效果
    */
   private applyHighlight(model: Model): void {
-    if (model.object3D instanceof THREE.Mesh) {
-      // 保存原始材质
-      model.object3D.userData.originalMaterial = model.object3D.material;
+    // 优先通过 RenderSync 获取 renderObject
+    const renderObject =
+      this.renderSync?.getRenderObject(model.id) || model.renderObject;
 
-      // 创建高亮材质
-      const highlightMaterial = (
-        model.object3D.material as THREE.MeshStandardMaterial
-      ).clone();
-      highlightMaterial.emissive = new THREE.Color(0x00ff00);
-      highlightMaterial.emissiveIntensity = 0.5;
-      model.object3D.material = highlightMaterial;
+    if (renderObject && this.renderer) {
+      this.renderer.highlightObject(renderObject, 0x00ff00, 0.5);
     }
   }
 
   /**
    * 处理点击事件（选中模型）
    */
-  public handleClick(
-    event: MouseEvent,
-    container: HTMLElement,
-    camera: THREE.Camera
-  ): string | null {
-    this.updateMousePosition(event, container);
-    this.raycaster.setFromCamera(this.mouse, camera);
+  public handleClick(event: MouseEvent, container: HTMLElement): string | null {
+    if (!this.renderer) {
+      console.warn('Renderer not set in ModelInteractionService');
+      return null;
+    }
 
-    const interactiveObjects = this.getInteractiveObjects();
-    const intersects = this.raycaster.intersectObjects(
-      interactiveObjects,
-      true
+    const mousePosition = this.getMousePosition(event, container);
+    const hits = this.renderer.raycastFromScreen(
+      mousePosition,
+      userData => userData.interactive === true
     );
 
-    if (intersects.length > 0) {
-      const modelId = intersects[0].object.userData.modelId;
-      if (modelId) {
+    if (hits.length > 0) {
+      const modelId = hits[0].userData?.modelId;
+      if (modelId && typeof modelId === 'string') {
         this.highlightModel(modelId);
         return modelId;
       }
@@ -115,21 +124,26 @@ export class ModelInteractionService {
    */
   public handleContextMenu(
     event: MouseEvent,
-    container: HTMLElement,
-    camera: THREE.Camera
+    container: HTMLElement
   ): { modelId: string | null; x: number; y: number } {
-    this.updateMousePosition(event, container);
-    this.raycaster.setFromCamera(this.mouse, camera);
+    if (!this.renderer) {
+      console.warn('Renderer not set in ModelInteractionService');
+      return {
+        modelId: null,
+        x: event.clientX,
+        y: event.clientY,
+      };
+    }
 
-    const interactiveObjects = this.getInteractiveObjects();
-    const intersects = this.raycaster.intersectObjects(
-      interactiveObjects,
-      true
+    const mousePosition = this.getMousePosition(event, container);
+    const hits = this.renderer.raycastFromScreen(
+      mousePosition,
+      userData => userData.interactive === true
     );
 
-    if (intersects.length > 0) {
-      const modelId = intersects[0].object.userData.modelId;
-      if (modelId) {
+    if (hits.length > 0) {
+      const modelId = hits[0].userData?.modelId;
+      if (modelId && typeof modelId === 'string') {
         this.highlightModel(modelId);
         return {
           modelId,
@@ -147,25 +161,17 @@ export class ModelInteractionService {
   }
 
   /**
-   * 更新鼠标位置
+   * 获取归一化的鼠标位置
    */
-  private updateMousePosition(event: MouseEvent, container: HTMLElement): void {
+  private getMousePosition(
+    event: MouseEvent,
+    container: HTMLElement
+  ): { x: number; y: number } {
     const rect = container.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  }
-
-  /**
-   * 获取所有可交互的对象
-   */
-  private getInteractiveObjects(): THREE.Object3D[] {
-    const interactiveObjects: THREE.Object3D[] = [];
-    this.objectManager.getAllModels().forEach(model => {
-      if (model.object3D && model.object3D.userData.interactive) {
-        interactiveObjects.push(model.object3D);
-      }
-    });
-    return interactiveObjects;
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    };
   }
 
   /**
@@ -180,21 +186,22 @@ export class ModelInteractionService {
    */
   public getModelUnderMouse(
     event: MouseEvent,
-    container: HTMLElement,
-    camera: THREE.Camera
+    container: HTMLElement
   ): Model | null {
-    this.updateMousePosition(event, container);
-    this.raycaster.setFromCamera(this.mouse, camera);
+    if (!this.renderer) {
+      console.warn('Renderer not set in ModelInteractionService');
+      return null;
+    }
 
-    const interactiveObjects = this.getInteractiveObjects();
-    const intersects = this.raycaster.intersectObjects(
-      interactiveObjects,
-      true
+    const mousePosition = this.getMousePosition(event, container);
+    const hits = this.renderer.raycastFromScreen(
+      mousePosition,
+      userData => userData.interactive === true
     );
 
-    if (intersects.length > 0) {
-      const modelId = intersects[0].object.userData.modelId;
-      if (modelId) {
+    if (hits.length > 0) {
+      const modelId = hits[0].userData?.modelId;
+      if (modelId && typeof modelId === 'string') {
         return this.objectManager.getModel(modelId) || null;
       }
     }

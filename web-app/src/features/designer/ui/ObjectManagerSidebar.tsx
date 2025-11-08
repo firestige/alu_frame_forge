@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ObjectManager, type Model } from '../../core/object/ObjectManager.ts';
+import type { ObjectManager, Model } from '@/core/object';
 import ObjectTree from './ObjectTree';
 import PropertyPanel from './PropertyPanel';
 
@@ -65,20 +65,20 @@ const ObjectManagerSidebar: React.FC<ObjectManagerSidebarProps> = ({
       const [objKey, propKey] = parts;
 
       if (objKey === 'position') {
-        const newPosition = model.position.clone();
+        const newPosition = { ...model.position };
         (newPosition as any)[propKey] = value;
         objectManager.updateModel(selectedModelId, {
           position: newPosition,
         });
       } else if (objKey === 'rotation') {
-        const newRotation = model.rotation.clone();
+        const newRotation = { ...model.rotation };
         // 将度数转换为弧度
         (newRotation as any)[propKey] = (value * Math.PI) / 180;
         objectManager.updateModel(selectedModelId, {
           rotation: newRotation,
         });
       } else if (objKey === 'scale') {
-        const newScale = model.scale.clone();
+        const newScale = { ...model.scale };
         (newScale as any)[propKey] = value;
         objectManager.updateModel(selectedModelId, {
           scale: newScale,

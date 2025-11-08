@@ -9,6 +9,14 @@ import type { Vector3 } from '../renderer/renderer-types';
 // ==================== 事件类型定义 ====================
 
 /**
+ * 事件映射接口
+ * 用于类型安全的事件定义
+ */
+export interface EventMap {
+  [key: string]: unknown;
+}
+
+/**
  * 设计器命令事件
  * UI 层发送命令到渲染器/服务层
  */

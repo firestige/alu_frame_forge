@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useDrawerStore } from '../../stores/drawerStore';
+import { useDrawerStore } from '@/stores/drawerStore';
 
 const Drawer: React.FC = () => {
   const isOpen = useDrawerStore(state => state.isOpen);
