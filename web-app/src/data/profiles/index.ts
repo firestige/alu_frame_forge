@@ -33,7 +33,8 @@ export function getProfileById(id: string): AluminumExtrusionAsset | undefined {
 /**
  * 根据名称获取型材
  */
-export function getProfileByName(name: string): AluminumExtrusionAsset | undefined {
+export function getProfileByName(
+  name: string
+): AluminumExtrusionAsset | undefined {
   return allProfiles.find(profile => profile.name === name);
 }
-

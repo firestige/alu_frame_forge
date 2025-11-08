@@ -74,7 +74,8 @@ export function useModelInteraction(options: ModelInteractionOptions) {
     };
 
     container.addEventListener('contextmenu', handleContextMenu);
-    return () => container.removeEventListener('contextmenu', handleContextMenu);
+    return () =>
+      container.removeEventListener('contextmenu', handleContextMenu);
   }, [containerRef, getCamera, interactionService]);
 
   const selectModel = useCallback(

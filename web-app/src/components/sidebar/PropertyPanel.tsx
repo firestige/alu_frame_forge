@@ -39,7 +39,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   }
 
   const handleInputChange = (key: string, value: string) => {
-    setEditingValues((prev) => ({ ...prev, [key]: value }));
+    setEditingValues(prev => ({ ...prev, [key]: value }));
   };
 
   const handleInputBlur = (property: string, key: string) => {
@@ -60,7 +60,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       <input
         type="text"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         onBlur={onBlur}
         className="flex-1 bg-slate-700 text-white text-xs px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
       />
@@ -72,7 +72,9 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       <div className="p-3 space-y-3">
         {/* 基本信息 */}
         <div>
-          <div className="text-xs text-slate-400 mb-2 font-medium">基本信息</div>
+          <div className="text-xs text-slate-400 mb-2 font-medium">
+            基本信息
+          </div>
           <div className="space-y-1.5 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-400">名称:</span>
@@ -84,7 +86,9 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">可见:</span>
-              <span className="text-white">{model.isVisible ? '是' : '否'}</span>
+              <span className="text-white">
+                {model.isVisible ? '是' : '否'}
+              </span>
             </div>
           </div>
         </div>
@@ -96,26 +100,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <PropertyInput
               label="X"
               value={editingValues.posX || '0'}
-              onChange={(v) => handleInputChange('posX', v)}
-              onBlur={() =>
-                handleInputBlur('position.x', 'posX')
-              }
+              onChange={v => handleInputChange('posX', v)}
+              onBlur={() => handleInputBlur('position.x', 'posX')}
             />
             <PropertyInput
               label="Y"
               value={editingValues.posY || '0'}
-              onChange={(v) => handleInputChange('posY', v)}
-              onBlur={() =>
-                handleInputBlur('position.y', 'posY')
-              }
+              onChange={v => handleInputChange('posY', v)}
+              onBlur={() => handleInputBlur('position.y', 'posY')}
             />
             <PropertyInput
               label="Z"
               value={editingValues.posZ || '0'}
-              onChange={(v) => handleInputChange('posZ', v)}
-              onBlur={() =>
-                handleInputBlur('position.z', 'posZ')
-              }
+              onChange={v => handleInputChange('posZ', v)}
+              onBlur={() => handleInputBlur('position.z', 'posZ')}
             />
           </div>
         </div>
@@ -129,26 +127,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <PropertyInput
               label="X"
               value={editingValues.rotX || '0'}
-              onChange={(v) => handleInputChange('rotX', v)}
-              onBlur={() =>
-                handleInputBlur('rotation.x', 'rotX')
-              }
+              onChange={v => handleInputChange('rotX', v)}
+              onBlur={() => handleInputBlur('rotation.x', 'rotX')}
             />
             <PropertyInput
               label="Y"
               value={editingValues.rotY || '0'}
-              onChange={(v) => handleInputChange('rotY', v)}
-              onBlur={() =>
-                handleInputBlur('rotation.y', 'rotY')
-              }
+              onChange={v => handleInputChange('rotY', v)}
+              onBlur={() => handleInputBlur('rotation.y', 'rotY')}
             />
             <PropertyInput
               label="Z"
               value={editingValues.rotZ || '0'}
-              onChange={(v) => handleInputChange('rotZ', v)}
-              onBlur={() =>
-                handleInputBlur('rotation.z', 'rotZ')
-              }
+              onChange={v => handleInputChange('rotZ', v)}
+              onBlur={() => handleInputBlur('rotation.z', 'rotZ')}
             />
           </div>
         </div>
@@ -160,26 +152,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <PropertyInput
               label="X"
               value={editingValues.scaleX || '1'}
-              onChange={(v) => handleInputChange('scaleX', v)}
-              onBlur={() =>
-                handleInputBlur('scale.x', 'scaleX')
-              }
+              onChange={v => handleInputChange('scaleX', v)}
+              onBlur={() => handleInputBlur('scale.x', 'scaleX')}
             />
             <PropertyInput
               label="Y"
               value={editingValues.scaleY || '1'}
-              onChange={(v) => handleInputChange('scaleY', v)}
-              onBlur={() =>
-                handleInputBlur('scale.y', 'scaleY')
-              }
+              onChange={v => handleInputChange('scaleY', v)}
+              onBlur={() => handleInputBlur('scale.y', 'scaleY')}
             />
             <PropertyInput
               label="Z"
               value={editingValues.scaleZ || '1'}
-              onChange={(v) => handleInputChange('scaleZ', v)}
-              onBlur={() =>
-                handleInputBlur('scale.z', 'scaleZ')
-              }
+              onChange={v => handleInputChange('scaleZ', v)}
+              onBlur={() => handleInputBlur('scale.z', 'scaleZ')}
             />
           </div>
         </div>
@@ -204,4 +190,3 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 };
 
 export default PropertyPanel;
-

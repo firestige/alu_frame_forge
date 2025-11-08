@@ -125,4 +125,3 @@ const ObjectManagerSidebar: React.FC<ObjectManagerSidebarProps> = ({
 };
 
 export default ObjectManagerSidebar;
-

@@ -1,15 +1,20 @@
 import * as React from 'react';
-import { use3DViewer } from '../features/designer/hooks/use3DViewer.ts';
-import { useDesignerServices } from '../features/designer/hooks/useDesignerServices.ts';
-import { useModelInteraction } from '../features/designer/hooks/useModelInteraction.ts';
-import { useModelOperations } from '../features/designer/hooks/useModelOperations.ts';
-import ControlPanel, {
-  type ViewPos,
-} from '../features/designer/ui/camera/ControlPanel.tsx';
-import ContextMenuContainer from '../components/menu/ContextMenuContainer.tsx';
-import Toolbar from '../features/designer/ui/DesignerToolbar.tsx';
-import ObjectManagerSidebar from '../components/sidebar/ObjectManagerSidebar.tsx';
+import * as THREE from 'three';
+import { use3DViewer } from '../features/designer/hooks/use3DViewer';
+import { useDesignerServices } from '../features/designer/hooks/useDesignerServices';
+import { useModelInteraction } from '../features/designer/hooks/useModelInteraction';
+import { useModelOperations } from '../features/designer/hooks/useModelOperations';
+import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
+import type { ViewPos } from '../features/designer/ui/camera/ControlPanel';
 
+/**
+ * DesignerPage - 设计器页面容器
+ * 负责：
+ * 1. 初始化 3D 视图和所有服务
+ * 2. 管理状态（工具选择、模型选择等）
+ * 3. 绑定业务逻辑和数据
+ * 4. 将状态和回调传递给显示层组件
+ */
 const DesignerPage: React.FC = () => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [selectedTool, setSelectedTool] = React.useState<
@@ -17,9 +22,9 @@ const DesignerPage: React.FC = () => {
   >('select');
 
   // 1. 初始化 3D 视图
-  const { resetCamera, getScene, getCamera } = use3DViewer({
+  const { resetCamera, getRenderer } = use3DViewer({
     containerRef: containerRef as React.RefObject<HTMLDivElement>,
-    backgroundColor: 0x1a1a1a,
+    backgroundColor: '#1a1a1a',
     cameraPosition: { x: 5, y: 5, z: 5 },
     orbitControls: {
       enableDamping: true,
@@ -28,6 +33,17 @@ const DesignerPage: React.FC = () => {
       maxDistance: 20,
     },
   });
+
+  // 获取渲染器实例
+  const renderer = getRenderer();
+  const getScene = React.useCallback(
+    () => renderer?.getNativeScene() as THREE.Scene | null,
+    [renderer]
+  );
+  const getCamera = React.useCallback(
+    () => renderer?.getNativeCamera() as THREE.Camera | null,
+    [renderer]
+  );
 
   // 2. 初始化所有服务
   const services = useDesignerServices(getScene);
@@ -104,49 +120,28 @@ const DesignerPage: React.FC = () => {
   );
 
   return (
-    <div className="w-full h-full flex flex-col">
-      {/* 顶部工具栏 */}
-      <div className="relative shrink w-full">
-        <Toolbar
-          onCreateCube={modelOperations.createCube}
-          onCreateBox={modelOperations.createBox}
-          onCreateAluminumProfile={modelOperations.createAluminumProfile}
-          onCreatePanel={modelOperations.createPanel}
-          onCreateConnector={modelOperations.createConnector}
-          onResetCamera={resetCamera}
-          selectedTool={selectedTool}
-          onToolChange={handleToolChange}
-        />
-      </div>
-
-      {/* 主内容区域 */}
-      <div className="flex grow flex-1 min-h-0">
-        {/* 左侧对象管理器边栏 */}
-        <ObjectManagerSidebar
-          objectManager={services.objectManager}
-          selectedModelId={selectedModelId}
-          onSelectModel={selectModel}
-          onRefresh={modelOperations.refresh}
-        />
-
-        {/* 3D 视图容器 */}
-        <div ref={containerRef} className="relative flex-1">
-          {/* 右上角视角控制面板 */}
-          <ControlPanel onView={handleViewPosChange} />
-
-          {/* 上下文菜单 */}
-          <ContextMenuContainer
-            contextMenu={contextMenu}
-            objectManager={services.objectManager}
-            onClose={closeContextMenu}
-            onEdit={handleContextMenuEdit}
-            onToggleVisibility={handleContextMenuToggleVisibility}
-            onShowProperties={handleContextMenuShowProperties}
-            onDelete={handleContextMenuDelete}
-          />
-        </div>
-      </div>
-    </div>
+    <DesignerPageUI
+      containerRef={containerRef}
+      selectedTool={selectedTool}
+      onToolChange={handleToolChange}
+      onCreateCube={modelOperations.createCube}
+      onCreateBox={modelOperations.createBox}
+      onCreateAluminumProfile={modelOperations.createAluminumProfile}
+      onCreatePanel={modelOperations.createPanel}
+      onCreateConnector={modelOperations.createConnector}
+      onResetCamera={resetCamera}
+      onViewPosChange={handleViewPosChange}
+      objectManager={services.objectManager}
+      selectedModelId={selectedModelId}
+      onSelectModel={selectModel}
+      onRefresh={modelOperations.refresh}
+      contextMenu={contextMenu}
+      onCloseContextMenu={closeContextMenu}
+      onContextMenuEdit={handleContextMenuEdit}
+      onContextMenuToggleVisibility={handleContextMenuToggleVisibility}
+      onContextMenuShowProperties={handleContextMenuShowProperties}
+      onContextMenuDelete={handleContextMenuDelete}
+    />
   );
 };
 

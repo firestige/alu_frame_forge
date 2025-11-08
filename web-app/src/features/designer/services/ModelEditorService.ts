@@ -1,4 +1,7 @@
-import { ObjectManager, type Model } from '../../../core/object/ObjectManager.ts';
+import {
+  ObjectManager,
+  type Model,
+} from '../../../core/object/ObjectManager.ts';
 import { ModelInteractionService } from './ModelInteractionService.ts';
 
 /**

@@ -53,7 +53,7 @@ const ListView: React.FC<ListViewProps> = ({
     const buttons = [];
     const maxButtons = 7;
     let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
-    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    const endPage = Math.min(totalPages, startPage + maxButtons - 1);
 
     if (endPage - startPage < maxButtons - 1) {
       startPage = Math.max(1, endPage - maxButtons + 1);
