@@ -1,37 +1,26 @@
-// 重新导出新架构的核心类型
+/**
+ * 对象管理系统统一导出（SceneObject 新架构）
+ */
+
+// ==================== 类型导出 ====================
+
+// 导出所有类型（从 types/ 目录）
 export type * from './types';
 
-// 重新导出新架构的枚举（作为值）
+// 导出枚举（作为值）
 export { AssetType, AssetSource, MachiningOpType } from './types/enums';
 
-// 重新导出旧类型（兼容性，逐步废弃）
-export type {
-  Model,
-  ModelParameters,
-  PrebuiltAsset,
-  Constraint,
-  ConstraintType,
-  CollisionInfo,
-  SceneExportData,
-  ICollisionDetector,
-  IConstraintSolver,
-  ObjectManagerEvents,
-  ModelEventPayload,
-  ModelUpdateEventPayload,
-  ModelDeleteEventPayload,
-  ModelType as ModelTypeValue,
-} from './types';
+// ==================== 核心类导出 ====================
 
-// 重新导出常量和枚举（作为值）
-export { ModelType } from './types';
-
-// 重新导出主类（新架构）
+// 对象管理器
 export { ObjectManager } from './ObjectManager';
+
+// 资产注册表
 export { AssetRegistry } from './AssetRegistry';
+
+// 模型工厂
 export { ModelFactory } from './ModelFactory';
 
-// 重新导出旧的子模块（按需导出，兼容性）
-export { ModelRepository } from './ModelRepository';
-export { ModelOperations } from './ModelOperations';
-export { ConstraintManager } from './ConstraintManager';
-export { SceneIO } from './SceneIO';
+// 场景 I/O
+export { ProjectSerializer, CADExporter } from './SceneIO';
+export type { ProjectFileFormat, CADExportFormat } from './SceneIO';

@@ -1,9 +1,5 @@
-import type {
-  ObjectManager,
-  ModelEventPayload,
-  ModelUpdateEventPayload,
-  ModelDeleteEventPayload,
-} from '@/core/object';
+import type { ObjectManager } from '@/core/object';
+import type { ObjectManagerEvents } from '@/core/object/ObjectManager';
 import type { IRenderer } from '@/core/renderer/renderer-types';
 
 /**
@@ -11,14 +7,14 @@ import type { IRenderer } from '@/core/renderer/renderer-types';
  * 负责监听 ObjectManager 事件并同步到渲染器
  * 实现 ObjectManager 与 Renderer 的解耦
  */
-export class RenderSyncService<TMetadata = Record<string, unknown>> {
-  private objectManager: ObjectManager<TMetadata>;
+export class RenderSyncService {
+  private objectManager: ObjectManager;
   private renderer: IRenderer;
 
-  // 模型ID到渲染对象的映射
-  private modelRenderMap: Map<string, unknown> = new Map();
+  // 对象ID到渲染对象的映射
+  private objectRenderMap: Map<string, unknown> = new Map();
 
-  constructor(objectManager: ObjectManager<TMetadata>, renderer: IRenderer) {
+  constructor(objectManager: ObjectManager, renderer: IRenderer) {
     this.objectManager = objectManager;
     this.renderer = renderer;
 
@@ -30,112 +26,132 @@ export class RenderSyncService<TMetadata = Record<string, unknown>> {
    * 设置事件监听器
    */
   private setupEventListeners(): void {
-    this.objectManager.on('model:added', this.handleModelAdded.bind(this));
-    this.objectManager.on('model:updated', this.handleModelUpdated.bind(this));
-    this.objectManager.on('model:removed', this.handleModelRemoved.bind(this));
+    this.objectManager.on('object:added', this.handleObjectAdded.bind(this));
     this.objectManager.on(
-      'models:cleared',
-      this.handleModelsCleared.bind(this)
+      'object:updated',
+      this.handleObjectUpdated.bind(this)
+    );
+    this.objectManager.on(
+      'object:removed',
+      this.handleObjectRemoved.bind(this)
+    );
+    this.objectManager.on(
+      'objects:cleared',
+      this.handleObjectsCleared.bind(this)
     );
   }
 
   /**
-   * 处理模型添加事件
+   * 处理对象添加事件
    */
-  private handleModelAdded(payload: ModelEventPayload<TMetadata>): void {
-    const { model } = payload;
+  private handleObjectAdded(
+    payload: ObjectManagerEvents['object:added']
+  ): void {
+    const { object } = payload;
 
-    if (!model.renderObject) {
+    if (!object.visual?.mesh) {
       return;
     }
 
     // 添加到渲染器
-    this.renderer.addObject(model.renderObject, {
+    this.renderer.addObject(object.visual.mesh, {
       interactive: true,
-      modelId: model.id,
-      name: model.name,
+      modelId: object.id,
+      name: object.name,
     });
 
     // 设置变换
-    this.renderer.updateObjectTransform(model.renderObject, {
-      position: model.position,
-      rotation: model.rotation,
-      scale: model.scale,
+    this.renderer.updateObjectTransform(object.visual.mesh, {
+      position: object.transform.position,
+      rotation: object.transform.rotation,
+      scale: object.transform.scale,
     });
 
     // 设置可见性
-    this.renderer.setObjectVisibility(model.renderObject, model.isVisible);
+    this.renderer.setObjectVisibility(
+      object.visual.mesh,
+      object.visual.isVisible
+    );
 
     // 记录映射
-    this.modelRenderMap.set(model.id, model.renderObject);
+    this.objectRenderMap.set(object.id, object.visual.mesh);
 
-    console.log(`[RenderSync] Model ${model.name} synced to renderer`);
+    console.log(`[RenderSync] Object ${object.name} synced to renderer`);
   }
 
   /**
-   * 处理模型更新事件
+   * 处理对象更新事件
    */
-  private handleModelUpdated(
-    payload: ModelUpdateEventPayload<TMetadata>
+  private handleObjectUpdated(
+    payload: ObjectManagerEvents['object:updated']
   ): void {
-    const { model, updates } = payload;
+    const { objectId, object, updates } = payload;
 
-    const renderObject = this.modelRenderMap.get(model.id);
+    const renderObject = this.objectRenderMap.get(objectId);
     if (!renderObject) {
-      console.warn(`[RenderSync] Model ${model.id} not found in render map`);
+      console.warn(`[RenderSync] Object ${objectId} not found in render map`);
       return;
     }
 
     // 更新变换
-    if (updates.position || updates.rotation || updates.scale) {
+    if (updates.transform) {
       this.renderer.updateObjectTransform(renderObject, {
-        position: updates.position,
-        rotation: updates.rotation,
-        scale: updates.scale,
+        position: updates.transform.position,
+        rotation: updates.transform.rotation,
+        scale: updates.transform.scale,
       });
     }
 
     // 更新可见性
-    if (updates.isVisible !== undefined) {
-      this.renderer.setObjectVisibility(renderObject, updates.isVisible);
+    if (updates.visual?.isVisible !== undefined) {
+      this.renderer.setObjectVisibility(renderObject, updates.visual.isVisible);
     }
 
-    // 如果 renderObject 发生变化（参数化调整导致的重新生成）
-    if (updates.renderObject && updates.renderObject !== renderObject) {
+    // 如果 visual.mesh 发生变化（参数化调整导致的重新生成）
+    if (
+      updates.visual?.mesh &&
+      updates.visual.mesh !== renderObject &&
+      object.visual?.mesh
+    ) {
       // 移除旧对象
       this.renderer.removeObject(renderObject);
       this.renderer.disposeObject(renderObject);
 
       // 添加新对象
-      this.renderer.addObject(updates.renderObject, {
+      this.renderer.addObject(object.visual.mesh, {
         interactive: true,
-        modelId: model.id,
-        name: model.name,
+        modelId: object.id,
+        name: object.name,
       });
 
       // 恢复变换
-      this.renderer.updateObjectTransform(updates.renderObject, {
-        position: model.position,
-        rotation: model.rotation,
-        scale: model.scale,
+      this.renderer.updateObjectTransform(object.visual.mesh, {
+        position: object.transform.position,
+        rotation: object.transform.rotation,
+        scale: object.transform.scale,
       });
 
-      this.renderer.setObjectVisibility(updates.renderObject, model.isVisible);
+      this.renderer.setObjectVisibility(
+        object.visual.mesh,
+        object.visual.isVisible
+      );
 
       // 更新映射
-      this.modelRenderMap.set(model.id, updates.renderObject);
+      this.objectRenderMap.set(object.id, object.visual.mesh);
     }
 
-    console.log(`[RenderSync] Model ${model.id} updated in renderer`);
+    console.log(`[RenderSync] Object ${objectId} updated in renderer`);
   }
 
   /**
-   * 处理模型删除事件
+   * 处理对象删除事件
    */
-  private handleModelRemoved(payload: ModelDeleteEventPayload): void {
-    const { modelId } = payload;
+  private handleObjectRemoved(
+    payload: ObjectManagerEvents['object:removed']
+  ): void {
+    const { objectId } = payload;
 
-    const renderObject = this.modelRenderMap.get(modelId);
+    const renderObject = this.objectRenderMap.get(objectId);
     if (!renderObject) {
       return;
     }
@@ -145,34 +161,34 @@ export class RenderSyncService<TMetadata = Record<string, unknown>> {
     this.renderer.disposeObject(renderObject);
 
     // 清除映射
-    this.modelRenderMap.delete(modelId);
+    this.objectRenderMap.delete(objectId);
 
-    console.log(`[RenderSync] Model ${modelId} removed from renderer`);
+    console.log(`[RenderSync] Object ${objectId} removed from renderer`);
   }
 
   /**
-   * 处理清空所有模型事件
+   * 处理清空所有对象事件
    */
-  private handleModelsCleared(): void {
+  private handleObjectsCleared(): void {
     // 清理所有渲染对象
-    for (const renderObject of this.modelRenderMap.values()) {
+    for (const renderObject of this.objectRenderMap.values()) {
       this.renderer.removeObject(renderObject);
       this.renderer.disposeObject(renderObject);
     }
 
     // 清空映射
-    this.modelRenderMap.clear();
+    this.objectRenderMap.clear();
 
-    console.log('[RenderSync] All models cleared from renderer');
+    console.log('[RenderSync] All objects cleared from renderer');
   }
 
   /**
-   * 获取模型的渲染对象
-   * @param modelId 模型ID
+   * 获取对象的渲染对象
+   * @param objectId 对象ID
    * @returns 渲染对象，如果不存在则返回 undefined
    */
-  public getRenderObject(modelId: string): unknown | undefined {
-    return this.modelRenderMap.get(modelId);
+  public getRenderObject(objectId: string): unknown | undefined {
+    return this.objectRenderMap.get(objectId);
   }
 
   /**
@@ -180,15 +196,21 @@ export class RenderSyncService<TMetadata = Record<string, unknown>> {
    */
   public dispose(): void {
     // 取消事件监听
-    this.objectManager.off('model:added', this.handleModelAdded.bind(this));
-    this.objectManager.off('model:updated', this.handleModelUpdated.bind(this));
-    this.objectManager.off('model:removed', this.handleModelRemoved.bind(this));
+    this.objectManager.off('object:added', this.handleObjectAdded.bind(this));
     this.objectManager.off(
-      'models:cleared',
-      this.handleModelsCleared.bind(this)
+      'object:updated',
+      this.handleObjectUpdated.bind(this)
+    );
+    this.objectManager.off(
+      'object:removed',
+      this.handleObjectRemoved.bind(this)
+    );
+    this.objectManager.off(
+      'objects:cleared',
+      this.handleObjectsCleared.bind(this)
     );
 
     // 清空映射
-    this.modelRenderMap.clear();
+    this.objectRenderMap.clear();
   }
 }

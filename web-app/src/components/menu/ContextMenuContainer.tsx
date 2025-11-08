@@ -22,9 +22,9 @@ const ContextMenuContainer: React.FC<ContextMenuContainerProps> = ({
   onShowProperties,
   onDelete,
 }) => {
-  const selectedModel = React.useMemo(() => {
+  const selectedObject = React.useMemo(() => {
     if (!contextMenu.modelId || !objectManager) return null;
-    return objectManager.getModel(contextMenu.modelId);
+    return objectManager.getObject(contextMenu.modelId);
   }, [contextMenu.modelId, objectManager]);
 
   const handleEdit = React.useCallback(() => {
@@ -61,8 +61,8 @@ const ContextMenuContainer: React.FC<ContextMenuContainerProps> = ({
       onToggleVisibility={handleToggleVisibility}
       onShowProperties={handleShowProperties}
       onDelete={handleDelete}
-      targetName={selectedModel?.name || '对象'}
-      isVisible={selectedModel?.isVisible ?? true}
+      targetName={selectedObject?.name || '对象'}
+      isVisible={selectedObject?.visual?.isVisible ?? true}
     />
   );
 };

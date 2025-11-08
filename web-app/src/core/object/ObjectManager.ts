@@ -10,16 +10,23 @@
  */
 
 import type { IRenderer, Vector3, Euler } from '../renderer/renderer-types';
-import type { SceneObject, Asset, Transform, InstanceOptions } from './types';
+import type {
+  SceneObject,
+  AnyAsset,
+  Transform,
+  SceneObjectCreateOptions,
+} from './types';
 import type { AssetType } from './types/enums';
 import mitt, { type Emitter } from 'mitt';
-import { AssetRegistry } from './AssetRegistry.new';
-import { ModelFactory } from './ModelFactory.new';
+import { AssetRegistry } from './AssetRegistry';
+import { ModelFactory } from './ModelFactory';
+import { ProjectSerializer } from './SceneIO';
+import type { ProjectFileFormat } from './SceneIO';
 
 /**
- * 对象管理器事件
+ * 对象管理器事件类型
  */
-export interface ObjectManagerEvents {
+export type ObjectManagerEvents = {
   'object:added': { object: SceneObject };
   'object:removed': { objectId: string };
   'object:updated': {
@@ -30,26 +37,7 @@ export interface ObjectManagerEvents {
   'object:transform-changed': { objectId: string; transform: Transform };
   'object:visibility-changed': { objectId: string; visible: boolean };
   'objects:cleared': undefined;
-}
-
-/**
- * 场景导出数据格式
- */
-export interface SceneExportData {
-  objects: Array<{
-    id: string;
-    name: string;
-    assetId: string;
-    transform: {
-      position: [number, number, number];
-      rotation: [number, number, number];
-      scale: [number, number, number];
-    };
-    userParams: Record<string, unknown>;
-    isVisible: boolean;
-  }>;
-  exportedAt: string;
-}
+};
 
 /**
  * 对象管理器
@@ -57,7 +45,6 @@ export interface SceneExportData {
 export class ObjectManager {
   // 对象存储
   private objects = new Map<string, SceneObject>();
-  private objectIdCounter = 0;
 
   // 事件总线
   private eventBus: Emitter<ObjectManagerEvents>;
@@ -65,6 +52,7 @@ export class ObjectManager {
   // 核心服务
   private assetRegistry: AssetRegistry;
   private modelFactory: ModelFactory;
+  private serializer: ProjectSerializer;
 
   // 渲染器引用
   private renderer?: IRenderer;
@@ -74,6 +62,7 @@ export class ObjectManager {
     this.eventBus = mitt<ObjectManagerEvents>();
     this.assetRegistry = new AssetRegistry();
     this.modelFactory = new ModelFactory(this.assetRegistry);
+    this.serializer = new ProjectSerializer();
   }
 
   // ==================== 事件管理 ====================
@@ -115,15 +104,6 @@ export class ObjectManager {
    */
   public setRenderer(renderer: IRenderer): void {
     this.renderer = renderer;
-  }
-
-  // ==================== ID 生成 ====================
-
-  /**
-   * 生成唯一 ID
-   */
-  private generateId(): string {
-    return `obj_${Date.now()}_${this.objectIdCounter++}`;
   }
 
   // ==================== 对象基础操作 ====================
@@ -348,28 +328,28 @@ export class ObjectManager {
   /**
    * 注册资产
    */
-  public registerAsset(asset: Asset): void {
+  public registerAsset(asset: AnyAsset): void {
     this.assetRegistry.register(asset);
   }
 
   /**
    * 获取所有资产
    */
-  public getAllAssets(): Asset[] {
+  public getAllAssets(): AnyAsset[] {
     return this.assetRegistry.getAll();
   }
 
   /**
    * 根据类型获取资产
    */
-  public getAssetsByType(type: AssetType): Asset[] {
+  public getAssetsByType(type: AssetType): AnyAsset[] {
     return this.assetRegistry.getByType(type);
   }
 
   /**
    * 根据 ID 获取资产
    */
-  public getAsset(assetId: string): Asset | undefined {
+  public getAsset(assetId: string): AnyAsset | undefined {
     return this.assetRegistry.get(assetId);
   }
 
@@ -380,7 +360,7 @@ export class ObjectManager {
    */
   public createObjectFromAsset(
     assetId: string,
-    options?: Partial<InstanceOptions>
+    options?: Partial<SceneObjectCreateOptions>
   ): SceneObject {
     const object = this.modelFactory.createFromAsset(assetId, {
       name: options?.name,
@@ -395,81 +375,49 @@ export class ObjectManager {
   // ==================== 场景 I/O ====================
 
   /**
-   * 导出场景数据
+   * 导出场景数据为工程文件格式
    */
-  public exportScene(): SceneExportData {
-    const objects = Array.from(this.objects.values()).map(obj => ({
-      id: obj.id,
-      name: obj.name,
-      assetId: obj.assetId,
-      transform: {
-        position: [
-          obj.transform.position.x,
-          obj.transform.position.y,
-          obj.transform.position.z,
-        ] as [number, number, number],
-        rotation: [
-          obj.transform.rotation.x,
-          obj.transform.rotation.y,
-          obj.transform.rotation.z,
-        ] as [number, number, number],
-        scale: [
-          obj.transform.scale.x,
-          obj.transform.scale.y,
-          obj.transform.scale.z,
-        ] as [number, number, number],
-      },
-      userParams: obj.userParams,
-      isVisible: obj.visual?.isVisible ?? true,
-    }));
-
-    return {
-      objects,
-      exportedAt: new Date().toISOString(),
-    };
+  public exportScene(metadata: {
+    name: string;
+    description?: string;
+    author?: string;
+  }): ProjectFileFormat {
+    const objects = Array.from(this.objects.values());
+    return this.serializer.serialize(objects, metadata);
   }
 
   /**
-   * 导入场景数据
+   * 从工程文件导入场景
    */
-  public importScene(data: SceneExportData): void {
+  public importScene(data: ProjectFileFormat): void {
     this.clear();
 
-    data.objects.forEach(objData => {
-      // 通过工厂重新创建对象
-      const recreated = this.modelFactory.createFromAsset(objData.assetId, {
-        name: objData.name,
-        transform: {
-          position: {
-            x: objData.transform.position[0],
-            y: objData.transform.position[1],
-            z: objData.transform.position[2],
-          },
-          rotation: {
-            x: objData.transform.rotation[0],
-            y: objData.transform.rotation[1],
-            z: objData.transform.rotation[2],
-            order: 'XYZ',
-          },
-          scale: {
-            x: objData.transform.scale[0],
-            y: objData.transform.scale[1],
-            z: objData.transform.scale[2],
-          },
-        },
-        userParams: objData.userParams,
-      });
+    const objectDataList = this.serializer.deserialize(data);
 
-      // 恢复原始 ID 和可见性
-      recreated.id = objData.id;
-      if (recreated.visual) {
-        recreated.visual.isVisible = objData.isVisible;
-      }
+    objectDataList.forEach(({ assetId, options }) => {
+      const recreated = this.modelFactory.createFromAsset(assetId, {
+        name: options.name,
+        transform: {
+          position: options.transform.position,
+          rotation: {
+            ...options.transform.rotation,
+            order: options.transform.rotation.order as
+              | 'XYZ'
+              | 'YXZ'
+              | 'ZXY'
+              | 'ZYX'
+              | 'YZX'
+              | 'XZY',
+          },
+          scale: options.transform.scale,
+        },
+        userParams: options.userParams,
+      });
 
       this.addObject(recreated);
     });
 
-    console.log('Scene imported', data);
+    console.log('Scene imported from project file', data.metadata.name);
   }
 
   // ==================== 辅助方法 ====================

@@ -3,7 +3,7 @@ import type {
   SceneObject,
   SceneObjectCreateOptions,
 } from './types/scene-object';
-import type { AssetRegistry } from './AssetRegistry.new';
+import type { AssetRegistry } from './AssetRegistry';
 import type { InstanceStrategy } from './strategies';
 import { AssetType } from './types/enums';
 

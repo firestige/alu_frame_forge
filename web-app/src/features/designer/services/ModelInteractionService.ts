@@ -1,16 +1,16 @@
-import type { ObjectManager, Model } from '@/core/object';
+import type { ObjectManager, SceneObject } from '@/core/object';
 import type { IRenderer } from '@/core/renderer/renderer-types';
 import type { RenderSyncService } from './RenderSyncService';
 
 /**
  * 模型交互服务
- * 负责模型的选中、高亮、射线检测等交互逻辑
+ * 负责对象的选中、高亮、射线检测等交互逻辑
  */
 export class ModelInteractionService {
   private objectManager: ObjectManager;
   private renderer?: IRenderer;
   private renderSync?: RenderSyncService;
-  private selectedModelId: string | null = null;
+  private selectedObjectId: string | null = null;
 
   constructor(
     objectManager: ObjectManager,
@@ -37,41 +37,41 @@ export class ModelInteractionService {
   }
 
   /**
-   * 获取当前选中的模型 ID
+   * 获取当前选中的对象 ID
    */
   public getSelectedModelId(): string | null {
-    return this.selectedModelId;
+    return this.selectedObjectId;
   }
 
   /**
-   * 高亮指定模型
+   * 高亮指定对象
    */
-  public highlightModel(modelId: string | null): void {
-    const allModels = this.objectManager.getAllModels();
+  public highlightModel(objectId: string | null): void {
+    const allObjects = this.objectManager.getAllObjects();
 
     // 移除所有高亮
-    allModels.forEach(model => {
-      this.removeHighlight(model);
+    allObjects.forEach(obj => {
+      this.removeHighlight(obj);
     });
 
     // 添加新的高亮
-    if (modelId) {
-      const model = this.objectManager.getModel(modelId);
-      if (model) {
-        this.applyHighlight(model);
+    if (objectId) {
+      const obj = this.objectManager.getObject(objectId);
+      if (obj) {
+        this.applyHighlight(obj);
       }
     }
 
-    this.selectedModelId = modelId;
+    this.selectedObjectId = objectId;
   }
 
   /**
-   * 移除模型高亮
+   * 移除对象高亮
    */
-  private removeHighlight(model: Model): void {
+  private removeHighlight(obj: SceneObject): void {
     // 优先通过 RenderSync 获取 renderObject
     const renderObject =
-      this.renderSync?.getRenderObject(model.id) || model.renderObject;
+      this.renderSync?.getRenderObject(obj.id) || obj.visual?.mesh;
 
     if (renderObject && this.renderer) {
       this.renderer.unhighlightObject(renderObject);
@@ -81,10 +81,10 @@ export class ModelInteractionService {
   /**
    * 应用高亮效果
    */
-  private applyHighlight(model: Model): void {
+  private applyHighlight(obj: SceneObject): void {
     // 优先通过 RenderSync 获取 renderObject
     const renderObject =
-      this.renderSync?.getRenderObject(model.id) || model.renderObject;
+      this.renderSync?.getRenderObject(obj.id) || obj.visual?.mesh;
 
     if (renderObject && this.renderer) {
       this.renderer.highlightObject(renderObject, 0x00ff00, 0.5);
@@ -182,12 +182,12 @@ export class ModelInteractionService {
   }
 
   /**
-   * 获取鼠标下的模型
+   * 获取鼠标下的对象
    */
   public getModelUnderMouse(
     event: MouseEvent,
     container: HTMLElement
-  ): Model | null {
+  ): SceneObject | null {
     if (!this.renderer) {
       console.warn('Renderer not set in ModelInteractionService');
       return null;
@@ -202,7 +202,7 @@ export class ModelInteractionService {
     if (hits.length > 0) {
       const modelId = hits[0].userData?.modelId;
       if (modelId && typeof modelId === 'string') {
-        return this.objectManager.getModel(modelId) || null;
+        return this.objectManager.getObject(modelId) || null;
       }
     }
 

@@ -1,4 +1,4 @@
-import type { ObjectManager, Model } from '@/core/object';
+import type { ObjectManager, SceneObject } from '@/core/object';
 import type { ModelInteractionService } from './ModelInteractionService';
 
 /**
@@ -18,16 +18,16 @@ export class ModelEditorService {
   }
 
   /**
-   * 编辑模型参数
+   * 编辑对象参数
    */
-  public editModel(modelId: string): void {
-    const model = this.objectManager.getModel(modelId);
-    if (!model) return;
+  public editModel(objectId: string): void {
+    const obj = this.objectManager.getObject(objectId);
+    if (!obj) return;
 
-    console.log('编辑模型:', model);
+    console.log('编辑对象:', obj);
 
     // 简单的 prompt 编辑（后续可替换为对话框）
-    const currentValue = model.parameters.length?.toString() || '1000';
+    const currentValue = obj.userParams.length?.toString() || '1000';
     const newLength = prompt(
       `输入新的长度（针对型材和长方体）:\n当前值: ${currentValue}mm`,
       currentValue
@@ -36,7 +36,7 @@ export class ModelEditorService {
     if (newLength !== null && newLength !== '') {
       const length = parseFloat(newLength);
       if (!isNaN(length) && length > 0) {
-        this.objectManager.updateModelParameters(model.id, { length });
+        this.objectManager.updateUserParams(obj.id, { length });
         console.log('长度已更新为:', length);
       } else {
         alert('请输入有效的数值');
@@ -45,42 +45,40 @@ export class ModelEditorService {
   }
 
   /**
-   * 切换模型可见性
+   * 切换对象可见性
    */
-  public toggleVisibility(modelId: string): void {
-    const model = this.objectManager.getModel(modelId);
-    if (!model) return;
+  public toggleVisibility(objectId: string): void {
+    const obj = this.objectManager.getObject(objectId);
+    if (!obj) return;
 
-    this.objectManager.updateModel(model.id, {
-      isVisible: !model.isVisible,
-    });
+    const newVisibility = !(obj.visual?.isVisible ?? true);
+    this.objectManager.setObjectVisibility(obj.id, newVisibility);
 
     console.log(
-      `模型 ${model.name} 可见性已切换为: ${model.isVisible ? '显示' : '隐藏'}`
+      `对象 ${obj.name} 可见性已切换为: ${newVisibility ? '显示' : '隐藏'}`
     );
   }
 
   /**
-   * 显示模型属性
+   * 显示对象属性
    */
-  public showProperties(modelId: string): void {
-    const model = this.objectManager.getModel(modelId);
-    if (!model) return;
+  public showProperties(objectId: string): void {
+    const obj = this.objectManager.getObject(objectId);
+    if (!obj) return;
 
     const info = {
-      ID: model.id,
-      名称: model.name,
-      类型: model.type,
-      位置: `(${model.position.x.toFixed(2)}, ${model.position.y.toFixed(2)}, ${model.position.z.toFixed(2)})`,
-      旋转: `(${model.rotation.x.toFixed(2)}, ${model.rotation.y.toFixed(2)}, ${model.rotation.z.toFixed(2)})`,
-      缩放: `(${model.scale.x.toFixed(2)}, ${model.scale.y.toFixed(2)}, ${model.scale.z.toFixed(2)})`,
-      可见: model.isVisible ? '是' : '否',
-      参数: model.parameters,
-      创建时间: model.createdAt.toLocaleString(),
-      修改时间: model.updatedAt.toLocaleString(),
+      ID: obj.id,
+      名称: obj.name,
+      资产ID: obj.assetId,
+      类型: obj.assetType,
+      位置: `(${obj.transform.position.x.toFixed(2)}, ${obj.transform.position.y.toFixed(2)}, ${obj.transform.position.z.toFixed(2)})`,
+      旋转: `(${obj.transform.rotation.x.toFixed(2)}, ${obj.transform.rotation.y.toFixed(2)}, ${obj.transform.rotation.z.toFixed(2)})`,
+      缩放: `(${obj.transform.scale.x.toFixed(2)}, ${obj.transform.scale.y.toFixed(2)}, ${obj.transform.scale.z.toFixed(2)})`,
+      可见: obj.visual?.isVisible ? '是' : '否',
+      参数: obj.userParams,
     };
 
-    console.log('模型属性:', info);
+    console.log('对象属性:', info);
 
     // 格式化显示
     const formattedInfo = Object.entries(info)
@@ -92,24 +90,24 @@ export class ModelEditorService {
       })
       .join('\n');
 
-    alert(`模型属性\n${'='.repeat(40)}\n${formattedInfo}`);
+    alert(`对象属性\n${'='.repeat(40)}\n${formattedInfo}`);
   }
 
   /**
-   * 删除模型
+   * 删除对象
    */
-  public deleteModel(modelId: string): boolean {
-    const model = this.objectManager.getModel(modelId);
-    if (!model) return false;
+  public deleteModel(objectId: string): boolean {
+    const obj = this.objectManager.getObject(objectId);
+    if (!obj) return false;
 
     const confirmed = window.confirm(
-      `确定要删除 "${model.name}" 吗？\n\n此操作无法撤销。`
+      `确定要删除 "${obj.name}" 吗？\n\n此操作无法撤销。`
     );
 
     if (confirmed) {
-      this.objectManager.removeModel(model.id);
+      this.objectManager.removeObject(obj.id);
       this.interactionService.clearSelection();
-      console.log(`模型 ${model.name} 已删除`);
+      console.log(`对象 ${obj.name} 已删除`);
       return true;
     }
 
@@ -117,90 +115,87 @@ export class ModelEditorService {
   }
 
   /**
-   * 复制模型
+   * 复制对象
    */
-  public duplicateModel(modelId: string): Model | null {
-    const model = this.objectManager.getModel(modelId);
-    if (!model) return null;
-
-    const assetId = (model.metadata as Record<string, unknown>).assetId;
-    if (!assetId || typeof assetId !== 'string') {
-      console.warn('无法复制模型：缺少 assetId');
-      return null;
-    }
+  public duplicateModel(objectId: string): SceneObject | null {
+    const obj = this.objectManager.getObject(objectId);
+    if (!obj) return null;
 
     // 创建副本，位置稍微偏移
-    const duplicate = this.objectManager.createModelFromAsset(assetId, {
-      name: `${model.name}_副本`,
-      position: {
-        x: model.position.x + 0.5,
-        y: model.position.y + 0.5,
-        z: model.position.z + 0.5,
+    const duplicate = this.objectManager.createObjectFromAsset(obj.assetId, {
+      name: `${obj.name}_副本`,
+      transform: {
+        position: {
+          x: obj.transform.position.x + 0.5,
+          y: obj.transform.position.y + 0.5,
+          z: obj.transform.position.z + 0.5,
+        },
+        rotation: { ...obj.transform.rotation },
+        scale: { ...obj.transform.scale },
       },
-      rotation: { ...model.rotation },
-      parameters: { ...model.parameters },
+      userParams: { ...obj.userParams },
     });
 
-    console.log(`已复制模型 ${model.name}:`, duplicate);
+    console.log(`已复制对象 ${obj.name}:`, duplicate);
     return duplicate;
   }
 
   /**
-   * 重置模型变换
+   * 重置对象变换
    */
-  public resetTransform(modelId: string): void {
-    const model = this.objectManager.getModel(modelId);
-    if (!model) return;
+  public resetTransform(objectId: string): void {
+    const obj = this.objectManager.getObject(objectId);
+    if (!obj) return;
 
-    this.objectManager.updateModel(model.id, {
+    this.objectManager.updateTransform(obj.id, {
       position: { x: 0, y: 0, z: 0 },
       rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
       scale: { x: 1, y: 1, z: 1 },
     });
 
-    console.log(`模型 ${model.name} 变换已重置`);
+    console.log(`对象 ${obj.name} 变换已重置`);
   }
 
   /**
-   * 批量操作：隐藏所有模型
+   * 批量操作：隐藏所有对象
    */
   public hideAllModels(): void {
-    const models = this.objectManager.getAllModels();
-    models.forEach(model => {
-      this.objectManager.updateModel(model.id, { isVisible: false });
+    const objects = this.objectManager.getAllObjects();
+    objects.forEach(obj => {
+      this.objectManager.setObjectVisibility(obj.id, false);
     });
-    console.log(`已隐藏 ${models.length} 个模型`);
+    console.log(`已隐藏 ${objects.length} 个对象`);
   }
 
   /**
-   * 批量操作：显示所有模型
+   * 批量操作：显示所有对象
    */
   public showAllModels(): void {
-    const models = this.objectManager.getAllModels();
-    models.forEach(model => {
-      this.objectManager.updateModel(model.id, { isVisible: true });
+    const objects = this.objectManager.getAllObjects();
+    objects.forEach(obj => {
+      this.objectManager.setObjectVisibility(obj.id, true);
     });
-    console.log(`已显示 ${models.length} 个模型`);
+    console.log(`已显示 ${objects.length} 个对象`);
   }
 
   /**
-   * 批量操作：删除所有模型
+   * 批量操作：删除所有对象
    */
   public deleteAllModels(): void {
-    const models = this.objectManager.getAllModels();
+    const objects = this.objectManager.getAllObjects();
     const confirmed = window.confirm(
-      `确定要删除所有 ${models.length} 个模型吗？\n\n此操作无法撤销。`
+      `确定要删除所有 ${objects.length} 个对象吗？\n\n此操作无法撤销。`
     );
 
     if (confirmed) {
       this.objectManager.clear();
       this.interactionService.clearSelection();
-      console.log('所有模型已删除');
+      console.log('所有对象已删除');
     }
   }
 
   /**
-   * 获取模型统计信息
+   * 获取对象统计信息
    */
   public getStatistics(): {
     total: number;
@@ -208,17 +203,17 @@ export class ModelEditorService {
     hidden: number;
     byType: Record<string, number>;
   } {
-    const models = this.objectManager.getAllModels();
+    const objects = this.objectManager.getAllObjects();
 
     const stats = {
-      total: models.length,
-      visible: models.filter(m => m.isVisible).length,
-      hidden: models.filter(m => !m.isVisible).length,
+      total: objects.length,
+      visible: objects.filter(obj => obj.visual?.isVisible ?? true).length,
+      hidden: objects.filter(obj => !(obj.visual?.isVisible ?? true)).length,
       byType: {} as Record<string, number>,
     };
 
-    models.forEach(model => {
-      stats.byType[model.type] = (stats.byType[model.type] || 0) + 1;
+    objects.forEach(obj => {
+      stats.byType[obj.assetType] = (stats.byType[obj.assetType] || 0) + 1;
     });
 
     return stats;
