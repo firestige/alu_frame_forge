@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { useDesigner } from '../features/designer/hooks/useDesigner';
+import { useBusinessServices } from '../features/designer/hooks/useBusinessServices';
+import { RenderSyncService } from '../features/designer/services/RenderSyncService';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
 import { DesignerProvider } from '../features/designer/context';
 import {
@@ -12,6 +13,7 @@ import {
   onCommand,
   offCommand,
 } from '@/core/services/eventBus';
+import type { IRenderer } from '@/core/renderer/renderer-types';
 
 /**
  * 从 URL 获取项目 ID
@@ -25,110 +27,176 @@ function getProjectIdFromUrl(): string | null {
  * DesignerPage - 设计器页面容器（重构后 - Container 模式）
  *
  * 职责：
- * 1. 初始化服务（3D 渲染器、ObjectManager 等）
- * 2. 驱动项目加载（从 URL 或 localStorage）
- * 3. 设置事件桥梁（Command → Service、ObjectManager → Store）
- * 4. 提供 DesignerProvider 包裹 UI 组件
+ * 1. 初始化业务服务（ObjectManager、ModelCreationService 等）
+ * 2. 接收 UI 层的 renderer，创建 RenderSyncService 粘合层
+ * 3. 驱动项目加载（从 URL 或 localStorage）
+ * 4. 设置事件桥梁（Command → ObjectManager、ObjectManager → Store）
+ * 5. 提供 DesignerProvider，封装所有细节
  *
  * 不做：
- * - 不管理 UI 状态（工具选择、侧边栏等）
- * - 不包装事件处理函数
- * - 不传递大量 props 给子组件
+ * - 不管理 3D 容器和 renderer（UI 层的职责）
+ * - 不管理 UI 状态（工具选择、侧边栏、选中状态等）
+ * - 不显示 Loading（委托给 UI 层）
  */
 const DesignerPage: React.FC = () => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [isProjectLoaded, setIsProjectLoaded] = React.useState(false);
+  console.log('[DesignerPage] 组件渲染开始');
 
-  // 使用统一的设计器 Hook（初始化服务）
-  const designer = useDesigner({
-    viewerOptions: {
-      containerRef: containerRef as React.RefObject<HTMLDivElement>,
-      backgroundColor: '#1a1a1a',
-      cameraPosition: { x: 5, y: 5, z: 5 },
-      orbitControls: {
-        enableDamping: true,
-        dampingFactor: 0.05,
-        minDistance: 2,
-        maxDistance: 20,
-      },
-    },
-  });
+  // ==================== 1. 初始化业务服务 ====================
 
-  // ==================== 项目加载 ====================
+  const services = useBusinessServices();
+  console.log('[DesignerPage] 业务服务状态:', services.status);
+
+  // ==================== 2. 管理 Renderer 引用 ====================
+
+  const rendererRef = React.useRef<IRenderer | null>(null);
+  const [isRendererReady, setIsRendererReady] = React.useState(false);
+
+  const handleRendererReady = React.useCallback((renderer: IRenderer) => {
+    console.log('[DesignerPage] 收到 renderer 引用');
+    rendererRef.current = renderer;
+    setIsRendererReady(true);
+  }, []);
+
+  // ==================== 3. 创建 RenderSyncService（粘合层）====================
+
+  React.useEffect(() => {
+    // 只有当业务服务和渲染器都就绪时，才创建粘合层
+    if (services.status !== 'ready' || !rendererRef.current) {
+      return;
+    }
+
+    console.log('[DesignerPage] 🔗 创建 RenderSyncService 粘合层...');
+
+    // 创建 RenderSyncService 连接 ObjectManager 和 Renderer
+    const syncService = new RenderSyncService(
+      services.objectManager!,
+      rendererRef.current
+    );
+
+    console.log('[DesignerPage] ✅ RenderSyncService 已创建，粘合完成');
+
+    return () => {
+      console.log('[DesignerPage] 销毁 RenderSyncService');
+      syncService.dispose();
+    };
+  }, [services.status, isRendererReady, services.objectManager]);
+
+  // ==================== 4. 项目加载逻辑 ====================
+
+  const hasLoadedRef = React.useRef(false);
 
   React.useEffect(() => {
     const loadProjectData = async () => {
-      if (!designer.services.objectManager) return;
+      // 只有当业务服务和渲染器都就绪时，才开始加载
+      if (services.status !== 'ready' || !isRendererReady) {
+        console.log(
+          '[DesignerPage] ⏸ 等待服务和渲染器就绪 - services:',
+          services.status,
+          'renderer:',
+          isRendererReady
+        );
+        return;
+      }
+
+      // 防止重复加载
+      if (hasLoadedRef.current) return;
+
+      console.log('[DesignerPage] ➡ 开始项目加载流程...');
+      hasLoadedRef.current = true; // 标记已加载
 
       const projectId = getProjectIdFromUrl() || getLastProjectId();
 
       if (!projectId) {
-        // 新建空白项目
+        // 场景1: 未指定项目ID - 创建空白项目
+        console.log('[DesignerPage] 未指定项目，创建空白项目');
         useDesignerProjectStore.getState().setProject({
           id: `project-${Date.now()}`,
           name: '未命名项目',
           metadata: { name: '未命名项目' },
         });
-        setIsProjectLoaded(true);
         return;
       }
 
       try {
+        // 场景2: 指定了项目ID - 尝试加载
+        console.log('[DesignerPage] 尝试加载项目:', projectId);
         useDesignerProjectStore.getState().setStatus('loading');
 
         const projectData = await loadProject(projectId);
 
         if (projectData) {
-          // 注入数据到 ObjectManager
-          designer.services.objectManager.importScene(projectData);
+          // 场景2.1: 加载成功
+          console.log('[DesignerPage] 项目加载成功');
+          services.objectManager!.importScene(projectData);
 
-          // 更新项目 Store
           useDesignerProjectStore.getState().setProject({
             id: projectId,
             name: projectData.metadata.name,
             metadata: projectData.metadata,
           });
-        }
+        } else {
+          // 场景2.2: 加载失败 - fallback 到空白项目
+          console.warn('[DesignerPage] 项目加载失败，创建空白项目');
 
-        setIsProjectLoaded(true);
+          useDesignerProjectStore.getState().setProject({
+            id: `project-${Date.now()}`,
+            name: '未命名项目',
+            metadata: {
+              name: '未命名项目',
+              description: `原项目 ${projectId} 加载失败，已创建新项目`,
+            },
+          });
+
+          console.info(
+            '[DesignerPage] 提示：指定的项目不存在或加载失败，已自动创建空白项目'
+          );
+        }
       } catch (error) {
-        console.error('项目加载失败:', error);
+        // 场景3: 加载过程出错
+        console.error('[DesignerPage] 项目加载异常:', error);
+
+        // Fallback: 创建空白项目，而不是卡住
+        useDesignerProjectStore.getState().setProject({
+          id: `project-${Date.now()}`,
+          name: '未命名项目',
+          metadata: {
+            name: '未命名项目',
+            description: `加载项目时出错: ${(error as Error).message}`,
+          },
+        });
+
+        // 记录错误但不阻塞
         useDesignerProjectStore.getState().setError(error as Error);
-        setIsProjectLoaded(true);
       }
     };
 
-    if (designer.services.objectManager) {
-      loadProjectData();
-    }
-  }, [designer.services.objectManager]);
+    loadProjectData();
+  }, [services.status, isRendererReady, services.objectManager]); // 依赖服务就绪和渲染器就绪
 
-  // ==================== 事件桥梁：Command → Service ====================
+  // ==================== 5. 事件桥梁：Command → Service ====================
 
   React.useEffect(() => {
-    if (!designer.services.creation || !designer.services.objectManager) return;
+    if (services.status !== 'ready') return;
+
+    console.log('[DesignerPage] 📡 设置事件桥梁: Command → ObjectManager');
 
     // 监听创建命令
-    const handleCreateCube = () => designer.services.creation?.createCube();
-    const handleCreateBox = () => designer.services.creation?.createBox();
+    const handleCreateCube = () => services.creation?.createCube();
+    const handleCreateBox = () => services.creation?.createBox();
     const handleCreateProfile = () =>
-      designer.services.creation?.createAluminumProfile();
-    const handleCreatePanel = () => designer.services.creation?.createPanel();
-    const handleCreateConnector = () =>
-      designer.services.creation?.createConnector();
+      services.creation?.createAluminumProfile();
+    const handleCreatePanel = () => services.creation?.createPanel();
+    const handleCreateConnector = () => services.creation?.createConnector();
 
     // 监听操作命令
     const handleDelete = (modelId: string) =>
-      designer.services.objectManager?.removeObject(modelId);
+      services.objectManager?.removeObject(modelId);
 
     const handleToggleVisibility = (modelId: string) => {
-      const obj = designer.services.objectManager?.getObject(modelId);
+      const obj = services.objectManager?.getObject(modelId);
       if (obj) {
         const newVisibility = !(obj.visual?.isVisible ?? true);
-        designer.services.objectManager?.setObjectVisibility(
-          modelId,
-          newVisibility
-        );
+        services.objectManager?.setObjectVisibility(modelId, newVisibility);
       }
     };
 
@@ -142,7 +210,7 @@ const DesignerPage: React.FC = () => {
         };
       };
     }) => {
-      const objectManager = designer.services.objectManager;
+      const objectManager = services.objectManager;
       if (!objectManager) return;
 
       const obj = objectManager.getObject(data.id);
@@ -169,24 +237,27 @@ const DesignerPage: React.FC = () => {
     onCommand('command:model:toggleVisibility', handleToggleVisibility);
     onCommand('command:model:update', handleModelUpdate);
 
-    // 监听相机命令
+    // 监听相机命令 (相机是 UI 状态，这里暂时保留框架)
     const handleCameraSetView = (data: {
       position: { x: number; y: number; z: number };
       target: { x: number; y: number; z: number };
     }) => {
-      // TODO: 实现相机视图设置
+      // TODO: 实现相机视图设置 (将来可能委托给 renderer)
       console.log('Set camera view:', data);
     };
 
     const handleCameraReset = () => {
-      // TODO: 实现相机重置
+      // TODO: 实现相机重置 (将来可能委托给 renderer)
       console.log('Reset camera');
     };
 
     onCommand('command:camera:setView', handleCameraSetView);
     onCommand('command:camera:reset', handleCameraReset);
 
+    console.log('[DesignerPage] ✅ 事件桥梁已建立');
+
     return () => {
+      console.log('[DesignerPage] 🔌 清理事件监听');
       offCommand('command:create:cube', handleCreateCube);
       offCommand('command:create:box', handleCreateBox);
       offCommand('command:create:aluminumProfile', handleCreateProfile);
@@ -198,15 +269,17 @@ const DesignerPage: React.FC = () => {
       offCommand('command:camera:setView', handleCameraSetView);
       offCommand('command:camera:reset', handleCameraReset);
     };
-  }, [designer.services.creation, designer.services.objectManager]);
+  }, [services.status, services.creation, services.objectManager]);
 
-  // ==================== 事件桥梁：ObjectManager → Store ====================
+  // ==================== 6. 事件桥梁：ObjectManager → Store ====================
 
   React.useEffect(() => {
-    if (!designer.services.objectManager) return;
+    if (services.status !== 'ready') return;
+
+    console.log('[DesignerPage] 📡 设置事件桥梁: ObjectManager → Store');
 
     const syncToStore = () => {
-      const objects = designer.services.objectManager!.getAllObjects();
+      const objects = services.objectManager!.getAllObjects();
       useDesignerObjectStore.getState().setObjects(objects);
     };
 
@@ -214,61 +287,66 @@ const DesignerPage: React.FC = () => {
     syncToStore();
 
     // 监听变更
-    designer.services.objectManager.on('object:added', syncToStore);
-    designer.services.objectManager.on('object:removed', syncToStore);
-    designer.services.objectManager.on('object:updated', syncToStore);
-    designer.services.objectManager.on('objects:cleared', syncToStore);
+    services.objectManager!.on('object:added', syncToStore);
+    services.objectManager!.on('object:removed', syncToStore);
+    services.objectManager!.on('object:updated', syncToStore);
+    services.objectManager!.on('objects:cleared', syncToStore);
+
+    console.log('[DesignerPage] ✅ Store 同步已建立');
 
     return () => {
-      designer.services.objectManager?.off('object:added', syncToStore);
-      designer.services.objectManager?.off('object:removed', syncToStore);
-      designer.services.objectManager?.off('object:updated', syncToStore);
-      designer.services.objectManager?.off('objects:cleared', syncToStore);
+      console.log('[DesignerPage] 🔌 清理 Store 同步');
+      services.objectManager?.off('object:added', syncToStore);
+      services.objectManager?.off('object:removed', syncToStore);
+      services.objectManager?.off('object:updated', syncToStore);
+      services.objectManager?.off('objects:cleared', syncToStore);
     };
-  }, [designer.services.objectManager]);
+  }, [services.status, services.objectManager]);
 
-  // ==================== 渲染 ====================
+  // ==================== 7. 渲染 ====================
 
-  if (!isProjectLoaded) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
-        <div>加载项目中...</div>
-      </div>
-    );
-  }
+  console.log('[DesignerPage] 渲染阶段 - status:', services.status);
 
-  if (
-    !designer.services.objectManager ||
-    !designer.services.renderSync ||
-    !designer.services.creation ||
-    !designer.services.interaction ||
-    !designer.services.editor
-  ) {
-    return <div>初始化服务中...</div>;
-  }
+  // 计算状态：loading（初始化）或 ready（就绪）
+  const uiStatus: 'loading' | 'ready' =
+    services.status === 'ready' && isRendererReady ? 'ready' : 'loading';
 
   return (
-    <DesignerProvider
-      value={{
-        services: {
-          objectManager: designer.services.objectManager,
-          renderSync: designer.services.renderSync,
-          creation: designer.services.creation,
-          interaction: designer.services.interaction,
-          editor: designer.services.editor,
-        },
-        eventBus: designerEventBus,
-      }}
-    >
-      <DesignerPageUI containerRef={containerRef} />
-    </DesignerProvider>
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      {services.status === 'ready' ? (
+        <DesignerProvider
+          value={{
+            services: {
+              objectManager: services.objectManager!,
+              creation: services.creation!,
+              interaction: services.interaction!,
+              editor: services.editor!,
+            },
+            eventBus: designerEventBus,
+          }}
+        >
+          <DesignerPageUI
+            status={uiStatus}
+            onRendererReady={handleRendererReady}
+          />
+        </DesignerProvider>
+      ) : (
+        // 服务未就绪时，显示简单的加载提示
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: '#1a1a1a',
+            color: '#ffffff',
+          }}
+        >
+          <div>初始化服务中...</div>
+        </div>
+      )}
+    </div>
   );
 };
 

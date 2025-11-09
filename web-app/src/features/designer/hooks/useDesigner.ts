@@ -45,11 +45,20 @@ export interface UseDesignerOptions {
 export function useDesigner(options: UseDesignerOptions) {
   const { viewerOptions } = options;
 
+  console.log('[useDesigner] Hook 开始执行');
+
   // 1. 初始化 3D 渲染器
+  console.log('[useDesigner] 步骤 1: 初始化 3D 渲染器');
   const viewer = use3DViewer(viewerOptions);
+  console.log('[useDesigner] ✅ viewer 初始化完成');
 
   // 2. 初始化所有服务（ObjectManager、RenderSyncService 等）
+  console.log('[useDesigner] 步骤 2: 初始化所有服务');
   const services = useDesignerServices(viewer.getRenderer);
+  console.log(
+    '[useDesigner] ✅ services 获取完成，objectManager:',
+    services.objectManager ? '有值' : 'null'
+  );
 
   // 3. 组合用户交互逻辑
   const interaction = useModelInteraction({
@@ -62,6 +71,8 @@ export function useDesigner(options: UseDesignerOptions) {
     creationService: services.creationService,
     editorService: services.editorService,
   });
+
+  console.log('[useDesigner] 所有步骤完成，准备返回');
 
   // 返回统一的设计器接口
   return {

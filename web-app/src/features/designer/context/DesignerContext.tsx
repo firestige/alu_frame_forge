@@ -3,7 +3,6 @@ import type { ObjectManager } from '@/core/object';
 import type { ModelCreationService } from '../services/ModelCreationService';
 import type { ModelInteractionService } from '../services/ModelInteractionService';
 import type { ModelEditorService } from '../services/ModelEditorService';
-import type { RenderSyncService } from '../services/RenderSyncService';
 import { designerEventBus } from '@/core/services/eventBus';
 
 /**
@@ -13,7 +12,6 @@ export interface DesignerContextValue {
   // 业务服务（只读引用）
   services: {
     objectManager: ObjectManager;
-    renderSync: RenderSyncService;
     creation: ModelCreationService;
     interaction: ModelInteractionService;
     editor: ModelEditorService;

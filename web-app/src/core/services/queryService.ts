@@ -112,12 +112,14 @@ export function getRecentProjects(): Array<{
 
 /**
  * 从网络加载项目（预留接口）
+ *
+ * @returns null 表示网络加载未实现或失败
  */
 export async function loadProjectFromNetwork(
   _projectId: string
 ): Promise<ProjectFileFormat | null> {
   // TODO: 实现网络加载逻辑
-  console.warn('Network loading not implemented yet');
+  // 当前阶段直接返回 null，表示网络加载未实现
   return null;
 }
 
@@ -135,18 +137,34 @@ export async function saveProjectToNetwork(
 /**
  * 统一的项目加载入口
  * 优先从网络加载，失败则从本地加载
+ *
+ * @returns ProjectFileFormat | null
+ *   - ProjectFileFormat: 成功加载项目
+ *   - null: 项目不存在（网络和本地都没有）
  */
 export async function loadProject(
   projectId: string
 ): Promise<ProjectFileFormat | null> {
-  // 尝试从网络加载
+  console.log(`[queryService] 开始加载项目: ${projectId}`);
+
+  // 1. 尝试从网络加载（当前未实现，直接返回 null）
   const networkData = await loadProjectFromNetwork(projectId);
   if (networkData) {
+    console.log(`[queryService] 从网络加载成功`);
     return networkData;
   }
 
-  // 降级到本地加载
-  return loadProjectFromLocalStorage(projectId);
+  // 2. 降级到本地加载
+  console.log(`[queryService] 网络加载失败/未实现，尝试本地加载`);
+  const localData = loadProjectFromLocalStorage(projectId);
+
+  if (localData) {
+    console.log(`[queryService] 从本地加载成功`);
+    return localData;
+  }
+
+  console.warn(`[queryService] 项目不存在: ${projectId}`);
+  return null;
 }
 
 /**
