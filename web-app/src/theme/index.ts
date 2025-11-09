@@ -105,6 +105,7 @@ export const theme = {
     sidebar: 'w-[var(--spacing-sidebar)]',
     toolbar: 'h-[var(--spacing-toolbar)]',
     appbar: 'h-[var(--spacing-appbar)]',
+    footer: 'h-[var(--spacing-footer)]',
   },
   radius: {
     sm: 'rounded-[var(--radius-sm)]',

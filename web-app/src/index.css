@@ -97,6 +97,7 @@
   --spacing-sidebar: 4rem; /* 64px - 侧边栏宽度 */
   --spacing-toolbar: 3.5rem; /* 56px - 工具栏高度 */
   --spacing-appbar: 4rem; /* 64px - 顶部栏高度 */
+  --spacing-footer: 3rem; /* 48px - 底部栏高度 */
 
   /* 圆角 */
   --radius-sm: 0.25rem; /* 4px */

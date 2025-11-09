@@ -21,7 +21,7 @@ const BaseLayout: React.FC = () => {
         className="flex-1 overflow-y-auto bg-secondary-50 scrollbar-hide"
         style={{
           marginTop: 'var(--spacing-appbar)',
-          marginBottom: 'var(--spacing-toolbar)',
+          marginBottom: 'var(--spacing-footer)',
         }}
       >
         <Outlet />

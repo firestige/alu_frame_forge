@@ -312,7 +312,7 @@ const DesignerPage: React.FC = () => {
     services.status === 'ready' && isRendererReady ? 'ready' : 'loading';
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+    <div className="relative w-full h-full">
       {services.status === 'ready' ? (
         <DesignerProvider
           value={{
@@ -331,17 +331,7 @@ const DesignerPage: React.FC = () => {
         </DesignerProvider>
       ) : (
         // 服务未就绪时，显示简单的加载提示
-        <div
-          style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: '#1a1a1a',
-            color: '#ffffff',
-          }}
-        >
+        <div className="w-full h-full flex justify-center items-center bg-[#1a1a1a] text-white">
           <div>初始化服务中...</div>
         </div>
       )}
