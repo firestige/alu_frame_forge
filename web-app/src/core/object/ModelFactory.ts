@@ -1,11 +1,11 @@
-import type { AnyAsset } from './types/asset';
+import type { AnyAsset } from '../asset/types/asset';
 import type {
   SceneObject,
   SceneObjectCreateOptions,
 } from './types/scene-object';
-import type { AssetRegistry } from './AssetRegistry';
+import type { AssetRegistry } from '../asset';
 import type { InstanceStrategy } from './strategies';
-import { AssetType } from './types/enums';
+import { AssetType } from '../asset/types/enums';
 
 /**
  * 模型工厂

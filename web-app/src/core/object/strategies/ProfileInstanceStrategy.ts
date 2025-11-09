@@ -1,11 +1,11 @@
 import type { InstanceStrategy } from './InstanceStrategy';
-import type { ProfileAsset, AnyAsset } from '../types/asset';
+import type { ProfileAsset, AnyAsset } from '../../asset/types/asset';
 import type {
   SceneObject,
   SceneObjectCreateOptions,
   ExtrudedProfileGeometry,
 } from '../types/scene-object';
-import { AssetType } from '../types/enums';
+import { AssetType } from '../../asset/types/enums';
 
 /**
  * 型材实例化策略

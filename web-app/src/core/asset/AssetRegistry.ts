@@ -19,8 +19,7 @@ export class AssetRegistry {
   private customAssets: Map<string, AnyAsset> = new Map();
 
   constructor() {
-    // 初始化时加载内置素材
-    this.loadBuiltinAssets();
+    // 初始化完成，等待外部加载内置素材
   }
 
   // ==================== 注册方法 ====================
@@ -41,9 +40,6 @@ export class AssetRegistry {
     }
 
     targetMap.set(asset.id, asset);
-    console.log(
-      `[AssetRegistry] Registered ${asset.source} asset: ${asset.name} (${asset.id})`
-    );
   }
 
   /**
@@ -120,9 +116,6 @@ export class AssetRegistry {
   update(assetId: string, updates: Partial<Asset>): boolean {
     const asset = this.customAssets.get(assetId);
     if (!asset) {
-      console.warn(
-        `[AssetRegistry] Cannot update: asset "${assetId}" not found or is builtin`
-      );
       return false;
     }
 
@@ -131,7 +124,6 @@ export class AssetRegistry {
       updatedAt: new Date(),
     });
 
-    console.log(`[AssetRegistry] Updated asset: ${assetId}`);
     return true;
   }
 
@@ -141,24 +133,17 @@ export class AssetRegistry {
    */
   delete(assetId: string): boolean {
     if (this.builtinAssets.has(assetId)) {
-      console.warn(`[AssetRegistry] Cannot delete builtin asset: ${assetId}`);
       return false;
     }
 
-    const deleted = this.customAssets.delete(assetId);
-    if (deleted) {
-      console.log(`[AssetRegistry] Deleted custom asset: ${assetId}`);
-    }
-    return deleted;
+    return this.customAssets.delete(assetId);
   }
 
   /**
    * 清空所有自定义素材
    */
   clearCustomAssets(): void {
-    const count = this.customAssets.size;
     this.customAssets.clear();
-    console.log(`[AssetRegistry] Cleared ${count} custom assets`);
   }
 
   // ==================== 统计信息 ====================
@@ -185,22 +170,4 @@ export class AssetRegistry {
       },
     };
   }
-
-  // ==================== 初始化 ====================
-
-  /**
-   * 加载内置素材
-   * 实际项目中应从配置文件或数据库加载
-   */
-  private loadBuiltinAssets(): void {
-    // 这里暂时为空，后续会从 /data/assets/ 加载
-    // 内置素材应该在应用启动时通过单独的加载器加载
-    console.log('[AssetRegistry] Initialized, waiting for builtin assets...');
-  }
 }
-
-/**
- * 全局单例（可选）
- * 也可以通过依赖注入传递
- */
-export const globalAssetRegistry = new AssetRegistry();

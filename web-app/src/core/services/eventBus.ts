@@ -25,6 +25,11 @@ export type DesignerCommandEvents = {
   'command:create:cube': void;
   'command:create:box': void;
   'command:create:aluminumProfile': void;
+  'command:create:profile:prepare': {
+    // 新增：准备创建型材（交互式）
+    assetId: string;
+    mode: 'interactive';
+  };
   'command:create:panel': void;
   'command:create:connector': void;
 

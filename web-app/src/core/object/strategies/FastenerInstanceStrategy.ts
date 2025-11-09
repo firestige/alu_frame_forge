@@ -1,11 +1,11 @@
 import type { InstanceStrategy } from './InstanceStrategy';
-import type { FastenerAsset, AnyAsset } from '../types/asset';
+import type { FastenerAsset, AnyAsset } from '../../asset/types/asset';
 import type {
   SceneObject,
   SceneObjectCreateOptions,
   ParametricFastenerGeometry,
 } from '../types/scene-object';
-import { AssetType } from '../types/enums';
+import { AssetType } from '../../asset/types/enums';
 
 /**
  * 紧固件实例化策略

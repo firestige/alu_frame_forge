@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- 背景 -->
+  <rect width="100" height="100" fill="#1e293b" rx="8"/>
+  
+  <!-- 图标 - 型材截面简化图 -->
+  <g transform="translate(50, 50)">
+    <!-- 外框 -->
+    <rect x="-30" y="-30" width="60" height="60" fill="none" stroke="#64748b" stroke-width="3"/>
+    <!-- 内部槽 -->
+    <line x1="-30" y1="0" x2="30" y2="0" stroke="#64748b" stroke-width="2"/>
+    <line x1="0" y1="-30" x2="0" y2="30" stroke="#64748b" stroke-width="2"/>
+    <!-- 中心点 -->
+    <circle cx="0" cy="0" r="4" fill="#94a3b8"/>
+  </g>
+  
+  <!-- 文字提示 -->
+  <text x="50" y="85" text-anchor="middle" fill="#64748b" font-size="10" font-family="Arial, sans-serif">
+    No Preview
+  </text>
+</svg>

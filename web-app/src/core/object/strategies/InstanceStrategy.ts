@@ -1,4 +1,4 @@
-import type { AnyAsset } from '../types/asset';
+import type { AnyAsset } from '../../asset/types/asset';
 import type {
   SceneObject,
   SceneObjectCreateOptions,

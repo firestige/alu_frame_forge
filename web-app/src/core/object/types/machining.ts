@@ -1,4 +1,4 @@
-import { MachiningOpType } from './enums';
+import { MachiningOpType } from '../../asset/types/enums';
 
 /**
  * 加工操作基础接口

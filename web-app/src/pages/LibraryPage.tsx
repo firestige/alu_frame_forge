@@ -1,17 +1,18 @@
 import React, { useEffect, useMemo } from 'react';
 import LibraryPageUI from '@/features/library/ui/LibraryPageUI';
-import { useLibraryStore } from '@/stores/libraryStore';
-import { series20Profiles, series30Profiles } from '@/data/profiles';
+import { useLibraryStore, type Asset } from '@/stores/libraryStore';
+import { LibraryProvider, useLibraryContext } from '@/features/library/context';
 
 /**
- * LibraryPage - 型材库页面容器
+ * LibraryPageContent - 型材库页面内容
  * 负责：
- * 1. 初始化 library 数据
- * 2. 管理 zustand 状态
+ * 1. 从 AssetService 加载型材数据
+ * 2. 管理 zustand UI 状态
  * 3. 绑定业务逻辑和数据
  * 4. 将状态和回调传递给显示层组件
  */
-const LibraryPage: React.FC = () => {
+const LibraryPageContent: React.FC = () => {
+  const { assetService } = useLibraryContext();
   const {
     assets,
     searchQuery,
@@ -23,14 +24,18 @@ const LibraryPage: React.FC = () => {
     clearSelection,
   } = useLibraryStore();
 
-  // 初始化加载型材数据
+  // 初始化加载型材数据（从 AssetService）
   useEffect(() => {
-    const allAssets = [
-      ...series20Profiles.map(p => ({ ...p, series: 20 })),
-      ...series30Profiles.map(p => ({ ...p, series: 30 })),
-    ];
+    const profiles = assetService.getAllProfiles();
+    const allAssets: Asset[] = profiles.map(profile => ({
+      id: profile.id,
+      name: profile.name,
+      description: profile.description || '',
+      svg: profile.crossSection.svgPath || '', // 从 crossSection 中获取 svg 路径
+      series: profile.crossSection.width,
+    }));
     setAssets(allAssets);
-  }, [setAssets]);
+  }, [assetService, setAssets]);
 
   // 根据搜索关键词过滤型材
   const filteredAssets = useMemo(() => {
@@ -114,6 +119,18 @@ const LibraryPage: React.FC = () => {
       onSelectAsset={handleSelectAsset}
       onSelectAll={handleSelectAll}
     />
+  );
+};
+
+/**
+ * LibraryPage - 型材库页面容器
+ * 包裹 LibraryProvider 提供独立的 AssetService
+ */
+const LibraryPage: React.FC = () => {
+  return (
+    <LibraryProvider>
+      <LibraryPageContent />
+    </LibraryProvider>
   );
 };
 

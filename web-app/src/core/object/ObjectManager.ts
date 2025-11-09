@@ -10,15 +10,11 @@
  */
 
 import type { IRenderer, Vector3, Euler } from '../renderer/renderer-types';
-import type {
-  SceneObject,
-  AnyAsset,
-  Transform,
-  SceneObjectCreateOptions,
-} from './types';
-import type { AssetType } from './types/enums';
+import type { SceneObject, Transform, SceneObjectCreateOptions } from './types';
+import type { AnyAsset } from '../asset/types/asset';
+import type { AssetType } from '../asset/types/enums';
 import mitt, { type Emitter } from 'mitt';
-import { AssetRegistry } from './AssetRegistry';
+import { AssetService } from '../asset';
 import { ModelFactory } from './ModelFactory';
 import { ProjectSerializer } from './SceneIO';
 import type { ProjectFileFormat } from './SceneIO';
@@ -50,18 +46,24 @@ export class ObjectManager {
   private eventBus: Emitter<ObjectManagerEvents>;
 
   // 核心服务
-  private assetRegistry: AssetRegistry;
+  private assetService: AssetService;
   private modelFactory: ModelFactory;
   private serializer: ProjectSerializer;
 
   // 渲染器引用
   private renderer?: IRenderer;
 
-  constructor(renderer?: IRenderer) {
+  constructor(renderer?: IRenderer, assetService?: AssetService) {
     this.renderer = renderer;
     this.eventBus = mitt<ObjectManagerEvents>();
-    this.assetRegistry = new AssetRegistry();
-    this.modelFactory = new ModelFactory(this.assetRegistry);
+
+    // 使用传入的 AssetService 或创建新实例
+    this.assetService = assetService || new AssetService();
+    if (!assetService) {
+      this.assetService.initialize();
+    }
+
+    this.modelFactory = new ModelFactory(this.assetService.getRegistry());
     this.serializer = new ProjectSerializer();
   }
 
@@ -181,7 +183,7 @@ export class ObjectManager {
    */
   public getObjectsByAssetType(assetType: AssetType): SceneObject[] {
     return Array.from(this.objects.values()).filter(obj => {
-      const asset = this.assetRegistry.get(obj.assetId);
+      const asset = this.assetService.getAssetById(obj.assetId);
       return asset?.type === assetType;
     });
   }
@@ -319,38 +321,38 @@ export class ObjectManager {
   // ==================== 资产管理 ====================
 
   /**
-   * 获取资产注册表
+   * 获取资产服务
    */
-  public getAssetRegistry(): AssetRegistry {
-    return this.assetRegistry;
+  public getAssetService(): AssetService {
+    return this.assetService;
   }
 
   /**
-   * 注册资产
+   * 注册资产（委托给 AssetService）
    */
   public registerAsset(asset: AnyAsset): void {
-    this.assetRegistry.register(asset);
+    this.assetService.getRegistry().register(asset);
   }
 
   /**
    * 获取所有资产
    */
   public getAllAssets(): AnyAsset[] {
-    return this.assetRegistry.getAll();
+    return this.assetService.getRegistry().getAll();
   }
 
   /**
    * 根据类型获取资产
    */
   public getAssetsByType(type: AssetType): AnyAsset[] {
-    return this.assetRegistry.getByType(type);
+    return this.assetService.getRegistry().getByType(type);
   }
 
   /**
    * 根据 ID 获取资产
    */
   public getAsset(assetId: string): AnyAsset | undefined {
-    return this.assetRegistry.get(assetId);
+    return this.assetService.getAssetById(assetId);
   }
 
   // ==================== 对象创建 ====================

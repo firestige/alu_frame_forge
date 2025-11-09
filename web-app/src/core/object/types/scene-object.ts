@@ -1,6 +1,6 @@
-import type { AssetSource, AssetType } from './enums';
+import type { AssetSource, AssetType } from '../../asset/types/enums';
 import type { MachiningOperation } from './machining';
-import type { MaterialProperties } from './asset';
+import type { MaterialProperties } from '../../asset/types/asset';
 
 /**
  * 三维向量

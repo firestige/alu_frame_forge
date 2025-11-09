@@ -1,5 +1,11 @@
 import React from 'react';
 
+/**
+ * 默认占位 SVG 路径
+ * 当型材没有预览图时使用
+ */
+const DEFAULT_PLACEHOLDER_SVG = '/assets/placeholder-profile.svg';
+
 export interface GalleryCardProps {
   name: string;
   src: string;
@@ -26,6 +32,26 @@ const GalleryCard: React.FC<GalleryCardProps> = ({
   onSelect,
   onMenuClick,
 }) => {
+  // 处理图片 src，如果为空或无效则使用占位图
+  const [imgSrc, setImgSrc] = React.useState(src || DEFAULT_PLACEHOLDER_SVG);
+  const [imgError, setImgError] = React.useState(false);
+
+  // 当 src prop 变化时更新图片源
+  React.useEffect(() => {
+    if (src && src !== imgSrc) {
+      setImgSrc(src);
+      setImgError(false);
+    }
+  }, [src, imgSrc]);
+
+  // 处理图片加载失败
+  const handleImageError = () => {
+    if (!imgError) {
+      setImgError(true);
+      setImgSrc(DEFAULT_PLACEHOLDER_SVG);
+    }
+  };
+
   return (
     <div className="w-full p-2 flex flex-col border border-secondary-200 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden bg-white aspect-[1/1.618] relative">
       {/* 左上角复选框 */}
@@ -49,7 +75,12 @@ const GalleryCard: React.FC<GalleryCardProps> = ({
 
       {/* 图片区域 - 1:1 宽高比 */}
       <div className="w-full aspect-square p-2 mt-6">
-        <img className="w-full h-full object-contain" alt={name} src={src} />
+        <img
+          className="w-full h-full object-contain"
+          alt={name}
+          src={imgSrc}
+          onError={handleImageError}
+        />
       </div>
 
       {/* 资源名称 - 2rem 字号，加粗，水平和垂直居中 */}
