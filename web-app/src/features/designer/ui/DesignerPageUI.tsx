@@ -33,12 +33,7 @@ export interface DesignerPageUIProps {
  * - 不直接持有业务服务（通过 Context 访问）
  * - 不管理项目加载逻辑（父组件职责）
  */
-const DesignerPageUI: React.FC<DesignerPageUIProps> = ({
-  status,
-  onRendererReady,
-}) => {
-  console.log('[DesignerPageUI] 渲染 - status:', status);
-
+const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
   // ==================== 1. 3D 容器和 Renderer ====================
 
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -60,7 +55,6 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({
   // 当 renderer 就绪时，通知父组件
   React.useEffect(() => {
     if (renderer) {
-      console.log('[DesignerPageUI] ✅ Renderer 就绪，通知父组件');
       onRendererReady(renderer);
     }
   }, [renderer, onRendererReady]);

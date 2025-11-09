@@ -38,18 +38,12 @@ export function useBusinessServices(): BusinessServices {
 
   useEffect(() => {
     const init = async () => {
-      console.log('[useBusinessServices] 开始初始化业务服务...');
-
       // 1. 创建 ObjectManager（不依赖 renderer）
       const objectManager = new ObjectManager();
-      console.log('[useBusinessServices] ✅ ObjectManager 已创建');
 
       // 2. 创建业务服务
       const creation = new ModelCreationService(objectManager);
-      console.log('[useBusinessServices] ✅ ModelCreationService 已创建');
-
       const editor = new ModelEditorService(objectManager);
-      console.log('[useBusinessServices] ✅ ModelEditorService 已创建');
 
       servicesRef.current = {
         objectManager,
@@ -57,14 +51,12 @@ export function useBusinessServices(): BusinessServices {
         editor,
       };
 
-      console.log('[useBusinessServices] 🎉 所有业务服务初始化完成');
       setStatus('ready');
     };
 
     init();
 
     return () => {
-      console.log('[useBusinessServices] Cleanup: 清理业务服务');
       servicesRef.current = null;
     };
   }, []);

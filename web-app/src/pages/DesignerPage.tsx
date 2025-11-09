@@ -39,12 +39,9 @@ function getProjectIdFromUrl(): string | null {
  * - 不显示 Loading（委托给 UI 层）
  */
 const DesignerPage: React.FC = () => {
-  console.log('[DesignerPage] 组件渲染开始');
-
   // ==================== 1. 初始化业务服务 ====================
 
   const services = useBusinessServices();
-  console.log('[DesignerPage] 业务服务状态:', services.status);
 
   // ==================== 2. 管理 Renderer 引用 ====================
 
@@ -52,7 +49,6 @@ const DesignerPage: React.FC = () => {
   const [isRendererReady, setIsRendererReady] = React.useState(false);
 
   const handleRendererReady = React.useCallback((renderer: IRenderer) => {
-    console.log('[DesignerPage] 收到 renderer 引用');
     rendererRef.current = renderer;
     setIsRendererReady(true);
   }, []);
@@ -65,18 +61,13 @@ const DesignerPage: React.FC = () => {
       return;
     }
 
-    console.log('[DesignerPage] 🔗 创建 RenderSyncService 粘合层...');
-
     // 创建 RenderSyncService 连接 ObjectManager 和 Renderer
     const syncService = new RenderSyncService(
       services.objectManager!,
       rendererRef.current
     );
 
-    console.log('[DesignerPage] ✅ RenderSyncService 已创建，粘合完成');
-
     return () => {
-      console.log('[DesignerPage] 销毁 RenderSyncService');
       syncService.dispose();
     };
   }, [services.status, isRendererReady, services.objectManager]);
@@ -89,26 +80,18 @@ const DesignerPage: React.FC = () => {
     const loadProjectData = async () => {
       // 只有当业务服务和渲染器都就绪时，才开始加载
       if (services.status !== 'ready' || !isRendererReady) {
-        console.log(
-          '[DesignerPage] ⏸ 等待服务和渲染器就绪 - services:',
-          services.status,
-          'renderer:',
-          isRendererReady
-        );
         return;
       }
 
       // 防止重复加载
       if (hasLoadedRef.current) return;
 
-      console.log('[DesignerPage] ➡ 开始项目加载流程...');
       hasLoadedRef.current = true; // 标记已加载
 
       const projectId = getProjectIdFromUrl() || getLastProjectId();
 
       if (!projectId) {
         // 场景1: 未指定项目ID - 创建空白项目
-        console.log('[DesignerPage] 未指定项目，创建空白项目');
         useDesignerProjectStore.getState().setProject({
           id: `project-${Date.now()}`,
           name: '未命名项目',
@@ -119,14 +102,12 @@ const DesignerPage: React.FC = () => {
 
       try {
         // 场景2: 指定了项目ID - 尝试加载
-        console.log('[DesignerPage] 尝试加载项目:', projectId);
         useDesignerProjectStore.getState().setStatus('loading');
 
         const projectData = await loadProject(projectId);
 
         if (projectData) {
           // 场景2.1: 加载成功
-          console.log('[DesignerPage] 项目加载成功');
           services.objectManager!.importScene(projectData);
 
           useDesignerProjectStore.getState().setProject({
@@ -136,8 +117,6 @@ const DesignerPage: React.FC = () => {
           });
         } else {
           // 场景2.2: 加载失败 - fallback 到空白项目
-          console.warn('[DesignerPage] 项目加载失败，创建空白项目');
-
           useDesignerProjectStore.getState().setProject({
             id: `project-${Date.now()}`,
             name: '未命名项目',
@@ -146,10 +125,6 @@ const DesignerPage: React.FC = () => {
               description: `原项目 ${projectId} 加载失败，已创建新项目`,
             },
           });
-
-          console.info(
-            '[DesignerPage] 提示：指定的项目不存在或加载失败，已自动创建空白项目'
-          );
         }
       } catch (error) {
         // 场景3: 加载过程出错
@@ -177,8 +152,6 @@ const DesignerPage: React.FC = () => {
 
   React.useEffect(() => {
     if (services.status !== 'ready') return;
-
-    console.log('[DesignerPage] 📡 设置事件桥梁: Command → ObjectManager');
 
     // 监听创建命令
     const handleCreateCube = () => services.creation?.createCube();
@@ -238,26 +211,21 @@ const DesignerPage: React.FC = () => {
     onCommand('command:model:update', handleModelUpdate);
 
     // 监听相机命令 (相机是 UI 状态，这里暂时保留框架)
-    const handleCameraSetView = (data: {
+    const handleCameraSetView = (_data: {
       position: { x: number; y: number; z: number };
       target: { x: number; y: number; z: number };
     }) => {
       // TODO: 实现相机视图设置 (将来可能委托给 renderer)
-      console.log('Set camera view:', data);
     };
 
     const handleCameraReset = () => {
       // TODO: 实现相机重置 (将来可能委托给 renderer)
-      console.log('Reset camera');
     };
 
     onCommand('command:camera:setView', handleCameraSetView);
     onCommand('command:camera:reset', handleCameraReset);
 
-    console.log('[DesignerPage] ✅ 事件桥梁已建立');
-
     return () => {
-      console.log('[DesignerPage] 🔌 清理事件监听');
       offCommand('command:create:cube', handleCreateCube);
       offCommand('command:create:box', handleCreateBox);
       offCommand('command:create:aluminumProfile', handleCreateProfile);
@@ -276,8 +244,6 @@ const DesignerPage: React.FC = () => {
   React.useEffect(() => {
     if (services.status !== 'ready') return;
 
-    console.log('[DesignerPage] 📡 设置事件桥梁: ObjectManager → Store');
-
     const syncToStore = () => {
       const objects = services.objectManager!.getAllObjects();
       useDesignerObjectStore.getState().setObjects(objects);
@@ -292,10 +258,7 @@ const DesignerPage: React.FC = () => {
     services.objectManager!.on('object:updated', syncToStore);
     services.objectManager!.on('objects:cleared', syncToStore);
 
-    console.log('[DesignerPage] ✅ Store 同步已建立');
-
     return () => {
-      console.log('[DesignerPage] 🔌 清理 Store 同步');
       services.objectManager?.off('object:added', syncToStore);
       services.objectManager?.off('object:removed', syncToStore);
       services.objectManager?.off('object:updated', syncToStore);

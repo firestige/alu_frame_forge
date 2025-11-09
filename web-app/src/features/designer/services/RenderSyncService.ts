@@ -75,8 +75,6 @@ export class RenderSyncService {
 
     // 记录映射
     this.objectRenderMap.set(object.id, object.visual.mesh);
-
-    console.log(`[RenderSync] Object ${object.name} synced to renderer`);
   }
 
   /**
@@ -89,7 +87,6 @@ export class RenderSyncService {
 
     const renderObject = this.objectRenderMap.get(objectId);
     if (!renderObject) {
-      console.warn(`[RenderSync] Object ${objectId} not found in render map`);
       return;
     }
 
@@ -139,8 +136,6 @@ export class RenderSyncService {
       // 更新映射
       this.objectRenderMap.set(object.id, object.visual.mesh);
     }
-
-    console.log(`[RenderSync] Object ${objectId} updated in renderer`);
   }
 
   /**
@@ -162,8 +157,6 @@ export class RenderSyncService {
 
     // 清除映射
     this.objectRenderMap.delete(objectId);
-
-    console.log(`[RenderSync] Object ${objectId} removed from renderer`);
   }
 
   /**
@@ -178,8 +171,6 @@ export class RenderSyncService {
 
     // 清空映射
     this.objectRenderMap.clear();
-
-    console.log('[RenderSync] All objects cleared from renderer');
   }
 
   /**

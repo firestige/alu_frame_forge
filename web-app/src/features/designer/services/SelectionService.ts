@@ -41,14 +41,10 @@ export class SelectionService {
       if (payload?.deletedObjectId) {
         // 只有当删除的对象是当前选中对象时才清除
         if (this.selectedObjectId === payload.deletedObjectId) {
-          console.log(
-            '[SelectionService] 检测到已选中对象被删除，自动清除选中状态'
-          );
           this.selectObject(null);
         }
       } else {
         // 没有指定对象ID，直接清除选中（批量删除场景）
-        console.log('[SelectionService] 检测到批量删除，清除选中状态');
         this.selectObject(null);
       }
     });
@@ -66,13 +62,11 @@ export class SelectionService {
     if (objectId) {
       // 更新选中状态（UI 状态）
       this.selectedObjectId = objectId;
-      console.log('[SelectionService] 选中对象:', objectId);
 
       // TODO: 添加视觉反馈（高亮、outline 等）
       // 需要实现 renderer 的高亮API后再完善
     } else {
       this.selectedObjectId = null;
-      console.log('[SelectionService] 取消选择');
     }
   }
 
@@ -88,8 +82,6 @@ export class SelectionService {
    */
   private clearHighlight(): void {
     if (this.selectedObjectId) {
-      console.log('[SelectionService] 清除高亮:', this.selectedObjectId);
-
       // TODO: 移除视觉反馈
       // 需要实现 renderer 的高亮API后再完善
     }

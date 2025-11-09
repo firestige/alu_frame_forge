@@ -17,13 +17,7 @@ const BaseLayout: React.FC = () => {
       </div>
 
       {/* 主内容区域 - 占据 AppBar 和 Footer 之间的空间 */}
-      <main
-        className="flex-1 overflow-y-auto bg-secondary-50 scrollbar-hide"
-        style={{
-          marginTop: 'var(--spacing-appbar)',
-          marginBottom: 'var(--spacing-footer)',
-        }}
-      >
+      <main className="flex-1 overflow-y-auto bg-secondary-50 scrollbar-hide mt-(--spacing-appbar) mb-(--spacing-footer)">
         <Outlet />
       </main>
 

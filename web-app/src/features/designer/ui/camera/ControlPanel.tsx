@@ -21,10 +21,7 @@ const ControlPanel: React.FC = () => {
   };
 
   return (
-    <div
-      className="absolute right-4 top-4 z-20"
-      style={{ pointerEvents: 'auto' }}
-    >
+    <div className="absolute right-4 top-4 z-20 pointer-events-auto">
       <div className="bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-lg p-3 shadow-xl w-36">
         <div className="text-xs text-slate-400 mb-2 font-medium">视图控制</div>
         <div className="flex flex-col gap-2">
