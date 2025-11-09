@@ -1,5 +1,5 @@
 import type { SceneObjectCreateOptions } from '@/core/object/types/scene-object';
-import type { AnyAsset } from '@/core/object/types/asset';
+import type { AnyAsset } from '@/core/asset/types/asset';
 
 /**
  * 占位符状态

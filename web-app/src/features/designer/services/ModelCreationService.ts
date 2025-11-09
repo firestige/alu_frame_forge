@@ -1,5 +1,5 @@
 import type { ObjectManager } from '@/core/object';
-import { AssetType, AssetSource } from '@/core/object';
+import { AssetType, AssetSource } from '@/core/asset';
 
 /**
  * 对象创建服务

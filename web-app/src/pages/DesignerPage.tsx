@@ -161,6 +161,17 @@ const DesignerPage: React.FC = () => {
     const handleCreatePanel = () => services.creation?.createPanel();
     const handleCreateConnector = () => services.creation?.createConnector();
 
+    // 监听新命令：准备创建型材（交互式）
+    const handlePrepareProfile = (data: {
+      assetId: string;
+      mode: 'interactive';
+    }) => {
+      // TODO: 启动交互式放置流程（PlacementService）
+      // 临时：打印日志，后续实现
+      console.log('[DesignerPage] 准备创建型材:', data);
+      // PlacementService.startPlacement(data.assetId);
+    };
+
     // 监听操作命令
     const handleDelete = (modelId: string) =>
       services.objectManager?.removeObject(modelId);
@@ -204,6 +215,7 @@ const DesignerPage: React.FC = () => {
     onCommand('command:create:cube', handleCreateCube);
     onCommand('command:create:box', handleCreateBox);
     onCommand('command:create:aluminumProfile', handleCreateProfile);
+    onCommand('command:create:profile:prepare', handlePrepareProfile);
     onCommand('command:create:panel', handleCreatePanel);
     onCommand('command:create:connector', handleCreateConnector);
     onCommand('command:model:delete', handleDelete);
@@ -229,6 +241,7 @@ const DesignerPage: React.FC = () => {
       offCommand('command:create:cube', handleCreateCube);
       offCommand('command:create:box', handleCreateBox);
       offCommand('command:create:aluminumProfile', handleCreateProfile);
+      offCommand('command:create:profile:prepare', handlePrepareProfile);
       offCommand('command:create:panel', handleCreatePanel);
       offCommand('command:create:connector', handleCreateConnector);
       offCommand('command:model:delete', handleDelete);

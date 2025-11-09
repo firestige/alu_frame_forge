@@ -1,6 +1,8 @@
 import * as React from 'react';
-// import { useDesignerContext } from '../hooks/useDesignerContext';
 import { sendCommand } from '@/core/services/eventBus';
+import { useDesignerContext } from '../hooks/useDesignerContext';
+import type { ProfileAsset } from '@/core/asset';
+import ProfileDropdownPanel from './components/ProfileDropdownPanel';
 
 // 按钮组件
 interface ToolButtonProps {
@@ -179,7 +181,27 @@ export interface ToolbarProps {
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
-  // 不需要 eventBus，直接使用 sendCommand 发送命令
+  // 获取 AssetService
+  const { services } = useDesignerContext();
+  const assetService = services.objectManager.getAssetService();
+
+  // 型材相关状态
+  const [activeSeries, setActiveSeries] = React.useState<number>(20);
+  const [profiles, setProfiles] = React.useState<ProfileAsset[]>([]);
+  const [availableSeries, setAvailableSeries] = React.useState<number[]>([]);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] =
+    React.useState(false);
+
+  // 加载型材数据
+  React.useEffect(() => {
+    if (isProfileDropdownOpen) {
+      const series = assetService.getAvailableSeries();
+      setAvailableSeries(series);
+
+      const profilesData = assetService.getProfilesBySeries(activeSeries);
+      setProfiles(profilesData);
+    }
+  }, [isProfileDropdownOpen, activeSeries, assetService]);
 
   const handleCreateCube = () => {
     sendCommand('command:create:cube', undefined);
@@ -189,8 +211,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
     sendCommand('command:create:box', undefined);
   };
 
-  const handleCreateProfile = () => {
-    sendCommand('command:create:aluminumProfile', undefined);
+  const handleSelectProfile = (assetId: string) => {
+    sendCommand('command:create:profile:prepare', {
+      assetId,
+      mode: 'interactive',
+    });
+    setIsProfileDropdownOpen(false);
   };
 
   const handleCreatePanel = () => {
@@ -251,17 +277,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
             label="铝型材"
             variant="warning"
             dropdownContent={
-              <div className="w-full h-full p-4 overflow-auto">
-                <h3 className="text-white text-lg font-semibold mb-4">
-                  选择铝型材类型
-                </h3>
-                <button
-                  onClick={handleCreateProfile}
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded"
-                >
-                  创建 2020 铝型材
-                </button>
-              </div>
+              <ProfileDropdownPanel
+                availableSeries={availableSeries}
+                activeSeries={activeSeries}
+                profiles={profiles}
+                onSeriesChange={setActiveSeries}
+                onSelectProfile={handleSelectProfile}
+              />
             }
           />
           <ToolButton icon="🪟" label="面板" onClick={handleCreatePanel} />

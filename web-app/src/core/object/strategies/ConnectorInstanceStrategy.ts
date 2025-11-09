@@ -1,11 +1,11 @@
 import type { InstanceStrategy } from './InstanceStrategy';
-import type { ConnectorAsset, AnyAsset } from '../types/asset';
+import type { ConnectorAsset, AnyAsset } from '../../asset/types/asset';
 import type {
   SceneObject,
   SceneObjectCreateOptions,
   ParametricConnectorGeometry,
 } from '../types/scene-object';
-import { AssetType } from '../types/enums';
+import { AssetType } from '../../asset/types/enums';
 
 /**
  * 连接件实例化策略
