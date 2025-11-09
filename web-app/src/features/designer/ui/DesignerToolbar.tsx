@@ -53,6 +53,8 @@ interface ToolButtonWithDropdownProps {
   variant?: 'default' | 'primary' | 'success' | 'warning';
   disabled?: boolean;
   dropdownContent?: React.ReactNode;
+  isOpen?: boolean; // 新增：允许父组件控制
+  onOpenChange?: (isOpen: boolean) => void; // 新增：通知父组件状态变化
 }
 
 const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
@@ -61,8 +63,11 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
   variant = 'default',
   disabled = false,
   dropdownContent,
+  isOpen: controlledIsOpen,
+  onOpenChange,
 }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [internalIsOpen, setInternalIsOpen] = React.useState(false);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -100,7 +105,11 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
       ) {
-        setIsOpen(false);
+        if (onOpenChange) {
+          onOpenChange(false);
+        } else {
+          setInternalIsOpen(false);
+        }
       }
     };
 
@@ -108,11 +117,16 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, onOpenChange]);
 
   const handleButtonClick = () => {
     if (!disabled) {
-      setIsOpen(!isOpen);
+      const newIsOpen = !isOpen;
+      if (onOpenChange) {
+        onOpenChange(newIsOpen);
+      } else {
+        setInternalIsOpen(newIsOpen);
+      }
     }
   };
 
@@ -276,6 +290,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
             icon="🔩"
             label="铝型材"
             variant="warning"
+            isOpen={isProfileDropdownOpen}
+            onOpenChange={setIsProfileDropdownOpen}
             dropdownContent={
               <ProfileDropdownPanel
                 availableSeries={availableSeries}
