@@ -1,66 +1,54 @@
 import * as React from 'react';
-import type { ObjectManager, SceneObject } from '@/core/object';
+import { useDesignerObjects } from '../hooks/useDesignerObjects';
+import { sendCommand } from '@/core/services/eventBus';
 import ObjectTree from './ObjectTree';
 import PropertyPanel from './PropertyPanel';
 
-interface ObjectManagerSidebarProps {
-  objectManager: ObjectManager | null;
-  selectedModelId: string | null;
-  onSelectModel: (modelId: string | null) => void;
-  onRefresh: () => void;
-}
+/**
+ * ObjectManagerSidebar - 对象管理器侧边栏
+ *
+ * 重构后：
+ * - 通过 useDesignerObjects() 获取对象列表
+ * - 内部管理选中状态（纯 UI 选中）
+ * - 通过事件系统发送操作命令
+ */
+const ObjectManagerSidebar: React.FC = () => {
+  // 通过 Hook 获取对象列表
+  const objects = useDesignerObjects();
 
-const ObjectManagerSidebar: React.FC<ObjectManagerSidebarProps> = ({
-  objectManager,
-  selectedModelId,
-  onSelectModel,
-  onRefresh,
-}) => {
-  const [objects, setObjects] = React.useState<SceneObject[]>([]);
-  const [selectedObject, setSelectedObject] =
-    React.useState<SceneObject | null>(null);
+  // 内部管理选中状态
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
-  // 更新对象列表
-  React.useEffect(() => {
-    if (objectManager) {
-      const allObjects = objectManager.getAllObjects();
-      setObjects(allObjects);
-    }
-  }, [objectManager, onRefresh]);
+  // 获取选中的对象
+  const selectedObject = React.useMemo(() => {
+    if (!selectedId) return null;
+    return objects.find(obj => obj.id === selectedId) || null;
+  }, [selectedId, objects]);
 
-  // 更新选中的对象
-  React.useEffect(() => {
-    if (objectManager && selectedModelId) {
-      const obj = objectManager.getObject(selectedModelId);
-      setSelectedObject(obj || null);
-    } else {
-      setSelectedObject(null);
-    }
-  }, [objectManager, selectedModelId]);
-
+  // 选中对象
   const handleSelectModel = (objectId: string) => {
-    onSelectModel(objectId);
+    setSelectedId(objectId);
   };
 
+  // 切换可见性
   const handleToggleVisibility = (objectId: string) => {
-    if (!objectManager) return;
+    sendCommand('command:model:toggleVisibility', objectId);
+  };
 
-    const obj = objectManager.getObject(objectId);
-    if (obj) {
-      const newVisibility = !(obj.visual?.isVisible ?? true);
-      objectManager.setObjectVisibility(objectId, newVisibility);
-      onRefresh();
+  // 删除对象
+  const handleDelete = (objectId: string) => {
+    sendCommand('command:model:delete', objectId);
+    if (selectedId === objectId) {
+      setSelectedId(null);
     }
   };
 
+  // 更新属性
   const handleUpdateProperty = (
     property: string,
     value: string | number | boolean
   ) => {
-    if (!objectManager || !selectedModelId) return;
-
-    const obj = objectManager.getObject(selectedModelId);
-    if (!obj) return;
+    if (!selectedId) return;
 
     const numValue =
       typeof value === 'number' ? value : parseFloat(value as string);
@@ -75,27 +63,43 @@ const ObjectManagerSidebar: React.FC<ObjectManagerSidebarProps> = ({
         transformKey === 'position' &&
         (propKey === 'x' || propKey === 'y' || propKey === 'z')
       ) {
-        const newPosition = { ...obj.transform.position };
-        newPosition[propKey] = numValue;
-        objectManager.updatePosition(selectedModelId, newPosition);
+        const obj = objects.find(o => o.id === selectedId);
+        if (obj) {
+          const newPosition = { ...obj.transform.position };
+          newPosition[propKey] = numValue;
+          sendCommand('command:model:update', {
+            id: selectedId,
+            updates: { transform: { ...obj.transform, position: newPosition } },
+          });
+        }
       } else if (
         transformKey === 'rotation' &&
         (propKey === 'x' || propKey === 'y' || propKey === 'z')
       ) {
-        const newRotation = { ...obj.transform.rotation };
-        // 将度数转换为弧度
-        newRotation[propKey] = (numValue * Math.PI) / 180;
-        objectManager.updateRotation(selectedModelId, newRotation);
+        const obj = objects.find(o => o.id === selectedId);
+        if (obj) {
+          const newRotation = { ...obj.transform.rotation };
+          // 将度数转换为弧度
+          newRotation[propKey] = (numValue * Math.PI) / 180;
+          sendCommand('command:model:update', {
+            id: selectedId,
+            updates: { transform: { ...obj.transform, rotation: newRotation } },
+          });
+        }
       } else if (
         transformKey === 'scale' &&
         (propKey === 'x' || propKey === 'y' || propKey === 'z')
       ) {
-        const newScale = { ...obj.transform.scale };
-        newScale[propKey] = numValue;
-        objectManager.updateScale(selectedModelId, newScale);
+        const obj = objects.find(o => o.id === selectedId);
+        if (obj) {
+          const newScale = { ...obj.transform.scale };
+          newScale[propKey] = numValue;
+          sendCommand('command:model:update', {
+            id: selectedId,
+            updates: { transform: { ...obj.transform, scale: newScale } },
+          });
+        }
       }
-
-      onRefresh();
     }
   };
 
@@ -104,22 +108,16 @@ const ObjectManagerSidebar: React.FC<ObjectManagerSidebarProps> = ({
       {/* 标题栏 */}
       <div className="px-3 py-2 border-b border-slate-700 flex items-center justify-between">
         <span className="text-sm font-medium text-white">对象管理器</span>
-        <button
-          onClick={onRefresh}
-          className="text-xs text-slate-400 hover:text-white transition-colors"
-          title="刷新"
-        >
-          🔄
-        </button>
       </div>
 
       {/* 对象树 - 占上半部分 */}
       <div className="flex-1 min-h-0 flex flex-col">
         <ObjectTree
           objects={objects}
-          selectedObjectId={selectedModelId}
+          selectedObjectId={selectedId}
           onSelectObject={handleSelectModel}
           onToggleVisibility={handleToggleVisibility}
+          onDelete={handleDelete}
         />
       </div>
 

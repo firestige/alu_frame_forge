@@ -1,4 +1,6 @@
 import * as React from 'react';
+// import { useDesignerContext } from '../hooks/useDesignerContext';
+import { sendCommand } from '@/core/services/eventBus';
 
 // 按钮组件
 interface ToolButtonProps {
@@ -171,28 +173,38 @@ const ButtonGroup: React.FC<ButtonGroupProps> = ({ title, children }) => {
 
 // Toolbar 主组件
 export interface ToolbarProps {
-  // 模型创建回调
-  onCreateCube?: () => void;
-  onCreateBox?: () => void;
-  onCreateAluminumProfile?: () => void;
-  onCreatePanel?: () => void;
-  onCreateConnector?: () => void;
-
-  // 工具操作回调
-  onResetCamera?: () => void;
-
-  // 当前选中的工具
-  selectedTool?: 'select' | 'move' | 'rotate' | null;
-  onToolChange?: (tool: 'select' | 'move' | 'rotate') => void;
+  // 当前选中的工具（UI 状态）
+  selectedTool: 'select' | 'move' | 'rotate';
+  onToolChange: (tool: 'select' | 'move' | 'rotate') => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({
-  onCreatePanel,
-  onCreateConnector,
-  onResetCamera,
-  selectedTool = 'select',
-  onToolChange,
-}) => {
+const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
+  // 不需要 eventBus，直接使用 sendCommand 发送命令
+
+  const handleCreateCube = () => {
+    sendCommand('command:create:cube', undefined);
+  };
+
+  const handleCreateBox = () => {
+    sendCommand('command:create:box', undefined);
+  };
+
+  const handleCreateProfile = () => {
+    sendCommand('command:create:aluminumProfile', undefined);
+  };
+
+  const handleCreatePanel = () => {
+    sendCommand('command:create:panel', undefined);
+  };
+
+  const handleCreateConnector = () => {
+    sendCommand('command:create:connector', undefined);
+  };
+
+  const handleResetCamera = () => {
+    sendCommand('command:camera:reset', undefined);
+  };
+
   return (
     <div className="w-full bg-slate-800 border-b border-slate-700 shadow-lg">
       <div className="flex items-start py-2 overflow-x-auto">
@@ -202,26 +214,38 @@ const Toolbar: React.FC<ToolbarProps> = ({
             icon="👆"
             label="选择"
             active={selectedTool === 'select'}
-            onClick={() => onToolChange?.('select')}
+            onClick={() => onToolChange('select')}
           />
           <ToolButton
             icon="✋"
             label="移动"
             active={selectedTool === 'move'}
-            onClick={() => onToolChange?.('move')}
+            onClick={() => onToolChange('move')}
             disabled
           />
           <ToolButton
             icon="🔄"
             label="旋转"
             active={selectedTool === 'rotate'}
-            onClick={() => onToolChange?.('rotate')}
+            onClick={() => onToolChange('rotate')}
             disabled
           />
         </ButtonGroup>
 
         {/* 模型创建 */}
         <ButtonGroup title="插入">
+          <ToolButton
+            icon="📦"
+            label="立方体"
+            onClick={handleCreateCube}
+            variant="success"
+          />
+          <ToolButton
+            icon="⬛"
+            label="长方体"
+            onClick={handleCreateBox}
+            variant="success"
+          />
           <ToolButtonWithDropdown
             icon="🔩"
             label="铝型材"
@@ -231,25 +255,26 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <h3 className="text-white text-lg font-semibold mb-4">
                   选择铝型材类型
                 </h3>
-                <div className="text-slate-400 text-sm">
-                  铝型材库内容区域...
-                </div>
-                {/* 这里可以添加铝型材选择的具体内容 */}
+                <button
+                  onClick={handleCreateProfile}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded"
+                >
+                  创建 2020 铝型材
+                </button>
               </div>
             }
           />
-          <ToolButton icon="🪟" label="面板" onClick={onCreatePanel} disabled />
+          <ToolButton icon="🪟" label="面板" onClick={handleCreatePanel} />
           <ToolButton
             icon="🔗"
             label="连接件"
-            onClick={onCreateConnector}
-            disabled
+            onClick={handleCreateConnector}
           />
         </ButtonGroup>
 
         {/* 场景操作 */}
         <ButtonGroup title="视图">
-          <ToolButton icon="📷" label="重置相机" onClick={onResetCamera} />
+          <ToolButton icon="📷" label="重置相机" onClick={handleResetCamera} />
         </ButtonGroup>
 
         {/* 高级功能 */}

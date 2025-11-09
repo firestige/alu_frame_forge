@@ -301,7 +301,7 @@ z-[var(--z-tooltip)]         // 1070
 </button>
 
 // 使用 Drawer 宽度
-<div className="w-[var(--width-drawer-md)] h-full bg-white shadow-lg">
+<div className="w-(--width-drawer-md) h-full bg-white shadow-lg">
   侧边栏内容
 </div>
 
@@ -311,7 +311,7 @@ z-[var(--z-tooltip)]         // 1070
 </h1>
 
 // 使用圆角和阴影
-<div className="rounded-[var(--radius-lg)] shadow-[var(--shadow-md)] p-4">
+<div className="rounded-lg shadow-(--shadow-md) p-4">
   卡片内容
 </div>
 ```

@@ -41,6 +41,17 @@ export type DesignerCommandEvents = {
   'command:model:toggleVisibility': string;
   'command:model:showProperties': string;
   'command:model:edit': string;
+  'command:model:update': {
+    // 更新模型属性
+    id: string;
+    updates: {
+      transform?: {
+        position?: Vector3;
+        rotation?: Vector3;
+        scale?: Vector3;
+      };
+    };
+  };
 
   // 选择命令
   'command:selection:clear': void;

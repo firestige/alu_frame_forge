@@ -49,7 +49,7 @@ const Drawer: React.FC = () => {
             damping: 30,
             mass: 0.8,
           }}
-          className="w-[var(--width-drawer-sm)] h-full p-4 overflow-y-auto"
+          className="w-(--width-drawer-sm) h-full p-4 overflow-y-auto"
         >
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-secondary-900">导航菜单</h2>

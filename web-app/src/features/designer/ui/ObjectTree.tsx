@@ -7,6 +7,7 @@ interface ObjectTreeProps {
   selectedObjectId: string | null;
   onSelectObject: (objectId: string) => void;
   onToggleVisibility: (objectId: string) => void;
+  onDelete?: (objectId: string) => void; // 添加删除回调
 }
 
 const ObjectTree: React.FC<ObjectTreeProps> = ({
@@ -14,6 +15,7 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
   selectedObjectId,
   onSelectObject,
   onToggleVisibility,
+  onDelete,
 }) => {
   return (
     <div className="flex-1 overflow-y-auto">
@@ -32,7 +34,7 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
                 key={object.id}
                 onClick={() => onSelectObject(object.id)}
                 className={`
-                  flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer
+                  group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer
                   transition-colors text-xs
                   ${
                     selectedObjectId === object.id
@@ -67,6 +69,20 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
                 >
                   {object.name}
                 </span>
+
+                {/* 删除按钮 */}
+                {onDelete && (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      onDelete(object.id);
+                    }}
+                    className="text-sm hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="删除"
+                  >
+                    🗑️
+                  </button>
+                )}
               </div>
             ))}
           </div>
