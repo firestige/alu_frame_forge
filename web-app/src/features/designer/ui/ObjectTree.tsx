@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { SceneObject } from '@/core/object';
-import { AssetType } from '@/core/object';
+import { AssetType } from '@/core/asset';
 
 interface ObjectTreeProps {
   objects: SceneObject[];
