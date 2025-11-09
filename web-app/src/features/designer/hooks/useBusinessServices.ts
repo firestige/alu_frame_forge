@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { ObjectManager } from '@/core/object';
 import { ModelCreationService } from '../services/ModelCreationService';
 import { ModelEditorService } from '../services/ModelEditorService';
-import { ModelInteractionService } from '../services/ModelInteractionService';
 
 /**
  * 业务服务状态
@@ -11,12 +10,11 @@ interface BusinessServices {
   objectManager: ObjectManager | null;
   creation: ModelCreationService | null;
   editor: ModelEditorService | null;
-  interaction: ModelInteractionService | null;
   status: 'loading' | 'ready';
 }
 
 /**
- * useBusinessServices - 初始化业务服务 Hook
+ * useBusinessServices - 初始化业务服务 Hook（重构后）
  *
  * 职责：
  * - 创建 ObjectManager（不依赖 renderer）
@@ -26,6 +24,7 @@ interface BusinessServices {
  * 不涉及：
  * ❌ 不依赖 renderer（渲染层的事）
  * ❌ 不管理选中状态（UI 状态）
+ * ❌ 不包含 ModelInteractionService（已移除，功能由 SelectionService 接管）
  *
  * @returns 业务服务实例和初始化状态
  */
@@ -35,7 +34,6 @@ export function useBusinessServices(): BusinessServices {
     objectManager: ObjectManager;
     creation: ModelCreationService;
     editor: ModelEditorService;
-    interaction: ModelInteractionService;
   } | null>(null);
 
   useEffect(() => {
@@ -50,18 +48,13 @@ export function useBusinessServices(): BusinessServices {
       const creation = new ModelCreationService(objectManager);
       console.log('[useBusinessServices] ✅ ModelCreationService 已创建');
 
-      const interaction = new ModelInteractionService(objectManager);
-      console.log('[useBusinessServices] ✅ ModelInteractionService 已创建');
-
-      // ModelEditorService 依赖 ModelInteractionService
-      const editor = new ModelEditorService(objectManager, interaction);
+      const editor = new ModelEditorService(objectManager);
       console.log('[useBusinessServices] ✅ ModelEditorService 已创建');
 
       servicesRef.current = {
         objectManager,
         creation,
         editor,
-        interaction,
       };
 
       console.log('[useBusinessServices] 🎉 所有业务服务初始化完成');
@@ -80,7 +73,6 @@ export function useBusinessServices(): BusinessServices {
     objectManager: servicesRef.current?.objectManager || null,
     creation: servicesRef.current?.creation || null,
     editor: servicesRef.current?.editor || null,
-    interaction: servicesRef.current?.interaction || null,
     status,
   };
 }

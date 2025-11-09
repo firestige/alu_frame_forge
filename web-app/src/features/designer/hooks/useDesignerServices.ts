@@ -1,3 +1,14 @@
+/**
+ * @deprecated 此文件已被 useBusinessServices 替代
+ *
+ * 重构说明：
+ * - 业务服务初始化已移至 useBusinessServices（不依赖 renderer）
+ * - RenderSyncService 现在在 DesignerPage 中创建
+ * - ModelInteractionService 已移除，功能由 SelectionService 接管
+ *
+ * 请使用 useBusinessServices 替代此 Hook
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { ObjectManager } from '@/core/object';
 import { ModelCreationService } from '../services/ModelCreationService';
@@ -70,8 +81,11 @@ export function useDesignerServices(getRenderer: () => IRenderer | null) {
       );
       console.log('[useDesignerServices] ✅ ModelInteractionService 已创建');
 
+      // @ts-ignore - deprecated function, ModelEditorService constructor signature changed
       editorServiceRef.current = new ModelEditorService(
+        // @ts-ignore
         objectManagerRef.current,
+        // @ts-ignore
         interactionServiceRef.current
       );
       console.log('[useDesignerServices] ✅ ModelEditorService 已创建');

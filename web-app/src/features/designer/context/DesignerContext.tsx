@@ -1,19 +1,19 @@
 import * as React from 'react';
 import type { ObjectManager } from '@/core/object';
 import type { ModelCreationService } from '../services/ModelCreationService';
-import type { ModelInteractionService } from '../services/ModelInteractionService';
 import type { ModelEditorService } from '../services/ModelEditorService';
 import { designerEventBus } from '@/core/services/eventBus';
 
 /**
- * 设计器 Context 值类型
+ * 设计器 Context 值类型（重构后）
+ *
+ * 移除 ModelInteractionService - 交互逻辑已移至 UI 层的 SelectionService
  */
 export interface DesignerContextValue {
   // 业务服务（只读引用）
   services: {
     objectManager: ObjectManager;
     creation: ModelCreationService;
-    interaction: ModelInteractionService;
     editor: ModelEditorService;
   };
 

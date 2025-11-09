@@ -18,7 +18,7 @@ import type { IRenderer } from '@/core/renderer/renderer-types';
  */
 export class SelectionService {
   // 保留 renderer 引用，后续实现视觉反馈时使用
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-expect-error - renderer will be used for visual feedback in future implementation
   private renderer: IRenderer;
   private selectedObjectId: string | null = null;
 

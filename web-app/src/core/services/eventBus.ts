@@ -76,6 +76,9 @@ export type DesignerStateEvents = {
   // 渲染器相关事件
   'state:renderer:ready': void;
   'state:renderer:error': Error;
+
+  // UI 通知事件（业务层 → UI 层）
+  'ui:selection:clear': { deletedObjectId?: string; reason?: string };
 };
 
 /**

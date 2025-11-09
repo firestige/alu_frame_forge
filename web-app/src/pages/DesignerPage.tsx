@@ -319,7 +319,6 @@ const DesignerPage: React.FC = () => {
             services: {
               objectManager: services.objectManager!,
               creation: services.creation!,
-              interaction: services.interaction!,
               editor: services.editor!,
             },
             eventBus: designerEventBus,

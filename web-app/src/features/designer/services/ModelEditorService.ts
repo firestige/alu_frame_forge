@@ -1,20 +1,22 @@
 import type { ObjectManager, SceneObject } from '@/core/object';
-import type { ModelInteractionService } from './ModelInteractionService';
+import { designerEventBus } from '@/core/services/eventBus';
 
 /**
- * 模型编辑服务
- * 负责处理上下文菜单的各种操作
+ * 模型编辑服务（重构后 - 纯业务逻辑）
+ *
+ * 职责：
+ * - 处理对象的业务操作（编辑、删除、复制等）
+ * - 通过事件通知 UI 层状态变化
+ *
+ * 不做：
+ * - 不管理选中状态（UI 层职责）
+ * - 不依赖 renderer
  */
 export class ModelEditorService {
   private objectManager: ObjectManager;
-  private interactionService: ModelInteractionService;
 
-  constructor(
-    objectManager: ObjectManager,
-    interactionService: ModelInteractionService
-  ) {
+  constructor(objectManager: ObjectManager) {
     this.objectManager = objectManager;
-    this.interactionService = interactionService;
   }
 
   /**
@@ -106,7 +108,10 @@ export class ModelEditorService {
 
     if (confirmed) {
       this.objectManager.removeObject(obj.id);
-      this.interactionService.clearSelection();
+
+      // 通知 UI 层清除选中状态（如果删除的是当前选中对象）
+      designerEventBus.emit('ui:selection:clear', { deletedObjectId: obj.id });
+
       console.log(`对象 ${obj.name} 已删除`);
       return true;
     }
@@ -189,7 +194,10 @@ export class ModelEditorService {
 
     if (confirmed) {
       this.objectManager.clear();
-      this.interactionService.clearSelection();
+
+      // 通知 UI 层清除选中状态
+      designerEventBus.emit('ui:selection:clear', { reason: 'all-deleted' });
+
       console.log('所有对象已删除');
     }
   }
