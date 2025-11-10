@@ -104,25 +104,12 @@ function calculatePositionFromCoords(
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // 防止右侧溢出
-    if (x + popoverRect.width > viewportWidth) {
-      x = Math.max(0, viewportWidth - popoverRect.width - 8);
-    }
+    // 使用 clamp 函数一次性约束位置，避免顺序检查导致的冲突
+    // Clamp x to keep popover within viewport
+    x = Math.max(8, Math.min(x, viewportWidth - popoverRect.width - 8));
 
-    // 防止底部溢出
-    if (y + popoverRect.height > viewportHeight) {
-      y = Math.max(0, viewportHeight - popoverRect.height - 8);
-    }
-
-    // 防止左侧溢出
-    if (x < 0) {
-      x = 8;
-    }
-
-    // 防止顶部溢出
-    if (y < 0) {
-      y = 8;
-    }
+    // Clamp y to keep popover within viewport
+    y = Math.max(8, Math.min(y, viewportHeight - popoverRect.height - 8));
   }
 
   return {
@@ -184,25 +171,12 @@ function calculatePositionFromAnchor(
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // 防止右侧溢出
-    if (x + popoverRect.width > viewportWidth) {
-      x = Math.max(0, viewportWidth - popoverRect.width - 8);
-    }
+    // 使用 clamp 函数一次性约束位置，避免顺序检查导致的冲突
+    // Clamp x to keep popover within viewport
+    x = Math.max(8, Math.min(x, viewportWidth - popoverRect.width - 8));
 
-    // 防止底部溢出
-    if (y + popoverRect.height > viewportHeight) {
-      y = Math.max(0, viewportHeight - popoverRect.height - 8);
-    }
-
-    // 防止左侧溢出
-    if (x < 0) {
-      x = 8;
-    }
-
-    // 防止顶部溢出
-    if (y < 0) {
-      y = 8;
-    }
+    // Clamp y to keep popover within viewport
+    y = Math.max(8, Math.min(y, viewportHeight - popoverRect.height - 8));
   }
 
   return {
@@ -265,7 +239,20 @@ export const Popover: React.FC<PopoverProps> = ({
         preventOverflow
       );
     } else if (anchorEl) {
-      // 元素引用定位模式
+      // 元素引用定位模式 - 添加 DOM 挂载检查
+      if (!document.body.contains(anchorEl)) {
+        console.warn('Popover: anchorEl is not mounted in the DOM');
+        // 返回一个隐藏在屏幕外的样式
+        setStyle({
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
+          zIndex: 9999,
+          opacity: 0,
+        });
+        return;
+      }
+
       computedStyle = calculatePositionFromAnchor(
         anchorEl,
         anchorOrigin,
@@ -282,11 +269,12 @@ export const Popover: React.FC<PopoverProps> = ({
     setStyle({ ...computedStyle, opacity: 1 });
   }, [
     open,
-    position,
+    // 使用 JSON.stringify 避免对象引用变化导致的不必要重渲染
+    JSON.stringify(position),
     anchorEl,
-    anchorOrigin,
-    transformOrigin,
-    offset,
+    JSON.stringify(anchorOrigin),
+    JSON.stringify(transformOrigin),
+    JSON.stringify(offset),
     preventOverflow,
   ]);
 
@@ -317,18 +305,24 @@ export const Popover: React.FC<PopoverProps> = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (
         popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node)
+        !popoverRef.current.contains(event.target as Node) &&
+        // 排除点击 anchorEl 元素的情况，避免触发关闭后立即重新打开
+        !(anchorEl && anchorEl.contains(event.target as Node))
       ) {
         onClose();
       }
     };
 
-    // 使用 mousedown 而不是 click，避免与菜单项点击冲突
-    document.addEventListener('mousedown', handleClickOutside);
+    // 延迟添加事件监听，避免触发打开的 mousedown 事件立即触发关闭
+    const timeoutId = window.setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
     return () => {
+      clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [open, closeOnClickOutside, onClose]);
+  }, [open, closeOnClickOutside, anchorEl, onClose]);
 
   if (!open) {
     return null;
