@@ -3,6 +3,7 @@ import { sendCommand } from '@/core/services/eventBus';
 import { useDesignerContext } from '../hooks/useDesignerContext';
 import type { ProfileAsset } from '@/core/asset';
 import ProfileDropdownPanel from './components/ProfileDropdownPanel';
+import { Popover } from '@/components/Popover';
 
 // 按钮组件
 interface ToolButtonProps {
@@ -67,14 +68,9 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
   onOpenChange,
 }) => {
   const [internalIsOpen, setInternalIsOpen] = React.useState(false);
-  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const isOpen =
+    controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
   const buttonRef = React.useRef<HTMLButtonElement>(null);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const [dropdownPosition, setDropdownPosition] = React.useState({
-    top: 0,
-    left: 0,
-  });
 
   const variantStyles = {
     default: 'bg-slate-700 hover:bg-slate-600',
@@ -82,42 +78,6 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
     success: 'bg-green-600 hover:bg-green-700',
     warning: 'bg-orange-600 hover:bg-orange-700',
   };
-
-  // 计算下拉菜单位置
-  React.useEffect(() => {
-    if (isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + 8, // 按钮底部 + 8px 间距
-        left: rect.left,
-      });
-    }
-  }, [isOpen]);
-
-  // 处理点击外部区域关闭下拉面板
-  React.useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node) &&
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        if (onOpenChange) {
-          onOpenChange(false);
-        } else {
-          setInternalIsOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onOpenChange]);
 
   const handleButtonClick = () => {
     if (!disabled) {
@@ -130,40 +90,43 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
     }
   };
 
+  const handleClose = () => {
+    if (onOpenChange) {
+      onOpenChange(false);
+    } else {
+      setInternalIsOpen(false);
+    }
+  };
+
   return (
     <>
-      <div ref={containerRef} className="relative">
-        <button
-          ref={buttonRef}
-          onClick={handleButtonClick}
-          disabled={disabled}
-          className={`
-            px-3 py-1.5 rounded text-xs text-white transition-colors
-            flex flex-col items-center gap-1 min-w-[60px]
-            ${isOpen ? 'ring-2 ring-blue-400 bg-slate-600' : ''}
-            ${disabled ? 'opacity-50 cursor-not-allowed' : variantStyles[variant]}
-          `}
-        >
-          {icon && <span className="text-lg">{icon}</span>}
-          <span className="text-[10px]">{label}</span>
-        </button>
-      </div>
+      <button
+        ref={buttonRef}
+        onClick={handleButtonClick}
+        disabled={disabled}
+        className={`
+          px-3 py-1.5 rounded text-xs text-white transition-colors
+          flex flex-col items-center gap-1 min-w-[60px]
+          ${isOpen ? 'ring-2 ring-blue-400 bg-slate-600' : ''}
+          ${disabled ? 'opacity-50 cursor-not-allowed' : variantStyles[variant]}
+        `}
+      >
+        {icon && <span className="text-lg">{icon}</span>}
+        <span className="text-[10px]">{label}</span>
+      </button>
 
-      {/* 下拉面板 - 使用 fixed 定位悬浮显示 */}
-      {isOpen && dropdownContent && (
-        <div
-          ref={dropdownRef}
-          className="fixed w-[480px] h-[640px] bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden"
-          style={{
-            top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left}px`,
-            zIndex: 9999,
-            maxHeight: 'calc(100vh - 100px)',
-          }}
-        >
-          {dropdownContent}
-        </div>
-      )}
+      {/* 使用 Popover 组件替代自定义定位逻辑 */}
+      <Popover
+        open={isOpen}
+        anchorEl={buttonRef.current}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        offset={{ y: 8 }}
+        onClose={handleClose}
+        className="w-[480px] max-h-[640px] bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden"
+      >
+        {dropdownContent}
+      </Popover>
     </>
   );
 };

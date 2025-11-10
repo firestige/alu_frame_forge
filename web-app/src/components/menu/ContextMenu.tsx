@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { PopoverMenu } from '@/components/Popover';
 
 export interface ContextMenuProps {
   x: number;
@@ -25,35 +26,12 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   targetName = '对象',
   isVisible = true,
 }) => {
-  const menuRef = React.useRef<HTMLDivElement>(null);
-
-  // 点击外部关闭菜单
-  React.useEffect(() => {
-    if (!visible) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-
-    // 延迟添加事件监听，避免立即触发
-    setTimeout(() => {
-      document.addEventListener('click', handleClickOutside);
-    }, 0);
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [visible, onClose]);
-
-  if (!visible) return null;
-
   return (
-    <div
-      ref={menuRef}
-      className="fixed bg-slate-800 border border-slate-700 rounded-md shadow-lg py-1 z-50 min-w-[160px]"
-      style={{ left: `${x}px`, top: `${y}px` }}
+    <PopoverMenu
+      open={visible}
+      position={{ x, y }}
+      onClose={onClose}
+      className="bg-slate-800 border-slate-700 py-1 min-w-40"
     >
       <div className="px-3 py-1 text-xs text-slate-400 border-b border-slate-700">
         {targetName}
@@ -103,7 +81,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
           </button>
         </>
       )}
-    </div>
+    </PopoverMenu>
   );
 };
 
