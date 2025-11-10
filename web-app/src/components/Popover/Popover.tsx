@@ -27,7 +27,7 @@ export interface OffsetConfig {
 
 /**
  * Popover 组件属性
- * 
+ *
  * @example
  * // 坐标定位 (用于右键菜单)
  * <Popover
@@ -37,7 +37,7 @@ export interface OffsetConfig {
  * >
  *   <div>菜单内容</div>
  * </Popover>
- * 
+ *
  * @example
  * // 元素引用定位 (用于下拉菜单)
  * <Popover
@@ -53,37 +53,37 @@ export interface OffsetConfig {
 export interface PopoverProps {
   /** 是否显示 Popover */
   open: boolean;
-  
+
   /** Popover 内容 */
   children: React.ReactNode;
-  
+
   /** 关闭回调 */
   onClose: () => void;
-  
+
   /** 坐标定位 (与 anchorEl 二选一) */
   position?: PopoverPosition;
-  
+
   /** 元素引用定位 (与 position 二选一) */
   anchorEl?: HTMLElement | null;
-  
+
   /** anchorEl 模式下的锚点位置 (默认: { vertical: 'top', horizontal: 'left' }) */
   anchorOrigin?: OriginConfig;
-  
+
   /** Popover 自身的对齐点 (默认: { vertical: 'top', horizontal: 'left' }) */
   transformOrigin?: OriginConfig;
-  
+
   /** 位置偏移 (默认: { x: 0, y: 0 }) */
   offset?: OffsetConfig;
-  
+
   /** 自定义样式类 */
   className?: string;
-  
+
   /** 是否在按 ESC 键时关闭 (默认: true) */
   closeOnEscape?: boolean;
-  
+
   /** 是否在点击外部时关闭 (默认: true) */
   closeOnClickOutside?: boolean;
-  
+
   /** 是否防止溢出屏幕 (默认: true) */
   preventOverflow?: boolean;
 }
@@ -215,10 +215,10 @@ function calculatePositionFromAnchor(
 
 /**
  * Popover 通用弹出组件
- * 
+ *
  * 提供坐标定位和元素引用定位两种模式，支持边界检测、ESC 关闭、点击外部关闭等功能。
- * 
- * **架构说明**: 
+ *
+ * **架构说明**:
  * - 这是一个纯 UI 组件，不包含任何业务逻辑
  * - 不依赖 features/ 目录的任何代码
  * - 可被任意 feature 或 page 复用
@@ -280,7 +280,15 @@ export const Popover: React.FC<PopoverProps> = ({
     }
 
     setStyle({ ...computedStyle, opacity: 1 });
-  }, [open, position, anchorEl, anchorOrigin, transformOrigin, offset, preventOverflow]);
+  }, [
+    open,
+    position,
+    anchorEl,
+    anchorOrigin,
+    transformOrigin,
+    offset,
+    preventOverflow,
+  ]);
 
   // ESC 键关闭
   React.useEffect(() => {
@@ -307,7 +315,10 @@ export const Popover: React.FC<PopoverProps> = ({
     }
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target as Node)
+      ) {
         onClose();
       }
     };

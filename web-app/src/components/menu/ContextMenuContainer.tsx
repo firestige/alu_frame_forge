@@ -1,21 +1,21 @@
 /**
  * @deprecated
- * 
+ *
  * ContextMenuContainer 已废弃，存在架构违规问题（components/ 依赖 features/）。
- * 
+ *
  * 请使用新的架构方案：
  * 1. 在 features/ 目录中创建业务组件（例如：features/designer/ui/ModelContextMenu.tsx）
  * 2. 使用通用的 Popover 或 PopoverMenu 组件（从 @/components/Popover 导入）
  * 3. 在业务组件中处理业务逻辑
- * 
+ *
  * 示例：
  * ```tsx
  * import { PopoverMenu } from '@/components/Popover';
  * import { ObjectManager } from '@/core/object/ObjectManager';
- * 
+ *
  * const ModelContextMenu: React.FC<Props> = ({ open, position, modelId, objectManager, onClose }) => {
  *   const selectedObject = objectManager?.getObject(modelId);
- *   
+ *
  *   return (
  *     <PopoverMenu open={open} position={position} onClose={onClose}>
  *       <button onClick={handleEdit}>编辑</button>
@@ -24,7 +24,7 @@
  *   );
  * };
  * ```
- * 
+ *
  * 相关文档：
  * - Issue: doc/Issue-PopoverRefactoring.md
  * - 实施方案: doc/ImplementationPlan-PopoverRefactoring.md

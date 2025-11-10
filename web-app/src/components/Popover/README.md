@@ -11,11 +11,13 @@ Popover 是一个通用的弹出组件，支持坐标定位和元素引用定位
 提供定位计算、Portal 渲染、边界检测、事件处理等核心功能。
 
 **导入**：
+
 ```typescript
 import { Popover } from '@/components/Popover';
 ```
 
 **特性**：
+
 - ✅ 坐标定位（用于右键菜单）
 - ✅ 元素引用定位（用于下拉菜单）
 - ✅ 边界检测（防止溢出屏幕）
@@ -28,11 +30,13 @@ import { Popover } from '@/components/Popover';
 在 Popover 基础上预设菜单样式，简化菜单场景使用。
 
 **导入**：
+
 ```typescript
 import { PopoverMenu } from '@/components/Popover';
 ```
 
 **特性**：
+
 - ✅ 继承 Popover 所有功能
 - ✅ 预设菜单样式（背景、圆角、阴影、边框）
 - ✅ 专为菜单场景优化
@@ -144,20 +148,20 @@ const MyCustomPopover: React.FC = () => {
 
 ### Popover Props
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `open` | `boolean` | - | **必填**，是否显示 Popover |
-| `children` | `React.ReactNode` | - | **必填**，Popover 内容 |
-| `onClose` | `() => void` | - | **必填**，关闭回调 |
-| `position` | `{ x: number; y: number }` | - | 坐标定位（与 `anchorEl` 二选一） |
-| `anchorEl` | `HTMLElement \| null` | - | 元素引用定位（与 `position` 二选一） |
-| `anchorOrigin` | `OriginConfig` | `{ vertical: 'top', horizontal: 'left' }` | anchorEl 模式下的锚点位置 |
-| `transformOrigin` | `OriginConfig` | `{ vertical: 'top', horizontal: 'left' }` | Popover 自身的对齐点 |
-| `offset` | `{ x?: number; y?: number }` | `{ x: 0, y: 0 }` | 位置偏移（像素） |
-| `className` | `string` | `''` | 自定义样式类 |
-| `closeOnEscape` | `boolean` | `true` | 是否按 ESC 键关闭 |
-| `closeOnClickOutside` | `boolean` | `true` | 是否点击外部关闭 |
-| `preventOverflow` | `boolean` | `true` | 是否防止溢出屏幕 |
+| 属性                  | 类型                         | 默认值                                    | 说明                                 |
+| --------------------- | ---------------------------- | ----------------------------------------- | ------------------------------------ |
+| `open`                | `boolean`                    | -                                         | **必填**，是否显示 Popover           |
+| `children`            | `React.ReactNode`            | -                                         | **必填**，Popover 内容               |
+| `onClose`             | `() => void`                 | -                                         | **必填**，关闭回调                   |
+| `position`            | `{ x: number; y: number }`   | -                                         | 坐标定位（与 `anchorEl` 二选一）     |
+| `anchorEl`            | `HTMLElement \| null`        | -                                         | 元素引用定位（与 `position` 二选一） |
+| `anchorOrigin`        | `OriginConfig`               | `{ vertical: 'top', horizontal: 'left' }` | anchorEl 模式下的锚点位置            |
+| `transformOrigin`     | `OriginConfig`               | `{ vertical: 'top', horizontal: 'left' }` | Popover 自身的对齐点                 |
+| `offset`              | `{ x?: number; y?: number }` | `{ x: 0, y: 0 }`                          | 位置偏移（像素）                     |
+| `className`           | `string`                     | `''`                                      | 自定义样式类                         |
+| `closeOnEscape`       | `boolean`                    | `true`                                    | 是否按 ESC 键关闭                    |
+| `closeOnClickOutside` | `boolean`                    | `true`                                    | 是否点击外部关闭                     |
+| `preventOverflow`     | `boolean`                    | `true`                                    | 是否防止溢出屏幕                     |
 
 ### OriginConfig
 
@@ -183,6 +187,7 @@ features/designer/ui/ModelContextMenu.tsx    (业务逻辑层)
 ```
 
 **架构原则**：
+
 - ✅ `features/` 可以导入 `components/`
 - ✅ `components/` 不能导入 `features/`
 - ✅ Popover 组件不包含任何业务逻辑
@@ -316,12 +321,14 @@ import type { ContextMenuState } from '@/features/designer/...'; // 架构违规
 ## 已知 Issue 和计划
 
 ### 当前实施范围（本 PR）
+
 - ✅ 创建 Popover 和 PopoverMenu 组件
 - ✅ 重构 ContextMenu 使用 Popover
 - ✅ 标记 ContextMenuContainer 为废弃
 - ✅ 消除架构违规
 
 ### 未来计划（后续 PR）
+
 - ⏳ 迁移 AppBar Profile 下拉菜单
 - ⏳ 实现 Library 材料上下文菜单
 - ⏳ 实现 Designer 场景上下文菜单

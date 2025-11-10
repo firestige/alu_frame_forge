@@ -9,10 +9,10 @@ export type PopoverMenuProps = PopoverProps;
 
 /**
  * PopoverMenu 菜单包装组件
- * 
+ *
  * 在 Popover 基础上预设菜单样式（背景色、圆角、阴影、边框），
  * 简化 menu 场景的使用。
- * 
+ *
  * @example
  * <PopoverMenu
  *   open={contextMenu.visible}
@@ -25,7 +25,7 @@ export type PopoverMenuProps = PopoverProps;
  *   </div>
  * </PopoverMenu>
  */
-export const PopoverMenu: React.FC<PopoverMenuProps> = (props) => {
+export const PopoverMenu: React.FC<PopoverMenuProps> = props => {
   const { className = '', children, ...restProps } = props;
 
   // 预设菜单样式

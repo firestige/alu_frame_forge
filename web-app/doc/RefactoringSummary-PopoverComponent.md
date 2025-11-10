@@ -12,16 +12,15 @@
 ### Phase 1: 创建基础组件 ✅
 
 **新增文件**:
+
 - `src/components/Popover/Popover.tsx` (320 行)
   - 支持坐标定位和元素引用定位
   - 实现边界检测防止溢出
   - ESC 键和点击外部关闭
   - Portal 渲染到 document.body
-  
 - `src/components/Popover/PopoverMenu.tsx` (40 行)
   - 继承 Popover 所有功能
   - 预设菜单样式（白色背景、圆角、阴影）
-  
 - `src/components/Popover/index.ts` (9 行)
   - 统一导出接口
 
@@ -31,6 +30,7 @@
   - 最佳实践
 
 **验证结果**:
+
 - ✅ TypeScript 编译通过
 - ✅ 无 ESLint 错误
 - ✅ 组件可正常导入
@@ -38,6 +38,7 @@
 ### Phase 2: 迁移 ContextMenu ✅
 
 **修改文件**:
+
 - `src/components/menu/ContextMenu.tsx`
   - 从 111 行简化到 77 行（-34 行，-30.6%）
   - 移除自定义定位逻辑
@@ -48,6 +49,7 @@
 **变更对比**:
 
 **修改前**:
+
 ```typescript
 // 自行管理定位、Portal、事件监听
 const menuRef = React.useRef<HTMLDivElement>(null);
@@ -71,6 +73,7 @@ return (
 ```
 
 **修改后**:
+
 ```typescript
 // 使用 PopoverMenu，逻辑大幅简化
 return (
@@ -86,6 +89,7 @@ return (
 ```
 
 **验证结果**:
+
 - ✅ TypeScript 编译通过
 - ✅ 无 ESLint 错误
 - ✅ 保持原有功能（菜单项、样式、交互）
@@ -93,6 +97,7 @@ return (
 ### Phase 3: 应用到 DesignerToolbar ✅
 
 **修改文件**:
+
 - `src/features/designer/ui/DesignerToolbar.tsx`
   - 重构 `ToolButtonWithDropdown` 组件
   - 从 ~110 行简化到 ~70 行（-40 行，-36.4%）
@@ -104,6 +109,7 @@ return (
 **变更对比**:
 
 **修改前**:
+
 ```typescript
 // 需要管理 3 个 ref 和位置状态
 const containerRef = React.useRef<HTMLDivElement>(null);
@@ -126,6 +132,7 @@ React.useEffect(() => { ... }, [isOpen, onOpenChange]);
 ```
 
 **修改后**:
+
 ```typescript
 // 只需要 1 个 ref
 const buttonRef = React.useRef<HTMLButtonElement>(null);
@@ -145,6 +152,7 @@ const buttonRef = React.useRef<HTMLButtonElement>(null);
 ```
 
 **验证结果**:
+
 - ✅ TypeScript 编译通过
 - ✅ 无 ESLint 错误
 - ✅ 保持原有功能（下拉菜单、定位、交互）
@@ -153,18 +161,20 @@ const buttonRef = React.useRef<HTMLButtonElement>(null);
 ### Phase 4: 标记废弃组件 ✅
 
 **修改文件**:
+
 - `src/components/menu/ContextMenuContainer.tsx`
   - 添加 `@deprecated` JSDoc 注释
   - 移除对 `features/designer` 的导入（临时使用本地类型定义）
   - 添加迁移指南和示例代码
 
 **废弃说明**:
+
 ```typescript
 /**
  * @deprecated
- * 
+ *
  * ContextMenuContainer 已废弃，存在架构违规问题（components/ 依赖 features/）。
- * 
+ *
  * 请使用新的架构方案：
  * 1. 在 features/ 目录中创建业务组件
  * 2. 使用通用的 Popover 或 PopoverMenu 组件
@@ -174,17 +184,18 @@ const buttonRef = React.useRef<HTMLButtonElement>(null);
 ```
 
 **验证结果**:
+
 - ✅ TypeScript 编译通过
 - ✅ 无架构违规（已移除 features/ 导入）
 
 ### Phase 4: 文档和验证 ✅
 
 **新增文档**:
+
 - `doc/Issue-PopoverRefactoring.md` (250 行)
   - 问题描述和架构违规说明
   - 重构目标和实施范围
   - 架构设计和验收标准
-  
 - `doc/ImplementationPlan-PopoverRefactoring.md` (595 行)
   - 详细的组件设计和 API
   - 文件结构和迁移步骤
@@ -197,6 +208,7 @@ const buttonRef = React.useRef<HTMLButtonElement>(null);
   - 常见问题解答
 
 **架构验证**:
+
 ```bash
 # 检查 components/ 是否导入 features/
 grep -r "from ['\"@/features/" src/components/
@@ -204,6 +216,7 @@ grep -r "from ['\"@/features/" src/components/
 ```
 
 **代码验证**:
+
 - ✅ TypeScript 编译通过
 - ✅ 无 ESLint 错误
 - ✅ 无架构违规
@@ -213,28 +226,28 @@ grep -r "from ['\"@/features/" src/components/
 
 ### 新增代码
 
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| Popover.tsx | 320 | 核心定位组件 |
-| PopoverMenu.tsx | 40 | 菜单包装组件 |
-| index.ts | 9 | 导出文件 |
-| README.md | 380 | 使用指南 |
-| Issue-PopoverRefactoring.md | 250 | Issue 文档 |
-| ImplementationPlan-PopoverRefactoring.md | 595 | 实施方案 |
-| **总计** | **1,594** | |
+| 文件                                     | 行数      | 说明         |
+| ---------------------------------------- | --------- | ------------ |
+| Popover.tsx                              | 320       | 核心定位组件 |
+| PopoverMenu.tsx                          | 40        | 菜单包装组件 |
+| index.ts                                 | 9         | 导出文件     |
+| README.md                                | 380       | 使用指南     |
+| Issue-PopoverRefactoring.md              | 250       | Issue 文档   |
+| ImplementationPlan-PopoverRefactoring.md | 595       | 实施方案     |
+| **总计**                                 | **1,594** |              |
 
 ### 修改代码
 
-| 文件 | 修改前 | 修改后 | 变化 |
-|------|--------|--------|------|
-| ContextMenu.tsx | 111 | 77 | -34 (-30.6%) |
-| DesignerToolbar.tsx (ToolButtonWithDropdown) | 110 | 70 | -40 (-36.4%) |
-| ContextMenuContainer.tsx | 70 | 100 | +30 (添加废弃说明) |
-| **总计简化** | **291** | **247** | **-44 (-15.1%)** |
+| 文件                                         | 修改前  | 修改后  | 变化               |
+| -------------------------------------------- | ------- | ------- | ------------------ |
+| ContextMenu.tsx                              | 111     | 77      | -34 (-30.6%)       |
+| DesignerToolbar.tsx (ToolButtonWithDropdown) | 110     | 70      | -40 (-36.4%)       |
+| ContextMenuContainer.tsx                     | 70      | 100     | +30 (添加废弃说明) |
+| **总计简化**                                 | **291** | **247** | **-44 (-15.1%)**   |
 
 ### 代码质量提升
 
-- **复杂度降低**: 
+- **复杂度降低**:
   - ContextMenu 从自行管理状态到声明式配置，降低 ~40% 复杂度
   - ToolButtonWithDropdown 从手动定位到组件化，降低 ~36% 复杂度
 - **可维护性**: 定位逻辑集中在 Popover，未来修复 bug 仅需修改一处
@@ -291,35 +304,35 @@ grep "^import" src/components/Popover/Popover.tsx
 
 ### 功能目标
 
-| 目标 | 状态 | 说明 |
-|------|------|------|
-| 支持坐标定位 | ✅ | position prop - 用于 ContextMenu |
-| 支持元素引用定位 | ✅ | anchorEl prop - 用于 ToolButtonWithDropdown |
-| 边界检测 | ✅ | preventOverflow prop |
-| ESC 键关闭 | ✅ | closeOnEscape prop |
-| 点击外部关闭 | ✅ | closeOnClickOutside prop |
-| Portal 渲染 | ✅ | ReactDOM.createPortal |
-| 菜单样式预设 | ✅ | PopoverMenu 组件 |
-| 实际应用验证 | ✅ | 已在 2 个场景中使用 |
+| 目标             | 状态 | 说明                                        |
+| ---------------- | ---- | ------------------------------------------- |
+| 支持坐标定位     | ✅   | position prop - 用于 ContextMenu            |
+| 支持元素引用定位 | ✅   | anchorEl prop - 用于 ToolButtonWithDropdown |
+| 边界检测         | ✅   | preventOverflow prop                        |
+| ESC 键关闭       | ✅   | closeOnEscape prop                          |
+| 点击外部关闭     | ✅   | closeOnClickOutside prop                    |
+| Portal 渲染      | ✅   | ReactDOM.createPortal                       |
+| 菜单样式预设     | ✅   | PopoverMenu 组件                            |
+| 实际应用验证     | ✅   | 已在 2 个场景中使用                         |
 
 ### 架构目标
 
-| 目标 | 状态 | 说明 |
-|------|------|------|
-| 消除架构违规 | ✅ | components/ 不再导入 features/ |
-| 组件复用性 | ✅ | 支持多场景复用 |
-| 类型安全 | ✅ | 完整的 TypeScript 类型定义 |
-| 文档完整 | ✅ | Issue + 实施方案 + README |
-| 向后兼容 | ✅ | ContextMenu 接口保持不变 |
+| 目标         | 状态 | 说明                           |
+| ------------ | ---- | ------------------------------ |
+| 消除架构违规 | ✅   | components/ 不再导入 features/ |
+| 组件复用性   | ✅   | 支持多场景复用                 |
+| 类型安全     | ✅   | 完整的 TypeScript 类型定义     |
+| 文档完整     | ✅   | Issue + 实施方案 + README      |
+| 向后兼容     | ✅   | ContextMenu 接口保持不变       |
 
 ### 质量目标
 
-| 目标 | 状态 | 说明 |
-|------|------|------|
-| TypeScript 编译 | ✅ | 0 错误 |
-| ESLint 检查 | ✅ | 0 错误（文档除外） |
-| 代码审查 | ⏳ | 待 PR 审查 |
-| 手动测试 | ⏳ | 待运行时验证 |
+| 目标            | 状态 | 说明               |
+| --------------- | ---- | ------------------ |
+| TypeScript 编译 | ✅   | 0 错误             |
+| ESLint 检查     | ✅   | 0 错误（文档除外） |
+| 代码审查        | ⏳   | 待 PR 审查         |
+| 手动测试        | ⏳   | 待运行时验证       |
 
 ## 🚀 后续工作
 
