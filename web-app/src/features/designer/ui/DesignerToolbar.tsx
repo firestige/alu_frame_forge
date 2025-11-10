@@ -67,7 +67,8 @@ const ToolButtonWithDropdown: React.FC<ToolButtonWithDropdownProps> = ({
   onOpenChange,
 }) => {
   const [internalIsOpen, setInternalIsOpen] = React.useState(false);
-  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+  const isOpen =
+    controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
