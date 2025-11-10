@@ -90,7 +90,67 @@ return (
 - ✅ 无 ESLint 错误
 - ✅ 保持原有功能（菜单项、样式、交互）
 
-### Phase 3: 标记废弃组件 ✅
+### Phase 3: 应用到 DesignerToolbar ✅
+
+**修改文件**:
+- `src/features/designer/ui/DesignerToolbar.tsx`
+  - 重构 `ToolButtonWithDropdown` 组件
+  - 从 ~110 行简化到 ~70 行（-40 行，-36.4%）
+  - 移除 3 个 ref 管理（containerRef, buttonRef, dropdownRef）→ 1 个 ref（buttonRef）
+  - 移除位置计算 useEffect
+  - 移除点击外部关闭 useEffect
+  - 改用 Popover 组件的 anchorEl 定位模式
+
+**变更对比**:
+
+**修改前**:
+```typescript
+// 需要管理 3 个 ref 和位置状态
+const containerRef = React.useRef<HTMLDivElement>(null);
+const buttonRef = React.useRef<HTMLButtonElement>(null);
+const dropdownRef = React.useRef<HTMLDivElement>(null);
+const [dropdownPosition, setDropdownPosition] = React.useState({ top: 0, left: 0 });
+
+// 手动计算位置（~10 行）
+React.useEffect(() => { ... }, [isOpen]);
+
+// 手动监听点击外部（~20 行）
+React.useEffect(() => { ... }, [isOpen, onOpenChange]);
+
+// 手动 Portal 渲染（~15 行）
+{isOpen && dropdownContent && (
+  <div ref={dropdownRef} style={{ ... }}>
+    {dropdownContent}
+  </div>
+)}
+```
+
+**修改后**:
+```typescript
+// 只需要 1 个 ref
+const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+// 使用 Popover - 所有逻辑内置（~10 行）
+<Popover
+  open={isOpen}
+  anchorEl={buttonRef.current}
+  anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+  transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+  offset={{ y: 8 }}
+  onClose={handleClose}
+  className="w-[480px] max-h-[640px] ..."
+>
+  {dropdownContent}
+</Popover>
+```
+
+**验证结果**:
+- ✅ TypeScript 编译通过
+- ✅ 无 ESLint 错误
+- ✅ 保持原有功能（下拉菜单、定位、交互）
+- ✅ 型材选择下拉面板正常工作
+
+### Phase 4: 标记废弃组件 ✅
 
 **修改文件**:
 - `src/components/menu/ContextMenuContainer.tsx`
@@ -168,14 +228,19 @@ grep -r "from ['\"@/features/" src/components/
 | 文件 | 修改前 | 修改后 | 变化 |
 |------|--------|--------|------|
 | ContextMenu.tsx | 111 | 77 | -34 (-30.6%) |
+| DesignerToolbar.tsx (ToolButtonWithDropdown) | 110 | 70 | -40 (-36.4%) |
 | ContextMenuContainer.tsx | 70 | 100 | +30 (添加废弃说明) |
+| **总计简化** | **291** | **247** | **-44 (-15.1%)** |
 
 ### 代码质量提升
 
-- **复杂度降低**: ContextMenu 从自行管理状态到声明式配置，降低 ~40% 复杂度
+- **复杂度降低**: 
+  - ContextMenu 从自行管理状态到声明式配置，降低 ~40% 复杂度
+  - ToolButtonWithDropdown 从手动定位到组件化，降低 ~36% 复杂度
 - **可维护性**: 定位逻辑集中在 Popover，未来修复 bug 仅需修改一处
-- **可复用性**: 1 个 Popover 组件可支持 4+ 个使用场景（AppBar、Library、Designer 等）
+- **可复用性**: 1 个 Popover 组件已在 2 个场景中复用，未来可支持 4+ 个场景
 - **类型安全**: 所有 Props 都有完整的 TypeScript 类型定义和 JSDoc 注释
+- **一致性**: ContextMenu 和 ToolButtonWithDropdown 使用相同的定位逻辑
 
 ## 🏗️ 架构改进
 
@@ -228,13 +293,14 @@ grep "^import" src/components/Popover/Popover.tsx
 
 | 目标 | 状态 | 说明 |
 |------|------|------|
-| 支持坐标定位 | ✅ | position prop |
-| 支持元素引用定位 | ✅ | anchorEl prop |
+| 支持坐标定位 | ✅ | position prop - 用于 ContextMenu |
+| 支持元素引用定位 | ✅ | anchorEl prop - 用于 ToolButtonWithDropdown |
 | 边界检测 | ✅ | preventOverflow prop |
 | ESC 键关闭 | ✅ | closeOnEscape prop |
 | 点击外部关闭 | ✅ | closeOnClickOutside prop |
 | Portal 渲染 | ✅ | ReactDOM.createPortal |
 | 菜单样式预设 | ✅ | PopoverMenu 组件 |
+| 实际应用验证 | ✅ | 已在 2 个场景中使用 |
 
 ### 架构目标
 
@@ -257,6 +323,16 @@ grep "^import" src/components/Popover/Popover.tsx
 
 ## 🚀 后续工作
 
+### 已完成的应用场景 ✅
+
+1. **ContextMenu** - 右键上下文菜单
+   - 使用坐标定位（position prop）
+   - 代码简化 30.6%
+
+2. **DesignerToolbar** - 型材选择下拉菜单
+   - 使用元素引用定位（anchorEl prop）
+   - 代码简化 36.4%
+
 ### 本 PR 后立即执行
 
 1. **创建 Pull Request**
@@ -265,7 +341,8 @@ grep "^import" src/components/Popover/Popover.tsx
    - 请求代码审查
 
 2. **手动测试**（PR 审查时）
-   - 右键菜单功能（如果已实现）
+   - ~~右键菜单功能~~（已注释，暂不可测）
+   - 型材下拉菜单功能 ✅
    - 边界检测（屏幕边缘）
    - ESC 和点击外部关闭
 
@@ -277,9 +354,9 @@ grep "^import" src/components/Popover/Popover.tsx
 ### 中期计划（后续 PR）
 
 1. **迁移其他使用场景**
-   - AppBar Profile 下拉菜单
-   - Library 材料上下文菜单
-   - Designer 场景上下文菜单
+   - AppBar Profile 下拉菜单（未来）
+   - Library 材料上下文菜单（未来）
+   - Designer 场景上下文菜单（未来）
 
 2. **增强功能**
    - 添加动画效果（Framer Motion）
