@@ -2,7 +2,7 @@
 
 > **文档用途**：本文档用于 AI 助手快速建立项目上下文，理解架构设计思想和技术决策。
 > 
-> **最后更新**：2025-11-12
+> **最后更新**：2025-11-13
 > 
 > **阅读时长**：5-8分钟
 
@@ -218,38 +218,52 @@ Asset (基类)
 
 ## 关键数据流
 
-### 流程 1：用户创建型材完整流程
+### 流程 1：用户创建型材完整流程（交互式放置）
 
 ```
 1. 用户从素材库选择型材
-   sendCommand('command:create:profile:prepare', { assetId, mode: 'interactive' })
+   sendCommand('command:placement:start', { assetId })
    
 2. DesignerPage 监听命令
-   handlePrepareProfile() → PlacementService.start(assetId)
+   PlacementController.start() → 发布 state:placement:started
    
-3. PlacementService 进入交互模式
-   - 显示半透明预览
-   - 监听鼠标移动（Raycasting）
-   - 用户填写参数（长度、规格）
+3. UI 层进入放置模式
+   usePlacementState 监听状态事件 → 启用输入监听
    
-4. 用户确认位置
-   PlacementService.confirm() → 返回 SceneObjectCreateOptions
+4. 用户移动鼠标
+   usePlacementInput Hook 监听 mousemove
+   ↓
+   sendCommand('command:placement:updatePointer', {
+     screenX, screenY,
+     viewport: { width, height, pixelRatio }
+   })
+   ↓
+   PlacementController 计算 NDC → RaycasterService
+   ↓
+   PreviewService 更新预览位置
    
-5. 实例化对象
-   ModelFactory.createFromAsset(assetId, options)
-   ├─ 选择 ProfileInstanceStrategy
-   ├─ 创建 visual.mesh（简化模型）
-   └─ 创建 compute.geometry（完整描述）
+5. 用户确认位置（点击鼠标）
+   sendCommand('command:placement:confirm', { userParams })
+   ↓
+   PlacementController.confirm()
+   ├─ ModelFactory.createFromAsset(assetId, options)
+   │   ├─ 选择 ProfileInstanceStrategy
+   │   ├─ 创建 visual.mesh（简化模型）
+   │   └─ 创建 compute.geometry（完整描述）
+   ├─ ObjectManager.add(sceneObject) → emit('object:added')
+   └─ 发布 state:placement:completed
    
-6. 添加到场景
-   ObjectManager.add(sceneObject) → emit('object:added')
-   
-7. 同步到渲染器
+6. 同步到渲染器
    RenderSyncService 监听 → Renderer.addObject(visual.mesh)
    
-8. 更新 UI
+7. 更新 UI
    designerObjectStore 更新 → useDesignerObjects() → UI 重渲染
 ```
+
+**架构要点（方案 C）**：
+- UI 层发送屏幕坐标 + viewport 信息（不传递 DOM ref）
+- Core 层计算 NDC 并执行 raycasting
+- 通过状态事件实现 UI 响应（避免回调地狱）
 
 ### 流程 2：保存工程文件
 
@@ -304,6 +318,13 @@ Asset (基类)
 3. 发送到服务端进行 FEA 分析
    POST /api/fea/analyze { cadJson }
 ```
+
+**PlacementService 架构要点（方案 C）**：
+- UI 层发送屏幕坐标 + viewport 信息（不传递 DOM ref）
+- Core 层计算 NDC 并执行 raycasting
+- 通过状态事件实现 UI 响应（避免回调地狱）
+- 命令：`command:placement:start/updatePointer/confirm/cancel`
+- 状态事件：`state:placement:started/completed/cancelled`
 
 ---
 
@@ -559,17 +580,21 @@ on('object:added', (sceneObject) => {
    - 确保 core/object/ 仅使用 SceneObject
 
 **P1 优先级**（重要）：
-3. ⏳ 移除废弃的 ContextMenu 代码
+
+3. ✅ 实现 PlacementService（交互式型材放置）- **已完成 2025-11-13**
+   - ✅ 状态管理（idle/placing/confirmed/cancelled）
+   - ✅ Raycasting 计算 3D 坐标
+   - ✅ 半透明预览渲染（PreviewService）
+   - ✅ 事件驱动架构（方案 C）
+   - ✅ 命令系统（4 个命令）和状态事件（3 个事件）
+   - ⏳ 智能吸附（端点、边缘、网格）- 规划中
+   - ⏳ 键盘快捷键（R旋转、ESC取消、Enter确认）- 规划中
+
+4. ⏳ 移除废弃的 ContextMenu 代码
    - 删除 `src/components/menu/ContextMenuContainer.tsx`
    - 验证无引用残留
 
 **P2 优先级**（计划中）：
-4. ⏳ 实现 PlacementService（交互式型材放置）
-   - 状态管理（idle/placing/preview/confirmed）
-   - Raycasting 计算 3D 坐标
-   - 半透明预览渲染
-   - 智能吸附（端点、边缘、网格）
-   - 键盘快捷键（R旋转、ESC取消、Enter确认）
 
 5. ⏳ 制定测试计划
    - 单元测试（Jest + React Testing Library）
@@ -577,6 +602,7 @@ on('object:added', (sceneObject) => {
    - E2E 测试（Playwright/Cypress）
 
 **P3 优先级**（长期）：
+
 6. ⏳ CI/CD 流程
 7. ⏳ 文档与代码同步机制
 
