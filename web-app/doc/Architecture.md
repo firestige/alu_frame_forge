@@ -128,6 +128,7 @@
 - `ModelCreationService`: 模型创建服务
 - `ModelInteractionService`: 交互服务（选择、高亮、上下文菜单）
 - `ModelEditorService`: 编辑服务（属性修改、变换）
+- `PlacementService`: 交互式放置服务（预览、射线检测、确认放置）
 
 **架构特点**：
 - ObjectManager 不直接依赖 Renderer
@@ -259,6 +260,7 @@ Store 更新 → useDesignerObjects() → UI 重渲染
 | 相机控制 | `command:camera:` | `command:camera:reset` |
 | 模型编辑 | `command:model:` | `command:model:delete` |
 | 选择操作 | `command:selection:` | `command:selection:clear` |
+| 交互式放置 | `command:placement:` | `command:placement:start` |
 
 ### 5.2 命令流程
 
@@ -286,19 +288,51 @@ Store 更新 → useDesignerObjects() → UI 重渲染
 
 ---
 
-## 6. 扩展和规划
+## 6. 业务服务详解
 
-### 6.1 PlacementService（规划中）
+### 6.1 PlacementService（已实现）
 
-**目标**：实现交互式型材放置功能
+**目标**：实现交互式型材放置功能，支持鼠标预览和射线检测
 
 **核心功能**：
-- Raycasting 计算鼠标位置对应的 3D 坐标
-- 显示半透明预览
-- 智能吸附（端点、边缘、网格）
-- 支持键盘快捷键（旋转、取消、确认）
+- **射线检测**：RaycasterService 计算鼠标位置对应的 3D 坐标
+- **实时预览**：PreviewService 管理半透明预览对象
+- **交互式放置**：PlacementController 编排完整的放置流程
+- **智能吸附**：支持端点、边缘、网格吸附（规划中）
+- **键盘快捷键**：旋转、取消、确认（规划中）
 
-**状态**：设计已完成，待 Context Provider 重构完成后实施
+**架构特点**（方案 C - 事件驱动）：
+- UI 层发送屏幕坐标 + viewport 信息到 Core 层
+- Core 层计算 NDC 并执行 raycasting
+- 通过状态事件更新 UI（`state:placement:started/completed/cancelled`）
+- 避免 Core 层直接访问 DOM（保持架构纯净）
+
+**数据流**：
+```
+UI 层（usePlacementInput）
+  ↓ sendCommand('command:placement:updatePointer', {screenX, screenY, viewport})
+EventBus
+  ↓
+PlacementController
+  ↓ NDC calculation → RaycasterService
+  ↓ 3D position
+PreviewService
+  ↓ emit('state:placement:updated', {previewPosition})
+UI 层更新
+```
+
+**实现组件**：
+- `PlacementController`: 放置流程编排
+- `RaycasterService`: 射线检测服务
+- `PreviewService`: 预览对象管理
+- `usePlacementInput`: UI 层输入监听 Hook
+- `usePlacementState`: 放置状态管理 Hook
+
+**命令和事件**（详见 CommandReference.md）：
+- 命令：`command:placement:start/updatePointer/confirm/cancel`
+- 状态事件：`state:placement:started/completed/cancelled`
+
+**状态**：✅ 已实现核心功能（2025-11-13）
 
 ### 6.2 未来功能
 
