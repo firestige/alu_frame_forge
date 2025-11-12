@@ -207,31 +207,49 @@
 
 ### 7. 实施 PlacementService（交互式型材放置）
 
+**状态**: ✅ 已完成（2025-11-13）
+
 **前置条件**: 依赖 P0.1（Context Provider 完成验证）
 
 **描述**: 实现交互式型材放置功能，用户可以从 Toolbar 点击型材后在 3D 场景中选择位置和方向。
 
-**核心功能**:
-- [ ] 创建 `PlacementService` 类
-  - 状态管理（idle / placing / confirming）
-  - 监听鼠标/键盘事件
-  - 发送放置命令
-- [ ] 实现 Raycasting 算法
-  - 基础交点计算
+**完成内容**:
+- [x] 创建 `PlacementController` 类（命令驱动架构）
+  - 状态管理（idle / placing）
+  - 监听 eventBus 命令（不直接监听 DOM）
+  - 发布状态事件供 UI 订阅
+- [x] 实现 `RaycasterService` 
+  - 基础交点计算（屏幕坐标 → NDC → 3D 点）
   - 虚拟地面放置
-- [ ] 实现预览渲染
+  - 新增 `getHitFromScreenCoords()` 接口（方案 C）
+- [x] 实现 `PreviewService`
   - 半透明预览 Mesh
   - 实时位置更新
-- [ ] 实现智能吸附（可选）
+- [x] UI 层集成（3 个 hooks）
+  - `usePlacementInput`: 监听 DOM，发送命令
+  - `usePlacementState`: 订阅状态，提供响应式状态
+  - `useCreationCommands`: 连接 Toolbar 和 PlacementController
+- [x] UI 反馈
+  - 光标样式切换（crosshair）
+  - 键盘支持（ESC 取消）
+- [ ] 智能吸附（P3 优先级，未实施）
   - 端点吸附
   - 边缘吸附
   - 网格吸附
-- [ ] UI 反馈
-  - 光标样式切换
-  - 吸附点指示器
-  - 屏幕提示文字
+- [ ] 屏幕提示文字（P3 优先级，未实施）
 
-**参考设计**: 已删除的 `ProfileInteractiveCreation.md`（已同步到 GitHub Issues）
+**架构决策**:
+- 采用方案 C：UI 传递视口信息，Core 计算 NDC
+- 使用事件总线实现双向通信（命令 + 状态事件）
+- Core 层无 DOM 依赖，避免延迟初始化问题
+
+**提交记录**:
+- commit 79e16a9: PlacementController 重构为命令驱动
+- commit 418edd5: UI 层集成和方案 C 实施
+
+**相关文档**: 
+- `doc/Architecture.md` - 事件驱动架构
+- GitHub Issues - ProfileInteractiveCreation（已同步）
 
 ---
 
@@ -294,6 +312,9 @@
 ---
 
 ## 已完成事项
+
+### ✅ 2025-11-13
+- PlacementService 交互式型材放置功能（P2.7）
 
 ### ✅ 2025-11-12
 - 文档整理与架构文档创建
