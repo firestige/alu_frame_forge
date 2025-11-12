@@ -30,6 +30,16 @@ export interface Euler {
 }
 
 /**
+ * 四元数（旋转）
+ */
+export interface Quaternion {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+/**
  * 2D 向量（鼠标位置等）
  */
 export interface Vector2 {
@@ -105,9 +115,22 @@ export interface OrbitControlsConfig {
  * 射线检测结果
  */
 export interface RaycastHit {
-  handle: RenderHandle;
+  /** 对象句柄（如果命中场景对象） */
+  handle?: string;
+
+  /** 交点世界坐标 */
   point: Vector3;
+
+  /** 命中点的法线 */
+  normal?: Vector3;
+
+  /** 距离相机的距离 */
   distance: number;
+
+  /** 是否命中地面（虚拟地面） */
+  isGroundPlane?: boolean;
+
+  /** 用户数据（对象的 userData） */
   userData?: Record<string, unknown>;
 }
 
@@ -260,14 +283,98 @@ export interface IRenderer {
   // ==================== 射线检测（交互） ====================
 
   /**
+   * 从归一化设备坐标（NDC）进行射线检测
+   * @param ndc 归一化设备坐标 {x: -1~1, y: -1~1}
+   * @param options 可选配置
+   * @returns 射线检测结果数组，按距离排序
+   */
+  raycastFromNDC(
+    ndc: Vector2,
+    options?: {
+      /** 忽略的对象句柄列表 */
+      ignoreHandles?: string[];
+      /** 是否包含辅助对象（网格、坐标轴等） */
+      includeHelpers?: boolean;
+      /** 是否检测虚拟地面 */
+      includeGroundPlane?: boolean;
+      /** 地面平面定义（法线 + 距离） */
+      groundPlane?: { normal: Vector3; distance: number };
+    }
+  ): RaycastHit[];
+
+  /**
    * 从屏幕坐标进行射线检测
-   * @param mousePosition 归一化的鼠标位置 (-1 到 1)
-   * @param filterFn 可选的过滤函数，用于筛选可检测对象
+   * @param screenX 屏幕 X 坐标（clientX）
+   * @param screenY 屏幕 Y 坐标（clientY）
+   * @param viewport 视口信息
+   * @param options 检测选项
+   * @returns 射线检测结果数组，按距离排序
    */
   raycastFromScreen(
-    mousePosition: Vector2,
-    filterFn?: (userData: Record<string, unknown>) => boolean
+    screenX: number,
+    screenY: number,
+    viewport: { left: number; top: number; width: number; height: number },
+    options?: {
+      /** 忽略的对象句柄列表 */
+      ignoreHandles?: string[];
+      /** 是否包含辅助对象（网格、坐标轴等） */
+      includeHelpers?: boolean;
+      /** 是否检测虚拟地面 */
+      includeGroundPlane?: boolean;
+      /** 地面平面定义（法线 + 距离） */
+      groundPlane?: { normal: Vector3; distance: number };
+    }
   ): RaycastHit[];
+
+  // ==================== 预览对象管理 ====================
+
+  /**
+   * 添加预览对象到场景（半透明显示）
+   * @param handle 对象句柄（用于后续操作）
+   * @param object 渲染对象（由 GeometryFactory 创建）
+   * @param options 预览选项
+   */
+  addPreviewObject(
+    handle: string,
+    object: unknown,
+    options?: {
+      color?: number;
+      opacity?: number;
+    }
+  ): void;
+
+  /**
+   * 更新预览对象的变换
+   * @param handle 对象句柄
+   * @param transform 变换数据
+   */
+  updatePreviewTransform(
+    handle: string,
+    transform: {
+      position?: Vector3;
+      rotation?: Euler | Quaternion;
+      scale?: Vector3;
+    }
+  ): void;
+
+  /**
+   * 移除预览对象
+   * @param handle 对象句柄
+   */
+  removePreviewObject(handle: string): void;
+
+  /**
+   * 设置预览对象的样式
+   * @param handle 对象句柄
+   * @param style 样式选项
+   */
+  setPreviewStyle(
+    handle: string,
+    style: {
+      color?: number;
+      opacity?: number;
+    }
+  ): void;
 
   // ==================== 渲染循环 ====================
 

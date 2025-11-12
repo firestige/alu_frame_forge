@@ -12,6 +12,7 @@ import type {
   Vector3,
   Vector2,
   Euler,
+  Quaternion,
   ColorHex,
   OrbitControlsConfig,
   RaycastHit,
@@ -19,6 +20,7 @@ import type {
 import { SceneManager } from './SceneManager';
 import { CameraController } from './CameraController';
 import { RaycasterService } from './RaycasterService';
+import { PreviewManager } from './PreviewManager';
 import { RendererCore } from './RendererCore';
 
 /**
@@ -29,6 +31,7 @@ export class ThreeRenderer implements IRenderer {
   private sceneManager: SceneManager;
   private cameraController: CameraController | null = null;
   private raycasterService: RaycasterService;
+  private previewManager: PreviewManager | null = null;
   private rendererCore: RendererCore;
 
   private initialized = false;
@@ -55,6 +58,9 @@ export class ThreeRenderer implements IRenderer {
 
     // 初始化相机控制器
     this.cameraController = new CameraController(config.container);
+
+    // 初始化预览管理器
+    this.previewManager = new PreviewManager(this.sceneManager.getScene());
 
     // 设置相机位置
     if (config.camera?.position) {
@@ -85,6 +91,7 @@ export class ThreeRenderer implements IRenderer {
     this.cameraController?.dispose();
     this.sceneManager.dispose();
     this.raycasterService.dispose();
+    this.previewManager?.dispose();
     this.initialized = false;
     this.config = null;
   }
@@ -131,7 +138,7 @@ export class ThreeRenderer implements IRenderer {
     }
 
     const obj = object as THREE.Object3D;
-    
+
     // 设置 userData
     if (userData) {
       obj.userData = { ...obj.userData, ...userData };
@@ -207,7 +214,7 @@ export class ThreeRenderer implements IRenderer {
     const obj = object as THREE.Object3D;
 
     // 遍历并清理资源
-    obj.traverse((child) => {
+    obj.traverse(child => {
       if (child instanceof THREE.Mesh) {
         // 清理几何体
         if (child.geometry) {
@@ -217,7 +224,7 @@ export class ThreeRenderer implements IRenderer {
         // 清理材质
         if (child.material) {
           if (Array.isArray(child.material)) {
-            child.material.forEach((mat) => mat.dispose());
+            child.material.forEach(mat => mat.dispose());
           } else {
             child.material.dispose();
           }
@@ -238,7 +245,7 @@ export class ThreeRenderer implements IRenderer {
 
     const obj = object as THREE.Object3D;
 
-    obj.traverse((child) => {
+    obj.traverse(child => {
       if (child instanceof THREE.Mesh) {
         // 保存原始材质
         if (!child.userData.originalMaterial) {
@@ -263,11 +270,8 @@ export class ThreeRenderer implements IRenderer {
 
     const obj = object as THREE.Object3D;
 
-    obj.traverse((child) => {
-      if (
-        child instanceof THREE.Mesh &&
-        child.userData.originalMaterial
-      ) {
+    obj.traverse(child => {
+      if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
         // 清理高亮材质
         if (child.material instanceof THREE.Material) {
           child.material.dispose();
@@ -316,9 +320,14 @@ export class ThreeRenderer implements IRenderer {
 
   // ==================== 射线检测 ====================
 
-  raycastFromScreen(
-    mousePosition: Vector2,
-    filterFn?: (userData: Record<string, unknown>) => boolean
+  raycastFromNDC(
+    ndc: Vector2,
+    options?: {
+      ignoreHandles?: string[];
+      includeHelpers?: boolean;
+      includeGroundPlane?: boolean;
+      groundPlane?: { normal: Vector3; distance: number };
+    }
   ): RaycastHit[] {
     if (!this.cameraController) {
       return [];
@@ -327,12 +336,117 @@ export class ThreeRenderer implements IRenderer {
     const camera = this.cameraController.getCamera();
     const scene = this.sceneManager.getScene();
 
-    return this.raycasterService.raycastFromScreen(
-      mousePosition,
-      camera,
-      scene,
-      filterFn
-    );
+    // 获取场景对象的射线检测结果
+    const sceneHits = this.raycasterService.raycast(ndc, camera, scene, {
+      ignoreObjects: options?.ignoreHandles
+        ?.map(handle => {
+          // 从场景中查找具有该句柄的对象
+          let foundObject: THREE.Object3D | undefined;
+          scene.traverse(obj => {
+            if (obj.userData.modelId === handle || obj.uuid === handle) {
+              foundObject = obj;
+            }
+          });
+          return foundObject;
+        })
+        .filter((obj): obj is THREE.Object3D => obj !== undefined),
+      includeHelpers: options?.includeHelpers,
+    });
+
+    // 如果需要检测地面且没有命中场景对象
+    if (options?.includeGroundPlane && sceneHits.length === 0) {
+      const groundHit = this.raycasterService.intersectGroundPlane(
+        ndc,
+        camera,
+        options.groundPlane
+      );
+
+      if (groundHit) {
+        return [groundHit];
+      }
+    }
+
+    return sceneHits;
+  }
+
+  raycastFromScreen(
+    screenX: number,
+    screenY: number,
+    viewport: { left: number; top: number; width: number; height: number },
+    options?: {
+      ignoreHandles?: string[];
+      includeHelpers?: boolean;
+      includeGroundPlane?: boolean;
+      groundPlane?: { normal: Vector3; distance: number };
+    }
+  ): RaycastHit[] {
+    // 计算 NDC 坐标
+    const ndc: Vector2 = {
+      x: ((screenX - viewport.left) / viewport.width) * 2 - 1,
+      y: -((screenY - viewport.top) / viewport.height) * 2 + 1,
+    };
+
+    return this.raycastFromNDC(ndc, options);
+  }
+
+  // ==================== 预览对象管理 ====================
+
+  addPreviewObject(
+    handle: string,
+    object: unknown,
+    options?: { color?: number; opacity?: number }
+  ): void {
+    if (!this.previewManager) {
+      console.warn('[ThreeRenderer] PreviewManager not initialized');
+      return;
+    }
+
+    if (!object || typeof object !== 'object') {
+      console.warn(
+        '[ThreeRenderer] Invalid object provided to addPreviewObject'
+      );
+      return;
+    }
+
+    const mesh = object as THREE.Mesh;
+    this.previewManager.add(handle, mesh, options);
+  }
+
+  updatePreviewTransform(
+    handle: string,
+    transform: {
+      position?: Vector3;
+      rotation?: Euler | Quaternion;
+      scale?: Vector3;
+    }
+  ): void {
+    if (!this.previewManager) {
+      console.warn('[ThreeRenderer] PreviewManager not initialized');
+      return;
+    }
+
+    this.previewManager.updateTransform(handle, transform);
+  }
+
+  removePreviewObject(handle: string): void {
+    if (!this.previewManager) {
+      console.warn('[ThreeRenderer] PreviewManager not initialized');
+      return;
+    }
+
+    this.previewManager.remove(handle);
+  }
+
+  setPreviewStyle(
+    handle: string,
+    style: { color?: number; opacity?: number }
+  ): void {
+    if (!this.previewManager) {
+      console.warn('[ThreeRenderer] PreviewManager not initialized');
+      return;
+    }
+
+    this.previewManager.setStyle(handle, style);
   }
 
   // ==================== 渲染循环 ====================

@@ -9,6 +9,7 @@ import { designerEventBus } from '@/core/services/eventBus';
  * 设计器 Context 值类型（重构后）
  *
  * 移除 ModelInteractionService - 交互逻辑已移至 UI 层的 SelectionService
+ * placement 允许为 null - 在 renderer 就绪后才初始化
  */
 export interface DesignerContextValue {
   // 业务服务（只读引用）
@@ -16,7 +17,7 @@ export interface DesignerContextValue {
     objectManager: ObjectManager;
     creation: ModelCreationService;
     editor: ModelEditorService;
-    placement: PlacementController; // 放置控制器
+    placement: PlacementController | null; // ← 允许为 null
   };
 
   // 事件总线

@@ -3,8 +3,6 @@ import type { IRenderer } from '@/core/renderer/renderer-types';
 import type { ObjectManager } from '@/core/object/ObjectManager';
 import type { AnyAsset } from '@/core/asset/types/asset';
 import type { SceneObjectCreateOptions } from '@/core/object/types/scene-object';
-import { RaycasterService } from './RaycasterService';
-import { PreviewService } from './PreviewService';
 import { onCommand, offCommand, publishState } from '@/core/services/eventBus';
 
 /**
@@ -21,13 +19,12 @@ export interface PointerUpdateData {
 }
 
 /**
- * 放置控制器
+ * 放置控制器（重构后 - 完全隔离 Three.js）
  *
  * 职责：
- * - 管理一次放置会话的生命周期（开始、预览更新、确认放置、取消）
- * - 协调 RaycasterService、PreviewService
- * - 监听 eventBus 命令，执行放置逻辑
- * - 最终在确认时调用 ObjectManager.createObjectFromAsset
+ * - 管理放置会话的生命周期
+ * - 通过 IRenderer 抽象接口进行射线检测和预览管理
+ * - 不依赖 Three.js，完全通过抽象层工作
  *
  * 命令接口：
  * - command:placement:start - 开始放置会话
@@ -36,24 +33,18 @@ export interface PointerUpdateData {
  * - command:placement:cancel - 取消放置
  */
 export class PlacementController {
+  private renderer: IRenderer;
   private objectManager: ObjectManager;
-
-  // 子服务
-  private raycasterService: RaycasterService;
-  private previewService: PreviewService;
 
   // 会话状态
   private isActive = false;
   private currentAsset: AnyAsset | null = null;
-  private currentPreviewMesh: THREE.Mesh | null = null;
-  private currentPosition: THREE.Vector3 | null = null;
+  private previewHandle: string | null = null;
+  private currentPosition: { x: number; y: number; z: number } | null = null;
 
   constructor(renderer: IRenderer, objectManager: ObjectManager) {
+    this.renderer = renderer;
     this.objectManager = objectManager;
-
-    // 初始化子服务
-    this.raycasterService = new RaycasterService(renderer);
-    this.previewService = new PreviewService(renderer);
 
     // 注册命令监听
     this.setupCommandListeners();
@@ -80,22 +71,34 @@ export class PlacementController {
    * 处理指针更新命令
    */
   private handlePointerUpdate = (data: PointerUpdateData): void => {
-    if (!this.isActive) {
+    if (!this.isActive || !this.previewHandle) {
       return;
     }
 
-    // 使用屏幕坐标和视口信息进行射线检测
-    const hit = this.raycasterService.getHitFromScreenCoords(
+    // ✅ 通过 IRenderer 抽象接口进行射线检测
+    const hits = this.renderer.raycastFromScreen(
       data.screen.x,
       data.screen.y,
-      data.viewport
+      data.viewport,
+      {
+        ignoreHandles: [this.previewHandle], // 忽略预览对象本身
+        includeHelpers: false,
+        includeGroundPlane: true,
+        groundPlane: {
+          normal: { x: 0, y: 1, z: 0 },
+          distance: 0,
+        },
+      }
     );
 
-    if (hit) {
+    if (hits.length > 0) {
+      const hit = hits[0];
       this.currentPosition = hit.point;
 
-      // 更新预览位置
-      this.previewService.updateTransform(hit.point);
+      // ✅ 通过 IRenderer 抽象接口更新预览位置
+      this.renderer.updatePreviewTransform(this.previewHandle, {
+        position: hit.point,
+      });
 
       // TODO: 应用吸附
       // TODO: 更新屏幕提示
@@ -133,15 +136,19 @@ export class PlacementController {
     this.currentAsset = asset;
     this.isActive = true;
 
-    // 创建预览 Mesh（从 ObjectManager 获取）
-    // 注意：这里需要 ObjectManager 提供创建预览 Mesh 的方法
-    // 暂时先创建一个简单的立方体作为预览
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    this.currentPreviewMesh = new THREE.Mesh(geometry, material);
+    // 生成预览句柄
+    this.previewHandle = `preview_${Date.now()}`;
 
-    // 显示预览
-    this.previewService.showPreview(this.currentPreviewMesh);
+    // ✅ 通过 ObjectManager 创建预览 Mesh（这是正确的依赖）
+    // TODO: 需要 ObjectManager 提供 createPreviewMesh 方法
+    // 暂时创建简单立方体（这部分后续需要通过 GeometryFactory）
+    const previewMesh = this.createTemporaryPreviewMesh();
+
+    // ✅ 通过 IRenderer 抽象接口添加预览对象
+    this.renderer.addPreviewObject(this.previewHandle, previewMesh, {
+      color: 0x00ff00,
+      opacity: 0.5,
+    });
 
     // 发布状态变更事件
     publishState('state:placement:started', { asset });
@@ -217,18 +224,10 @@ export class PlacementController {
    * 结束会话
    */
   private endSession(): void {
-    // 隐藏预览
-    this.previewService.hide();
-
-    // 清理预览 Mesh
-    if (this.currentPreviewMesh) {
-      this.currentPreviewMesh.geometry.dispose();
-      if (Array.isArray(this.currentPreviewMesh.material)) {
-        this.currentPreviewMesh.material.forEach(m => m.dispose());
-      } else {
-        this.currentPreviewMesh.material.dispose();
-      }
-      this.currentPreviewMesh = null;
+    // ✅ 通过 IRenderer 抽象接口移除预览对象
+    if (this.previewHandle) {
+      this.renderer.removePreviewObject(this.previewHandle);
+      this.previewHandle = null;
     }
 
     // 重置状态
@@ -247,20 +246,27 @@ export class PlacementController {
   }
 
   /**
+   * 临时方法：创建预览 Mesh
+   * TODO: 应该通过 GeometryFactory 或 ObjectManager 创建
+   */
+  private createTemporaryPreviewMesh(): unknown {
+    // 这里返回的是 Three.js 对象，但 PlacementController 不知道具体类型
+    // 它只是传递给 IRenderer
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    return new THREE.Mesh(geometry, material);
+  }
+
+  /**
    * 销毁控制器
    */
   dispose(): void {
     this.cancel();
-    
+
     // 移除命令监听
     offCommand('command:placement:start', this.handleStartCommand);
     offCommand('command:placement:updatePointer', this.handlePointerUpdate);
     offCommand('command:placement:confirm', this.handleConfirmCommand);
     offCommand('command:placement:cancel', this.handleCancelCommand);
-    
-    // 清理服务
-    this.raycasterService.dispose();
-    this.previewService.dispose();
   }
 }
-

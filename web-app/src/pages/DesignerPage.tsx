@@ -289,14 +289,14 @@ const DesignerPage: React.FC = () => {
 
   return (
     <div className="relative w-full h-full">
-      {services.status === 'ready' && services.placement ? (
+      {services.status === 'ready' ? (
         <DesignerProvider
           value={{
             services: {
               objectManager: services.objectManager!,
               creation: services.creation!,
               editor: services.editor!,
-              placement: services.placement,
+              placement: services.placement, // ← 允许为 null
             },
             eventBus: designerEventBus,
           }}
