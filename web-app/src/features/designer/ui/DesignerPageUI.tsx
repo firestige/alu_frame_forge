@@ -76,20 +76,6 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
     false
   );
 
-  // ==================== UI 状态（瞬态） ====================
-
-  // TODO: 上下文菜单 - 暂时隐藏，后续重构为事件驱动模式
-  // const [contextMenu, setContextMenu] = React.useState<ContextMenuState>({
-  //   visible: false,
-  //   x: 0,
-  //   y: 0,
-  //   modelId: null,
-  // });
-  //
-  // const handleCloseContextMenu = React.useCallback(() => {
-  //   setContextMenu((prev) => ({ ...prev, visible: false }));
-  // }, []);
-
   // ==================== 渲染 ====================
 
   return (
@@ -108,12 +94,6 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
         <div ref={containerRef} className="relative flex-1">
           {/* 右上角视角控制面板 */}
           <ControlPanel />
-
-          {/* 上下文菜单 - 暂时隐藏，后续重构 */}
-          {/* <ContextMenuContainer
-            contextMenu={contextMenu}
-            onClose={handleCloseContextMenu}
-          /> */}
         </div>
       </div>
     </div>
