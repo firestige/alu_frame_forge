@@ -39,8 +39,13 @@ export type DesignerCommandEvents = {
     asset: AnyAsset;
   };
   'command:placement:updatePointer': {
-    ndc: { x: number; y: number };
     screen: { x: number; y: number };
+    viewport: {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    };
   };
   'command:placement:confirm': void;
   'command:placement:cancel': void;
@@ -93,6 +98,11 @@ export type DesignerStateEvents = {
   // 渲染器相关事件
   'state:renderer:ready': void;
   'state:renderer:error': Error;
+
+  // 放置相关事件
+  'state:placement:started': { asset: AnyAsset };
+  'state:placement:completed': { modelId: string };
+  'state:placement:cancelled': void;
 
   // UI 通知事件（业务层 → UI 层）
   'ui:selection:clear': { deletedObjectId?: string; reason?: string };

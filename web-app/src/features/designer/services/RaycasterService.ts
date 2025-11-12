@@ -108,6 +108,37 @@ export class RaycasterService {
   }
 
   /**
+   * 从屏幕坐标获取射线检测结果
+   *
+   * 职责：
+   * - 接收屏幕坐标和视口信息（而非 DOM 元素引用）
+   * - 内部计算 NDC 坐标
+   * - 调用 getHit() 执行射线检测
+   *
+   * @param screenX 屏幕 X 坐标（clientX）
+   * @param screenY 屏幕 Y 坐标（clientY）
+   * @param viewport 视口信息（left, top, width, height）
+   * @returns 检测结果，如果没有命中任何物体则返回 null
+   */
+  getHitFromScreenCoords(
+    screenX: number,
+    screenY: number,
+    viewport: {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    }
+  ): HitResult | null {
+    // 计算 NDC 坐标 (-1 到 +1)
+    const ndcX = ((screenX - viewport.left) / viewport.width) * 2 - 1;
+    const ndcY = -((screenY - viewport.top) / viewport.height) * 2 + 1;
+
+    // 调用现有的 getHit 方法
+    return this.getHit(new THREE.Vector2(ndcX, ndcY));
+  }
+
+  /**
    * 设置地面平面
    * @param normal 平面法线
    * @param distance 平面到原点的距离

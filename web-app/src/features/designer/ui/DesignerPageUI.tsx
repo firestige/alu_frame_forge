@@ -5,6 +5,9 @@ import ObjectManagerSidebar from './ObjectManagerSidebar';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { use3DViewer } from '../hooks/use3DViewer';
 import { useSelectionService } from '../hooks/useSelectionService';
+import { usePlacementInput } from '../hooks/usePlacementInput';
+import { usePlacementState } from '../hooks/usePlacementState';
+import { useCreationCommands } from '../hooks/useCreationCommands';
 
 import type { IRenderer } from '@/core/renderer';
 
@@ -63,7 +66,16 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   useSelectionService(renderer);
 
-  // ==================== 3. UI 状态（持久化） ====================
+  // ==================== 3. 创建命令处理 ====================
+
+  useCreationCommands();
+
+  // ==================== 4. 放置输入处理 ====================
+
+  const { isPlacementActive } = usePlacementState();
+  usePlacementInput(containerRef, isPlacementActive);
+
+  // ==================== 5. UI 状态（持久化） ====================
 
   // 工具选择
   const [selectedTool, setSelectedTool] = usePersistentState<

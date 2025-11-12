@@ -5,14 +5,19 @@ import type { AnyAsset } from '@/core/asset/types/asset';
 import type { SceneObjectCreateOptions } from '@/core/object/types/scene-object';
 import { RaycasterService } from './RaycasterService';
 import { PreviewService } from './PreviewService';
-import { onCommand, offCommand } from '@/core/services/eventBus';
+import { onCommand, offCommand, publishState } from '@/core/services/eventBus';
 
 /**
  * 指针更新命令数据
  */
 export interface PointerUpdateData {
-  ndc: { x: number; y: number };
   screen: { x: number; y: number };
+  viewport: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
 }
 
 /**
@@ -79,9 +84,12 @@ export class PlacementController {
       return;
     }
 
-    // 使用 NDC 进行射线检测
-    const ndc = new THREE.Vector2(data.ndc.x, data.ndc.y);
-    const hit = this.raycasterService.getHit(ndc);
+    // 使用屏幕坐标和视口信息进行射线检测
+    const hit = this.raycasterService.getHitFromScreenCoords(
+      data.screen.x,
+      data.screen.y,
+      data.viewport
+    );
 
     if (hit) {
       this.currentPosition = hit.point;
@@ -135,7 +143,12 @@ export class PlacementController {
     // 显示预览
     this.previewService.showPreview(this.currentPreviewMesh);
 
-    console.log('[PlacementController] Placement started, waiting for pointer updates via commands');
+    // 发布状态变更事件
+    publishState('state:placement:started', { asset });
+
+    console.log(
+      '[PlacementController] Placement started, waiting for pointer updates via commands'
+    );
 
     // TODO: 添加光标样式切换
     // TODO: 添加屏幕提示文字
@@ -168,8 +181,14 @@ export class PlacementController {
 
     // 创建对象
     try {
-      this.objectManager.createObjectFromAsset(this.currentAsset.id, options);
+      const sceneObject = this.objectManager.createObjectFromAsset(
+        this.currentAsset.id,
+        options
+      );
       console.log('[PlacementController] Object created successfully');
+
+      // 发布状态变更事件
+      publishState('state:placement:completed', { modelId: sceneObject.id });
     } catch (error) {
       console.error('[PlacementController] Failed to create object:', error);
     }
@@ -187,6 +206,10 @@ export class PlacementController {
     }
 
     console.log('[PlacementController] Cancelling placement');
+
+    // 发布状态变更事件
+    publishState('state:placement:cancelled', undefined);
+
     this.endSession();
   };
 
