@@ -39,11 +39,7 @@ function getProjectIdFromUrl(): string | null {
  * - 不显示 Loading（委托给 UI 层）
  */
 const DesignerPage: React.FC = () => {
-  // ==================== 1. 初始化业务服务 ====================
-
-  const services = useBusinessServices();
-
-  // ==================== 2. 管理 Renderer 引用 ====================
+  // ==================== 1. 管理 Renderer 引用 ====================
 
   const rendererRef = React.useRef<IRenderer | null>(null);
   const [isRendererReady, setIsRendererReady] = React.useState(false);
@@ -52,6 +48,10 @@ const DesignerPage: React.FC = () => {
     rendererRef.current = renderer;
     setIsRendererReady(true);
   }, []);
+
+  // ==================== 2. 初始化业务服务（包含 PlacementController）====================
+
+  const services = useBusinessServices(rendererRef.current);
 
   // ==================== 3. 创建 RenderSyncService（粘合层）====================
 
@@ -289,13 +289,14 @@ const DesignerPage: React.FC = () => {
 
   return (
     <div className="relative w-full h-full">
-      {services.status === 'ready' ? (
+      {services.status === 'ready' && services.placement ? (
         <DesignerProvider
           value={{
             services: {
               objectManager: services.objectManager!,
               creation: services.creation!,
               editor: services.editor!,
+              placement: services.placement,
             },
             eventBus: designerEventBus,
           }}

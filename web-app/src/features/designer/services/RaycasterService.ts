@@ -30,9 +30,6 @@ export class RaycasterService {
   private renderer: IRenderer;
   private groundPlane: THREE.Plane;
   
-  /** 可交互对象的层（默认为 0） */
-  private interactiveLayer = 0;
-  
   /** 忽略的对象列表 */
   private ignoredObjects: Set<THREE.Object3D> = new Set();
 
@@ -124,7 +121,6 @@ export class RaycasterService {
    * @param layer 层索引（0-31）
    */
   setInteractiveLayer(layer: number): void {
-    this.interactiveLayer = layer;
     this.raycaster.layers.set(layer);
   }
 

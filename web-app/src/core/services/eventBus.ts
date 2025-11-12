@@ -5,6 +5,7 @@
 
 import mitt, { type Emitter } from 'mitt';
 import type { Vector3 } from '../renderer/renderer-types';
+import type { AnyAsset } from '../asset/types/asset';
 
 // ==================== 事件类型定义 ====================
 
@@ -32,6 +33,17 @@ export type DesignerCommandEvents = {
   };
   'command:create:panel': void;
   'command:create:connector': void;
+
+  // 放置命令（交互式放置）
+  'command:placement:start': {
+    asset: AnyAsset;
+  };
+  'command:placement:updatePointer': {
+    ndc: { x: number; y: number };
+    screen: { x: number; y: number };
+  };
+  'command:placement:confirm': void;
+  'command:placement:cancel': void;
 
   // 相机命令
   'command:camera:reset': void;

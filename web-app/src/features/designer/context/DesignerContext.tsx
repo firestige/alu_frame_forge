@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { ObjectManager } from '@/core/object';
 import type { ModelCreationService } from '../services/ModelCreationService';
 import type { ModelEditorService } from '../services/ModelEditorService';
+import type { PlacementController } from '../services/PlacementService';
 import { designerEventBus } from '@/core/services/eventBus';
 
 /**
@@ -15,6 +16,7 @@ export interface DesignerContextValue {
     objectManager: ObjectManager;
     creation: ModelCreationService;
     editor: ModelEditorService;
+    placement: PlacementController; // 放置控制器
   };
 
   // 事件总线
