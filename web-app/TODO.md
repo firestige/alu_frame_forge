@@ -168,29 +168,38 @@
 
 ### 6. 修复架构违规：components/ 依赖 stores/
 
+**状态**: ✅ 已完成（2025-11-12）
+
 **描述**: `components/` 目录中的通用组件不应依赖 `stores/` 中的业务状态。
 
 **问题文件**:
 - `src/components/drawer/Drawer.tsx` - 依赖 `@/stores/drawerStore`
 - `src/components/AppBar/AppBar.tsx` - 依赖 `@/stores/drawerStore`
 
-**解决方案 A（推荐）**: 将 Drawer 和 AppBar 移到 layouts/ 或 features/
+**执行方案**: ✅ **方案 A（移动到 layouts/）**
 - 这些组件包含业务逻辑（drawer 状态管理），不是纯 UI 组件
-- `layouts/BaseLayout.tsx` 可以组合 AppBar + Drawer
+- 移动到 `layouts/` 更符合架构分层
 - `drawerStore` 保留在 stores/ 作为全局布局状态
 
-**解决方案 B**: Props 注入（如果坚持放在 components/）
-- Drawer 和 AppBar 接收 `isOpen`, `onToggle` 等 props
-- 父组件（Layout）负责连接 drawerStore
-- 这样 components/ 保持纯 UI 职责
+**执行内容**:
+- [x] 将 `Drawer.tsx` 移动到 `src/layouts/Drawer.tsx`
+- [x] 将 `AppBar.tsx` 移动到 `src/layouts/AppBar.tsx`
+- [x] 更新 `BaseLayout.tsx` 的导入路径
+- [x] 删除空目录 `src/components/drawer/` 和 `src/components/AppBar/`
+- [x] 验证构建成功
 
-**任务**:
-- [ ] 决定采用方案 A 还是方案 B
-- [ ] 移动文件或重构 Props
-- [ ] 更新相关导入
-- [ ] 验证功能正常
+**验证结果**:
+- ✅ 文件移动成功
+- ✅ `src/layouts/` 现包含：AppBar.tsx, BaseLayout.tsx, Drawer.tsx
+- ✅ `src/components/` 不再包含 AppBar/ 和 drawer/ 目录
+- ✅ BaseLayout.tsx 导入路径已更新为相对路径
+- ✅ 无引用错误（grep 搜索确认）
+- ✅ 架构违规已解决
 
-**影响分析**: Drawer 和 AppBar 在多个页面使用，需要检查所有引用点
+**架构改进**:
+- `layouts/` 现在负责布局组件和布局状态管理
+- `components/` 保持纯 UI 组件职责
+- 符合三层架构原则
 
 ---
 

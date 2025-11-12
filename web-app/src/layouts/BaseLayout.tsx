@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Outlet } from 'react-router';
-import AppBar from '../components/AppBar/AppBar.tsx';
+import AppBar from './AppBar.tsx';
 import Footer from '../components/footer/Footer.tsx';
 
 /**
