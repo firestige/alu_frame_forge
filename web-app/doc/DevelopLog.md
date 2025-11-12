@@ -1,5 +1,92 @@
 # 开发日志
 
+## 2025-11-13
+
+### PlacementService 交互式型材放置功能实现
+
+**背景**：实现用户从 Toolbar 点击型材后，在 3D 场景中交互式选择位置和方向的功能。这是完整设计器工作流的关键一环。
+
+**架构目标**：
+- Core 层不依赖 UI 层的 DOM 元素
+- 使用事件总线实现双向通信（命令 + 状态事件）
+- 职责清晰：UI 层处理 DOM，Core 层处理业务逻辑
+
+**主要工作**：
+
+1. **PlacementController 架构重构**（commit 79e16a9）
+   - 从依赖 InputManager（违反架构）改为命令驱动
+   - 移除 `container: HTMLElement` 参数依赖
+   - 实现命令监听器：
+     - `command:placement:start` - 开始放置会话
+     - `command:placement:updatePointer` - 更新指针位置
+     - `command:placement:confirm` - 确认放置
+     - `command:placement:cancel` - 取消放置
+   - 添加状态事件发布：
+     - `state:placement:started`
+     - `state:placement:completed`
+     - `state:placement:cancelled`
+
+2. **核心服务实现**
+   - **RaycasterService**（170 行）
+     - 屏幕坐标到 3D 世界坐标转换
+     - 场景物体射线检测
+     - 虚拟地面交点计算
+     - 新增 `getHitFromScreenCoords()` 接口（方案 C）
+   - **PreviewService**（155 行）
+     - 半透明预览 Mesh 渲染
+     - 实时位置/姿态更新
+     - 预览显示/隐藏管理
+
+3. **UI 层集成**（commit 418edd5）
+   - **usePlacementInput** hook
+     - 监听 DOM 事件（pointermove, pointerdown, keydown）
+     - 获取视口信息并发送命令
+     - 管理光标样式（crosshair）
+   - **usePlacementState** hook
+     - 订阅状态事件
+     - 提供响应式的 `isPlacementActive` 状态
+   - **useCreationCommands** hook
+     - 连接 Toolbar 和 PlacementController
+     - 监听 `command:create:profile:prepare`
+     - 转换为 `command:placement:start`
+
+4. **方案 C 设计决策**
+   - **问题**：如何传递坐标信息而不让 Core 层依赖 DOM？
+   - **方案**：UI 层传递视口信息（left, top, width, height），Core 层计算 NDC
+   - **优势**：
+     - ✅ Core 层完全独立于 DOM
+     - ✅ 支持窗口大小动态变化
+     - ✅ 易于测试（纯数据接口）
+     - ✅ 无延迟初始化问题
+
+**数据流**：
+```
+用户移动鼠标
+  ↓
+UI: 监听 DOM 事件 → 获取视口信息 → sendCommand
+  ↓
+Core: 接收命令 → 计算 NDC → 射线检测 → publishState
+  ↓
+UI: 订阅状态 → 更新 React 状态 → 重新渲染
+```
+
+**技术亮点**：
+- 事件驱动架构：命令下发 + 状态订阅
+- 职责分离：UI 获取数据，Core 执行计算
+- 无副作用：Core 层纯业务逻辑，无 DOM 操作
+
+**未实施功能**（标记为 P3）：
+- 智能吸附（端点/边缘/网格）
+- 屏幕提示文字
+
+**相关 Commits**：
+- `79e16a9` - PlacementController 重构为命令驱动
+- `418edd5` - UI 层集成（方案 C）
+- `55cf44d` - 更新 TODO.md
+- `79e16a9` - 删除 InputManager
+
+---
+
 ## 2025-11-12
 
 ### 文档整理与架构文档创建

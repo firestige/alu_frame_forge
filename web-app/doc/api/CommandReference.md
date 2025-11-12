@@ -331,7 +331,163 @@ sendCommand('command:model:update', {
 
 ---
 
-### 4. 选择命令
+### 4. 交互式放置命令 (PlacementService) ⭐ **新增**
+
+#### 4.1 `command:placement:start`
+
+**描述**：开始交互式放置会话
+
+**Payload**:
+
+```typescript
+{
+  asset: AnyAsset; // 要放置的资产对象
+}
+```
+
+**示例**:
+
+```typescript
+const asset = objectManager.getAsset('profile-2020-std');
+sendCommand('command:placement:start', { asset });
+```
+
+**处理位置**: `PlacementController.handleStartCommand()`
+
+**后续流程**:
+
+```
+PlacementController.start()
+    ↓
+创建预览 Mesh
+    ↓
+发布 state:placement:started 事件
+    ↓
+UI 层监听状态 → 启用 pointer 事件监听
+```
+
+---
+
+#### 4.2 `command:placement:updatePointer`
+
+**描述**：更新放置预览位置（由 UI 层发送）
+
+**Payload**:
+
+```typescript
+{
+  screen: {
+    x: number; // 屏幕 X 坐标（clientX）
+    y: number; // 屏幕 Y 坐标（clientY）
+  };
+  viewport: {
+    left: number;   // 容器左边距
+    top: number;    // 容器上边距
+    width: number;  // 容器宽度
+    height: number; // 容器高度
+  };
+}
+```
+
+**示例**:
+
+```typescript
+// 在 usePlacementInput hook 中
+const handlePointerMove = (event: PointerEvent) => {
+  const rect = container.getBoundingClientRect();
+  
+  sendCommand('command:placement:updatePointer', {
+    screen: {
+      x: event.clientX,
+      y: event.clientY
+    },
+    viewport: {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height
+    }
+  });
+};
+```
+
+**处理位置**: `PlacementController.handlePointerUpdate()`
+
+**内部流程**:
+
+```
+接收屏幕坐标 + 视口信息
+    ↓
+RaycasterService.getHitFromScreenCoords()
+    ↓
+计算 NDC 坐标
+    ↓
+执行射线检测
+    ↓
+PreviewService.updateTransform() 更新预览位置
+```
+
+---
+
+#### 4.3 `command:placement:confirm`
+
+**描述**：确认放置，创建实际对象
+
+**Payload**: `void`
+
+**示例**:
+
+```typescript
+// 用户点击鼠标左键时
+sendCommand('command:placement:confirm', undefined);
+```
+
+**处理位置**: `PlacementController.handleConfirmCommand()`
+
+**流程**:
+
+```
+获取当前预览位置
+    ↓
+ObjectManager.createObjectFromAsset()
+    ↓
+发布 state:placement:completed 事件
+    ↓
+清理预览 Mesh
+    ↓
+结束放置会话
+```
+
+---
+
+#### 4.4 `command:placement:cancel`
+
+**描述**：取消放置，退出放置模式
+
+**Payload**: `void`
+
+**示例**:
+
+```typescript
+// 用户按下 ESC 键时
+sendCommand('command:placement:cancel', undefined);
+```
+
+**处理位置**: `PlacementController.handleCancelCommand()`
+
+**流程**:
+
+```
+发布 state:placement:cancelled 事件
+    ↓
+清理预览 Mesh
+    ↓
+结束放置会话
+```
+
+---
+
+### 5. 选择命令
 
 #### 4.1 `command:selection:clear`
 
@@ -475,6 +631,86 @@ onState('ui:selection:clear', data => {
 
 ---
 
+### 5. 放置状态事件 (PlacementService) ⭐ **新增**
+
+#### `state:placement:started`
+
+**描述**：放置会话已开始
+
+**Payload**:
+
+```typescript
+{
+  asset: AnyAsset; // 正在放置的资产
+}
+```
+
+**示例**：
+
+```typescript
+// 在 usePlacementState hook 中
+onState('state:placement:started', data => {
+  setIsPlacementActive(true);
+  console.log('开始放置:', data.asset.name);
+});
+```
+
+**用途**：
+- UI 层监听此事件，启动 DOM 事件监听
+- 显示十字光标
+- 禁用其他操作
+
+---
+
+#### `state:placement:completed`
+
+**描述**：放置已完成，对象已创建
+
+**Payload**:
+
+```typescript
+{
+  modelId: string; // 新创建的对象 ID
+}
+```
+
+**示例**：
+
+```typescript
+onState('state:placement:completed', data => {
+  setIsPlacementActive(false);
+  console.log('放置完成，对象 ID:', data.modelId);
+});
+```
+
+**用途**：
+- UI 层退出放置模式
+- 恢复正常光标
+- 可选择新创建的对象
+
+---
+
+#### `state:placement:cancelled`
+
+**描述**：放置已取消
+
+**Payload**: `void`
+
+**示例**：
+
+```typescript
+onState('state:placement:cancelled', () => {
+  setIsPlacementActive(false);
+  console.log('放置已取消');
+});
+```
+
+**用途**：
+- UI 层退出放置模式
+- 恢复正常光标
+
+---
+
 ## 完整使用示例
 
 ### 示例 1: Toolbar 按钮触发创建命令
@@ -517,10 +753,10 @@ useEffect(() => {
 
 ---
 
-### 示例 3: 型材交互式创建完整流程
+### 示例 3: 型材交互式放置完整流程 ⭐ **已实现**
 
 ```typescript
-// 1. 用户点击 Toolbar 型材
+// ============ 步骤 1: 用户点击 Toolbar 型材 ============
 // ProfileDropdownPanel.tsx
 const handleSelectProfile = (assetId: string) => {
   sendCommand('command:create:profile:prepare', {
@@ -529,37 +765,214 @@ const handleSelectProfile = (assetId: string) => {
   });
 };
 
-// 2. DesignerPage 监听命令
-// DesignerPage.tsx
-const handlePrepareProfile = (data: {
-  assetId: string;
-  mode: 'interactive';
-}) => {
-  console.log('[DesignerPage] 准备创建型材:', data);
-  // TODO: PlacementService.startPlacement(data.assetId);
-};
+// ============ 步骤 2: useCreationCommands 转换命令 ============
+// useCreationCommands.ts
+useEffect(() => {
+  const handlePrepareProfile = (data: { assetId: string; mode: 'interactive' }) => {
+    const asset = services.objectManager.getAsset(data.assetId);
+    if (asset) {
+      sendCommand('command:placement:start', { asset });
+    }
+  };
 
-onCommand('command:create:profile:prepare', handlePrepareProfile);
+  designerEventBus.on('command:create:profile:prepare', handlePrepareProfile);
+  
+  return () => {
+    designerEventBus.off('command:create:profile:prepare', handlePrepareProfile);
+  };
+}, [services]);
 
-// 3. PlacementService 处理交互（待实现）
+// ============ 步骤 3: PlacementController 开始放置 ============
 // PlacementService.ts
-class PlacementService {
-  startPlacement(assetId: string) {
-    // 进入交互式放置模式
-    // - 显示半透明预览
-    // - 监听鼠标移动
-    // - 等待用户点击确认
-  }
+class PlacementController {
+  private handleStartCommand = (data: { asset: AnyAsset }): void => {
+    this.start(data.asset);
+  };
 
-  confirmPlacement() {
-    // 用户确认位置后
-    sendCommand('command:create:aluminumProfile', {
-      assetId: this.currentAssetId,
-      position: this.previewPosition,
-      rotation: this.previewRotation,
-    });
+  async start(asset: AnyAsset) {
+    this.isActive = true;
+    this.currentAsset = asset;
+
+    // 创建预览 Mesh
+    const previewMesh = new THREE.Mesh(geometry, material);
+    this.previewService.showPreview(previewMesh);
+
+    // 发布状态事件
+    publishState('state:placement:started', { asset });
   }
 }
+
+// ============ 步骤 4: UI 层监听状态，启动 DOM 监听 ============
+// usePlacementState.ts
+function usePlacementState() {
+  const [isPlacementActive, setIsPlacementActive] = useState(false);
+
+  useEffect(() => {
+    const handleStarted = () => setIsPlacementActive(true);
+    const handleCompleted = () => setIsPlacementActive(false);
+    const handleCancelled = () => setIsPlacementActive(false);
+
+    designerEventBus.on('state:placement:started', handleStarted);
+    designerEventBus.on('state:placement:completed', handleCompleted);
+    designerEventBus.on('state:placement:cancelled', handleCancelled);
+
+    return () => {
+      designerEventBus.off('state:placement:started', handleStarted);
+      designerEventBus.off('state:placement:completed', handleCompleted);
+      designerEventBus.off('state:placement:cancelled', handleCancelled);
+    };
+  }, []);
+
+  return { isPlacementActive };
+}
+
+// ============ 步骤 5: usePlacementInput 监听 DOM 事件 ============
+// usePlacementInput.ts
+function usePlacementInput(containerRef, isPlacementActive) {
+  const handlePointerMove = useCallback((event: PointerEvent) => {
+    if (!isPlacementActive) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+
+    sendCommand('command:placement:updatePointer', {
+      screen: { x: event.clientX, y: event.clientY },
+      viewport: {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+      },
+    });
+  }, [isPlacementActive, containerRef]);
+
+  const handlePointerDown = useCallback((event: PointerEvent) => {
+    if (!isPlacementActive) return;
+    if (event.button !== 0) return; // 只处理左键
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    sendCommand('command:placement:confirm', undefined);
+  }, [isPlacementActive]);
+
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (!isPlacementActive) return;
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      sendCommand('command:placement:cancel', undefined);
+    }
+  }, [isPlacementActive]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (isPlacementActive) {
+      container.addEventListener('pointermove', handlePointerMove);
+      container.addEventListener('pointerdown', handlePointerDown);
+      window.addEventListener('keydown', handleKeyDown);
+      container.style.cursor = 'crosshair';
+    }
+
+    return () => {
+      container.removeEventListener('pointermove', handlePointerMove);
+      container.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+      if (container) container.style.cursor = '';
+    };
+  }, [containerRef, isPlacementActive, handlePointerMove, handlePointerDown, handleKeyDown]);
+}
+
+// ============ 步骤 6: PlacementController 更新预览 ============
+// PlacementService.ts
+private handlePointerUpdate = (data: PointerUpdateData): void => {
+  if (!this.isActive) return;
+
+  // 使用 RaycasterService 计算 3D 位置
+  const hit = this.raycasterService.getHitFromScreenCoords(
+    data.screen.x,
+    data.screen.y,
+    data.viewport
+  );
+
+  if (hit) {
+    this.currentPosition = hit.point;
+    // 更新预览位置
+    this.previewService.updateTransform(hit.point);
+  }
+};
+
+// ============ 步骤 7: 用户确认放置 ============
+private handleConfirmCommand = (): void => {
+  if (!this.isActive || !this.currentAsset || !this.currentPosition) return;
+
+  const options: SceneObjectCreateOptions = {
+    name: `${this.currentAsset.name}_${Date.now()}`,
+    userParams: {},
+    machiningOps: [],
+    transform: {
+      position: {
+        x: this.currentPosition.x,
+        y: this.currentPosition.y,
+        z: this.currentPosition.z,
+      },
+    },
+  };
+
+  // 创建实际对象
+  const sceneObject = this.objectManager.createObjectFromAsset(
+    this.currentAsset.id,
+    options
+  );
+
+  // 发布完成事件
+  publishState('state:placement:completed', { modelId: sceneObject.id });
+
+  // 清理
+  this.endSession();
+};
+```
+
+**数据流总结**：
+
+```
+用户点击型材
+  ↓
+command:create:profile:prepare
+  ↓
+useCreationCommands 转换
+  ↓
+command:placement:start
+  ↓
+PlacementController.start()
+  ↓
+state:placement:started ━━━━━━━→ usePlacementState
+  ↓                                ↓
+预览 Mesh 显示              isPlacementActive = true
+  ↓                                ↓
+等待用户输入 ←━━━━━━━━━ usePlacementInput 启动 DOM 监听
+  ↓
+用户移动鼠标
+  ↓
+command:placement:updatePointer
+  ↓
+RaycasterService 计算 3D 位置
+  ↓
+PreviewService 更新位置
+  ↓
+用户点击确认
+  ↓
+command:placement:confirm
+  ↓
+ObjectManager 创建对象
+  ↓
+state:placement:completed ━━━→ usePlacementState
+  ↓                              ↓
+清理预览                  isPlacementActive = false
 ```
 
 ---
