@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import type { IRenderer } from '@/core/renderer/renderer-types';
+import type {
+  IRenderer,
+  WorkPlaneConfig,
+} from '@/core/renderer/renderer-types';
 import type { ObjectManager } from '@/core/object/ObjectManager';
 import type { AnyAsset } from '@/core/asset/types/asset';
 import type { SceneObjectCreateOptions } from '@/core/object/types/scene-object';
@@ -42,6 +45,9 @@ export class PlacementController {
   private previewHandle: string | null = null;
   private currentPosition: { x: number; y: number; z: number } | null = null;
 
+  /** 工作平面距离相机的距离（米） */
+  private workPlaneDistance = 10;
+
   constructor(renderer: IRenderer, objectManager: ObjectManager) {
     this.renderer = renderer;
     this.objectManager = objectManager;
@@ -75,33 +81,43 @@ export class PlacementController {
       return;
     }
 
-    // ✅ 通过 IRenderer 抽象接口进行射线检测
+    // 动态计算工作平面
+    const workPlane = this.calculateWorkPlane();
+
+    // 执行射线检测
     const hits = this.renderer.raycastFromScreen(
       data.screen.x,
       data.screen.y,
       data.viewport,
       {
-        ignoreHandles: [this.previewHandle], // 忽略预览对象本身
+        ignoreHandles: [this.previewHandle],
         includeHelpers: false,
-        includeGroundPlane: true,
-        groundPlane: {
-          normal: { x: 0, y: 1, z: 0 },
-          distance: 0,
-        },
+        includeWorkPlane: true,
+        workPlane: workPlane,
       }
     );
+
+    console.log('[PlacementController] Raycast hits:', hits.length, hits);
 
     if (hits.length > 0) {
       const hit = hits[0];
       this.currentPosition = hit.point;
 
-      // ✅ 通过 IRenderer 抽象接口更新预览位置
+      console.log(
+        '[PlacementController] Updated position:',
+        this.currentPosition
+      );
+
+      // 更新预览位置
       this.renderer.updatePreviewTransform(this.previewHandle, {
         position: hit.point,
       });
-
-      // TODO: 应用吸附
-      // TODO: 更新屏幕提示
+    } else {
+      // 如果没有命中，保持上一个有效位置
+      console.warn(
+        '[PlacementController] No raycast hit, keeping last position. Current position:',
+        this.currentPosition
+      );
     }
   };
 
@@ -118,6 +134,41 @@ export class PlacementController {
   private handleCancelCommand = (): void => {
     this.cancel();
   };
+
+  /**
+   * 计算当前工作平面
+   * 工作平面垂直于相机视线，位于相机前方固定距离
+   */
+  private calculateWorkPlane(): WorkPlaneConfig {
+    const camera = this.renderer.getNativeCamera() as THREE.Camera;
+    const cameraPos = camera.position;
+
+    // 获取相机朝向（前方向量）
+    const cameraForward = new THREE.Vector3(0, 0, -1)
+      .applyQuaternion(camera.quaternion)
+      .normalize();
+
+    // 计算工作平面位置（相机前方 workPlaneDistance 米）
+    const planePoint = cameraPos
+      .clone()
+      .add(cameraForward.multiplyScalar(this.workPlaneDistance));
+
+    // 工作平面法线指向相机（与相机朝向相反）
+    const planeNormal = cameraForward.clone().negate();
+
+    return {
+      normal: {
+        x: planeNormal.x,
+        y: planeNormal.y,
+        z: planeNormal.z,
+      },
+      point: {
+        x: planePoint.x,
+        y: planePoint.y,
+        z: planePoint.z,
+      },
+    };
+  }
 
   /**
    * 开始放置会话
@@ -165,8 +216,22 @@ export class PlacementController {
    * 确认放置
    */
   confirmPlacement(): void {
+    console.log('[PlacementController] confirmPlacement called', {
+      isActive: this.isActive,
+      hasAsset: !!this.currentAsset,
+      hasPosition: !!this.currentPosition,
+      position: this.currentPosition,
+    });
+
     if (!this.isActive || !this.currentAsset || !this.currentPosition) {
-      console.warn('[PlacementController] Cannot confirm: no active placement');
+      console.warn(
+        '[PlacementController] Cannot confirm: no active placement',
+        {
+          isActive: this.isActive,
+          hasAsset: !!this.currentAsset,
+          hasPosition: !!this.currentPosition,
+        }
+      );
       return;
     }
 

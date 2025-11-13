@@ -8,7 +8,12 @@
  */
 
 import * as THREE from 'three';
-import type { Vector2, Vector3, RaycastHit } from '../renderer-types';
+import type {
+  Vector2,
+  Vector3,
+  RaycastHit,
+  WorkPlaneConfig,
+} from '../renderer-types';
 
 /**
  * 射线检测选项
@@ -70,33 +75,42 @@ export class RaycasterService {
           }
         : undefined,
       distance: hit.distance,
-      isGroundPlane: false,
+      isWorkPlane: false,
       userData: hit.object.userData,
     }));
   }
 
   /**
-   * 与地面平面相交
+   * 与工作平面相交
    * @param ndc 归一化设备坐标
    * @param camera 相机
-   * @param groundPlane 地面平面定义（法线 + 距离）
-   * @returns 射线与地面的交点，如果没有交点则返回 null
+   * @param workPlane 工作平面定义
+   * @returns 射线与工作平面的交点，如果没有交点则返回 null
    */
-  intersectGroundPlane(
+  intersectWorkPlane(
     ndc: Vector2,
     camera: THREE.Camera,
-    groundPlane?: { normal: Vector3; distance: number }
+    workPlane: WorkPlaneConfig
   ): RaycastHit | null {
     const mouse = new THREE.Vector2(ndc.x, ndc.y);
     this.raycaster.setFromCamera(mouse, camera);
 
-    const plane = new THREE.Plane(
-      new THREE.Vector3(
-        groundPlane?.normal.x ?? 0,
-        groundPlane?.normal.y ?? 1,
-        groundPlane?.normal.z ?? 0
-      ),
-      groundPlane?.distance ?? 0
+    // 构造平面（使用法线和点）
+    const planeNormal = new THREE.Vector3(
+      workPlane.normal.x,
+      workPlane.normal.y,
+      workPlane.normal.z
+    ).normalize();
+
+    const planePoint = new THREE.Vector3(
+      workPlane.point.x,
+      workPlane.point.y,
+      workPlane.point.z
+    );
+
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      planeNormal,
+      planePoint
     );
 
     const intersectionPoint = new THREE.Vector3();
@@ -116,12 +130,12 @@ export class RaycasterService {
         z: intersectionPoint.z,
       },
       normal: {
-        x: plane.normal.x,
-        y: plane.normal.y,
-        z: plane.normal.z,
+        x: planeNormal.x,
+        y: planeNormal.y,
+        z: planeNormal.z,
       },
       distance: intersectionPoint.distanceTo(camera.position),
-      isGroundPlane: true,
+      isWorkPlane: true,
     };
   }
 

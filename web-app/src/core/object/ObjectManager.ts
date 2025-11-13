@@ -18,6 +18,8 @@ import { AssetService } from '../asset';
 import { ModelFactory } from './ModelFactory';
 import { ProjectSerializer } from './SceneIO';
 import type { ProjectFileFormat } from './SceneIO';
+import { StubProfileStrategy } from './strategies/StubProfileStrategy';
+import { AssetType as AssetTypeEnum } from '../asset/types/enums';
 
 /**
  * 对象管理器事件类型
@@ -64,6 +66,10 @@ export class ObjectManager {
     }
 
     this.modelFactory = new ModelFactory(this.assetService.getRegistry());
+
+    // 注册 Stub 策略（临时方案，用于验证流程）
+    this.registerStubStrategies();
+
     this.serializer = new ProjectSerializer();
   }
 
@@ -449,5 +455,20 @@ export class ObjectManager {
    */
   public getObjectCount(): number {
     return this.objects.size;
+  }
+
+  /**
+   * 注册 Stub 策略（临时方案，用于验证流程）
+   */
+  private registerStubStrategies(): void {
+    console.log('[ObjectManager] Registering stub strategies...');
+
+    // 注册 Profile 的 Stub 策略（简单立方体）
+    this.modelFactory.registerStrategy(
+      AssetTypeEnum.PROFILE,
+      new StubProfileStrategy()
+    );
+
+    console.log('[ObjectManager] Stub strategies registered');
   }
 }

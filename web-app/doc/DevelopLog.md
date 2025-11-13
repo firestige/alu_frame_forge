@@ -1,5 +1,160 @@
 # 开发日志
 
+## 2025-11-14
+
+### Stub 策略实现与放置功能验证（下午）
+
+**里程碑**：✅ **首个物体成功放置到场景中**
+
+**问题定位**：
+通过 debug 日志发现，点击放置时 `confirmPlacement()` 成功调用，但 `createObjectFromAsset()` 抛出错误：
+
+```
+No instance strategy found for asset type: profile
+```
+
+**根本原因**：
+`ModelFactory` 是空实现，`strategyMap` 为空，无法根据资产类型创建 `SceneObject`。
+
+**解决方案**：Stub 策略（临时验证方案）
+
+- 创建 `StubProfileStrategy` 实现 `InstanceStrategy` 接口
+- 返回简单的 `THREE.BoxGeometry(1,1,1)` 立方体网格
+- 目的：验证完整的放置流程，不实现复杂的 SVG 挤压逻辑
+
+**实现细节**：
+
+1. **文件创建**：`src/core/object/strategies/StubProfileStrategy.ts`
+   - `createSceneObject()` 返回符合 `SceneObject` 接口的完整对象
+   - 视觉模型：红色立方体网格
+   - 计算模型：空实现（`nodes: [], elements: [], machining: [], connections: []`）
+2. **策略注册**：修改 `ObjectManager.ts`
+   - 添加 `registerStubStrategies()` 私有方法
+   - 在构造函数中调用，注册 `AssetType.PROFILE → StubProfileStrategy`
+   - 添加控制台日志便于调试
+
+3. **类型修正**：迭代修复 TypeScript 错误
+   - `Euler` 需要 `order` 参数
+   - `MaterialProperties` 需要 `name` 字段
+   - `ComputeModel` 需要 `connections` 数组
+   - `SceneObject` 需要 `assetSource` 和 `assetType` 字段
+
+**验证结果**：
+
+- ✅ 点击型材后出现预览立方体
+- ✅ 鼠标移动时预览跟随（工作平面模式正常）
+- ✅ 点击确认后立方体显示在场景中
+- ✅ 左侧对象列表中出现新对象
+- ✅ 控制台输出策略注册和对象创建日志
+
+**后续任务**（已记录到 `TODO.md`）：
+
+- 实现真实的 `ProfileInstanceStrategy`（SVG 路径解析 + ExtrudeGeometry）
+- 实现 `FastenerInstanceStrategy` 和 `ConnectorInstanceStrategy`
+- 集成 three-bvh-csg 库处理布尔运算
+- 实现加工操作（切割、钻孔、铣槽）
+
+---
+
+### PlacementService 工作平面模式重构（上午）
+
+**背景**：在测试型材放置功能时发现两个问题：
+
+1. 预览立方体随鼠标移动而视觉大小变化（透视效果）
+2. 左键点击无法放置物体（地面检测失败）
+
+**根本原因分析**：
+
+- 当前实现使用固定的"地面碰撞"模式（y=0 平面）
+- 假设用户总是俯视场景，不适配侧视/仰视等角度
+- 不符合专业 CAD 软件（Inventor、SolidWorks）的交互习惯
+
+**专业 CAD 软件的实际做法**：
+
+- 使用"工作平面"（Work Plane）而非地面
+- 工作平面垂直于相机视线，位于相机前方固定距离
+- 物体沿屏幕平面移动，视觉大小基本保持一致
+- 适配任意相机角度
+
+**重构方案（工作平面模式）**：
+
+**1. 类型定义重构** (`renderer-types.ts`)
+
+- 新增 `WorkPlaneConfig` 接口（法线 + 平面点）
+- 将 `RaycastHit.isGroundPlane` 改为 `isWorkPlane`
+- 更新 `IRenderer` 接口方法签名：
+  - `includeGroundPlane` → `includeWorkPlane`
+  - `groundPlane?: { normal, distance }` → `workPlane?: WorkPlaneConfig`
+
+**2. RaycasterService 重构**
+
+- 将 `intersectGroundPlane()` 重命名为 `intersectWorkPlane()`
+- 支持任意平面定义（通过法线和共面点构造平面）
+- 使用 `THREE.Plane.setFromNormalAndCoplanarPoint()` 方法
+
+**3. ThreeRenderer 更新**
+
+- 更新 `raycastFromNDC()` 和 `raycastFromScreen()` 方法
+- **关键改进**：优先返回工作平面结果（`[workPlaneHit, ...sceneHits]`）
+- 删除"仅在场景对象为空时检测地面"的旧逻辑
+
+**4. PlacementController 核心重构**
+
+- 添加 `workPlaneDistance = 10` 配置属性（相机前方 10 米）
+- 实现 `calculateWorkPlane()` 方法：
+  ```typescript
+  1. 获取相机位置和朝向（quaternion）
+  2. 计算前方向量：(0,0,-1).applyQuaternion(camera.quaternion)
+  3. 计算平面点：cameraPos + forward * workPlaneDistance
+  4. 平面法线：-forward（指向相机）
+  ```
+- 重构 `handlePointerUpdate()` 方法：
+  - 每次鼠标移动时动态调用 `calculateWorkPlane()`
+  - 使用 `includeWorkPlane` 和 `workPlane` 参数
+  - 添加容错处理（无命中时保持上次位置）
+
+**架构改进对比**：
+
+改进前：
+
+```
+固定地面 (y=0)
+  ↓
+只适配俯视视角
+  ↓
+侧视/仰视无法放置
+```
+
+改进后：
+
+```
+动态工作平面（相机前方10米）
+  ↓
+垂直于相机视线
+  ↓
+适配任意视角
+```
+
+**预期效果**：
+
+- ✅ 物体沿屏幕平面移动（符合 2D → 3D 映射直觉）
+- ✅ 视觉大小基本保持一致
+- ✅ 从任意角度都能正常放置
+- ✅ 符合专业 CAD 软件交互习惯
+
+**影响范围**：
+
+- `src/core/renderer/renderer-types.ts` - 类型定义
+- `src/core/renderer/threejs/RaycasterService.ts` - 射线检测逻辑
+- `src/core/renderer/threejs/ThreeRenderer.ts` - 渲染器实现
+- `src/features/designer/services/PlacementService.ts` - 放置控制器
+
+**相关 Commits**：
+
+- feat: 重构 PlacementService 为工作平面模式
+
+---
+
 ## 2025-11-13
 
 ### PlacementController 架构重构 - 完全隔离 Three.js

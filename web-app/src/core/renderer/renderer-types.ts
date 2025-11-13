@@ -112,6 +112,17 @@ export interface OrbitControlsConfig {
 // ==================== 射线检测 ====================
 
 /**
+ * 工作平面配置
+ * 用于定义一个虚拟平面，通常垂直于相机视线
+ */
+export interface WorkPlaneConfig {
+  /** 平面法线（单位向量） */
+  normal: Vector3;
+  /** 平面上的一个点（用于定位平面） */
+  point: Vector3;
+}
+
+/**
  * 射线检测结果
  */
 export interface RaycastHit {
@@ -127,8 +138,8 @@ export interface RaycastHit {
   /** 距离相机的距离 */
   distance: number;
 
-  /** 是否命中地面（虚拟地面） */
-  isGroundPlane?: boolean;
+  /** 是否命中工作平面 */
+  isWorkPlane?: boolean;
 
   /** 用户数据（对象的 userData） */
   userData?: Record<string, unknown>;
@@ -295,10 +306,10 @@ export interface IRenderer {
       ignoreHandles?: string[];
       /** 是否包含辅助对象（网格、坐标轴等） */
       includeHelpers?: boolean;
-      /** 是否检测虚拟地面 */
-      includeGroundPlane?: boolean;
-      /** 地面平面定义（法线 + 距离） */
-      groundPlane?: { normal: Vector3; distance: number };
+      /** 是否检测工作平面 */
+      includeWorkPlane?: boolean;
+      /** 工作平面配置 */
+      workPlane?: WorkPlaneConfig;
     }
   ): RaycastHit[];
 
@@ -319,10 +330,10 @@ export interface IRenderer {
       ignoreHandles?: string[];
       /** 是否包含辅助对象（网格、坐标轴等） */
       includeHelpers?: boolean;
-      /** 是否检测虚拟地面 */
-      includeGroundPlane?: boolean;
-      /** 地面平面定义（法线 + 距离） */
-      groundPlane?: { normal: Vector3; distance: number };
+      /** 是否检测工作平面 */
+      includeWorkPlane?: boolean;
+      /** 工作平面配置 */
+      workPlane?: WorkPlaneConfig;
     }
   ): RaycastHit[];
 

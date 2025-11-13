@@ -1,6 +1,6 @@
 # 铝型材框架设计器 - 待办事项
 
-**最后更新**: 2025-11-12
+**最后更新**: 2025-11-14
 
 ---
 
@@ -274,7 +274,119 @@
 
 ---
 
-### 8. 制定测试计划
+### 8. ModelFactory 策略实现（型材放置流程验证）
+
+**状态**: ✅ 已完成（2025-11-14）
+
+**前置条件**: 依赖 PlacementService 完成
+
+**背景**: 测试型材放置时发现：
+- ✅ 预览功能正常（半透明立方体跟随鼠标）
+- ✅ 射线检测正常（工作平面交点计算正确）
+- ❌ 点击确认后对象无法创建，控制台报错：
+  ```
+  No instance strategy found for asset type: profile
+  ```
+
+**根本原因**: ModelFactory 是空实现，未注册任何 InstanceStrategy
+
+**解决方案**: Stub 策略（临时验证方案）
+
+**实施内容**:
+
+- [x] 创建 `StubProfileStrategy` (`src/core/object/strategies/StubProfileStrategy.ts`)
+  - 实现 `InstanceStrategy` 接口
+  - `createSceneObject()` 返回简单的 `THREE.BoxGeometry(1,1,1)` 立方体
+  - 目的：验证完整的放置流程，不实现复杂的 SVG 挤压逻辑
+  - Visual 模型：红色立方体网格
+  - Compute 模型：空实现（`nodes: [], elements: [], machining: [], connections: []`）
+
+- [x] 修改 `ObjectManager.ts`
+  - 添加 `registerStubStrategies()` 私有方法
+  - 在构造函数中调用，注册 `AssetType.PROFILE → StubProfileStrategy`
+  - 添加控制台日志便于调试
+
+- [x] 类型修正（迭代修复 TypeScript 错误）
+  - `Euler` 需要 `order` 参数
+  - `MaterialProperties` 需要 `name` 字段
+  - `ComputeModel` 需要 `connections` 数组
+  - `SceneObject` 需要 `assetSource` 和 `assetType` 字段
+
+**验证结果**:
+
+- ✅ 点击型材后出现预览立方体
+- ✅ 鼠标移动时预览跟随（工作平面模式正常）
+- ✅ 点击确认后立方体显示在场景中
+- ✅ 左侧对象列表中出现新对象
+- ✅ 控制台输出策略注册和对象创建日志
+
+**里程碑**: 🎉 **首个物体成功放置到场景中**
+
+**后续任务**（P2 优先级，见任务 11-15）:
+- 实现真实的 `ProfileInstanceStrategy`（SVG 路径解析 + ExtrudeGeometry）
+- 实现 `FastenerInstanceStrategy` 和 `ConnectorInstanceStrategy`
+- 集成 three-bvh-csg 库处理布尔运算
+- 实现加工操作（切割、钻孔、铣槽）
+
+**相关文档**:
+- `doc/Architecture.md` - 3.4.1 ModelFactory 详解
+- `doc/DevelopLog.md` - 2025-11-14 工作记录
+
+---
+
+### 9. PlacementService 工作平面模式重构
+
+**状态**: ✅ 已完成（2025-11-14）
+
+**背景**: 测试型材放置功能时发现：
+- 预览立方体随鼠标移动而视觉大小变化（透视效果）
+- 左键点击无法放置物体（地面检测失败）
+
+**根本原因**:
+- 当前实现使用固定的"地面碰撞"模式（y=0 平面）
+- 假设用户总是俯视场景，不适配侧视/仰视等角度
+- 不符合专业 CAD 软件（Inventor、SolidWorks）的交互习惯
+
+**解决方案**: 工作平面模式（Work Plane Mode）
+- 工作平面垂直于相机视线，位于相机前方固定距离
+- 物体沿屏幕平面移动，视觉大小基本保持一致
+- 适配任意相机角度
+
+**实施内容**:
+
+- [x] 类型定义重构 (`renderer-types.ts`)
+  - 新增 `WorkPlaneConfig` 接口（法线 + 平面点）
+  - 将 `RaycastHit.isGroundPlane` 改为 `isWorkPlane`
+  - 更新 `IRenderer` 接口方法签名
+
+- [x] RaycasterService 重构
+  - 将 `intersectGroundPlane()` 重命名为 `intersectWorkPlane()`
+  - 支持任意平面定义（通过法线和共面点构造平面）
+  - 使用 `THREE.Plane.setFromNormalAndCoplanarPoint()` 方法
+
+- [x] ThreeRenderer 更新
+  - 更新 `raycastFromNDC()` 和 `raycastFromScreen()` 方法
+  - 优先返回工作平面结果（`[workPlaneHit, ...sceneHits]`）
+
+- [x] PlacementService 核心重构
+  - 添加 `workPlaneDistance = 10` 配置属性
+  - 实现 `calculateWorkPlane()` 方法（计算相机前方垂直平面）
+  - 在 `updatePointer()` 和 `confirmPlacement()` 中使用工作平面
+
+**验证结果**:
+- ✅ 预览网格在任意视角下保持稳定位置
+- ✅ 可以在侧视/仰视角度下正常放置
+- ✅ 符合专业 CAD 软件交互习惯
+
+**相关文档**:
+- `doc/DevelopLog.md` - 2025-11-14 工作平面模式重构详细说明
+- `doc/Architecture.md` - 6.1.1 PlacementService 交互式放置
+
+---
+
+### 10. 制定测试计划
+
+**状态**: ⏳ 待执行
 
 **描述**: 建立完整的测试体系，确保代码质量和功能正确性。
 
@@ -300,9 +412,137 @@
 
 ---
 
+### 11. 实现 ProfileInstanceStrategy（真实型材生成）
+
+**状态**: ⏳ 待执行
+
+**前置条件**: StubProfileStrategy 验证通过
+
+**描述**: 实现真实的型材截面拉伸逻辑，替换当前的 Stub 策略。
+
+**技术方案**:
+- SVG Path 解析：将 `crossSection.path` 转换为 Three.js Shape
+- 几何体生成：使用 `THREE.ExtrudeGeometry` 进行拉伸
+- 参数化尺寸：从 `userParams.length` 读取拉伸长度
+
+**核心实现**:
+```typescript
+class ProfileInstanceStrategy implements InstanceStrategy {
+  createSceneObject(asset: ProfileAsset, options: SceneObjectCreateOptions): SceneObject {
+    // 1. 解析 SVG Path
+    const shape = this.parseSVGPath(asset.parameters.crossSection.path);
+    
+    // 2. 创建拉伸几何体
+    const length = options.userParams?.length ?? asset.parameters.length.default;
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: length,
+      bevelEnabled: false
+    });
+    
+    // 3. 创建材质和网格
+    const material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+    const mesh = new THREE.Mesh(geometry, material);
+    
+    // 4. 应用加工操作（如果有）
+    if (options.machiningOps && options.machiningOps.length > 0) {
+      this.applyMachiningOperations(mesh, options.machiningOps);
+    }
+    
+    // 5. 返回 SceneObject
+    return { /* ... */ };
+  }
+}
+```
+
+**任务列表**:
+- [ ] 实现 SVG Path 解析器（支持 M, L, C, Q, A 命令）
+- [ ] 实现 ExtrudeGeometry 生成逻辑
+- [ ] 实现加工操作应用（布尔运算）
+- [ ] 集成 three-bvh-csg 库
+- [ ] 注册到 ModelFactory（替换 StubProfileStrategy）
+- [ ] 测试各种型材截面
+
+**参考资料**:
+- [Three.js ExtrudeGeometry 文档](https://threejs.org/docs/#api/en/geometries/ExtrudeGeometry)
+- [SVG Path 规范](https://www.w3.org/TR/SVG/paths.html)
+- [three-bvh-csg GitHub](https://github.com/gkjohnson/three-bvh-csg)
+
+---
+
+### 12. 实现 FastenerInstanceStrategy
+
+**状态**: ⏳ 待执行
+
+**描述**: 实现紧固件（螺栓、螺母）的参数化模型生成。
+
+**技术方案**:
+- 螺栓：圆柱体 + 六角头 + 螺纹（可选）
+- 螺母：六角柱 + 内螺纹（可选）
+- T型螺母：特殊形状的参数化生成
+
+**任务列表**:
+- [ ] 实现螺栓几何体生成
+- [ ] 实现螺母几何体生成
+- [ ] 实现 T 型螺母几何体生成
+- [ ] 参数化控制（规格、长度等）
+- [ ] 注册到 ModelFactory
+
+---
+
+### 13. 实现 ConnectorInstanceStrategy
+
+**状态**: ⏳ 待执行
+
+**描述**: 实现连接件（角码、直角连接件等）的参数化模型生成。
+
+**任务列表**:
+- [ ] 定义连接件类型枚举
+- [ ] 实现各种连接件几何体生成
+- [ ] 参数化控制（尺寸、孔位等）
+- [ ] 注册到 ModelFactory
+
+---
+
+### 14. GeometryFactory 重构
+
+**状态**: ⏳ 待执行
+
+**描述**: 重构 GeometryFactory 为实例方法，供策略使用。
+
+**当前问题**:
+- GeometryFactory 有静态方法
+- 策略无法方便地使用其功能
+
+**重构方案**:
+- 将 GeometryFactory 改为实例类
+- 策略通过构造函数注入 GeometryFactory
+- 提供通用的几何体生成方法（圆柱、六角柱、布尔运算等）
+
+---
+
+### 15. 加工操作实现
+
+**状态**: ⏳ 待执行
+
+**描述**: 实现型材的加工操作（打孔、切角、攻丝、槽口）。
+
+**技术方案**: 使用 three-bvh-csg 库进行 CSG 运算
+
+**任务列表**:
+- [ ] 集成 three-bvh-csg 库
+- [ ] 实现打孔操作（减去圆柱体）
+- [ ] 实现切角操作（修改顶点位置）
+- [ ] 实现攻丝操作（添加螺纹几何）
+- [ ] 实现槽口操作（减去矩形体）
+- [ ] 在 ProfileInstanceStrategy 中应用
+
+---
+
 ## P3 - 低优先级（长期规划）
 
-### 9. 建立持续集成机制
+### 16. 建立持续集成机制
+
+**状态**: ⏳ 待执行
 
 **描述**: 自动化构建、测试和部署流程。
 
@@ -313,12 +553,14 @@
   - 自动运行 Lint 检查
   - 自动构建生产版本
 - [ ] 配置测试覆盖率报告
-- [ ] 配置自动部署（Preview 环境）
+  - 配置自动部署（Preview 环境）
 - [ ] 设置 PR 检查门禁
 
 ---
 
-### 10. 建立文档与代码同步机制
+### 17. 建立文档与代码同步机制
+
+**状态**: ⏳ 待执行
 
 **描述**: 确保文档内容与代码库保持同步。
 
@@ -337,6 +579,18 @@
 ---
 
 ## 已完成事项
+
+### ✅ 2025-11-14
+
+- PlacementService 工作平面模式重构
+  - 从固定地面（y=0）改为相机相对工作平面
+  - 支持任意视角下的物体放置
+  - 符合专业 CAD 软件交互习惯
+- ModelFactory Stub 策略实现
+  - 创建 StubProfileStrategy（返回简单立方体）
+  - ObjectManager 注册 Stub 策略
+  - 验证完整的型材放置流程
+- 🎉 **里程碑：首个物体成功放置到场景中**
 
 ### ✅ 2025-11-13
 

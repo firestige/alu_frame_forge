@@ -16,6 +16,7 @@ import type {
   ColorHex,
   OrbitControlsConfig,
   RaycastHit,
+  WorkPlaneConfig,
 } from '../renderer-types';
 import { SceneManager } from './SceneManager';
 import { CameraController } from './CameraController';
@@ -325,8 +326,8 @@ export class ThreeRenderer implements IRenderer {
     options?: {
       ignoreHandles?: string[];
       includeHelpers?: boolean;
-      includeGroundPlane?: boolean;
-      groundPlane?: { normal: Vector3; distance: number };
+      includeWorkPlane?: boolean;
+      workPlane?: WorkPlaneConfig;
     }
   ): RaycastHit[] {
     if (!this.cameraController) {
@@ -353,16 +354,17 @@ export class ThreeRenderer implements IRenderer {
       includeHelpers: options?.includeHelpers,
     });
 
-    // 如果需要检测地面且没有命中场景对象
-    if (options?.includeGroundPlane && sceneHits.length === 0) {
-      const groundHit = this.raycasterService.intersectGroundPlane(
+    // 如果需要检测工作平面
+    if (options?.includeWorkPlane && options.workPlane) {
+      const workPlaneHit = this.raycasterService.intersectWorkPlane(
         ndc,
         camera,
-        options.groundPlane
+        options.workPlane
       );
 
-      if (groundHit) {
-        return [groundHit];
+      if (workPlaneHit) {
+        // 优先返回工作平面结果（CAD 软件常见行为）
+        return [workPlaneHit, ...sceneHits];
       }
     }
 
@@ -376,8 +378,8 @@ export class ThreeRenderer implements IRenderer {
     options?: {
       ignoreHandles?: string[];
       includeHelpers?: boolean;
-      includeGroundPlane?: boolean;
-      groundPlane?: { normal: Vector3; distance: number };
+      includeWorkPlane?: boolean;
+      workPlane?: WorkPlaneConfig;
     }
   ): RaycastHit[] {
     // 计算 NDC 坐标

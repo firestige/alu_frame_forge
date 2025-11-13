@@ -2,9 +2,9 @@
 
 ## 文档信息
 
-- **版本**: 1.0.0
+- **版本**: 1.1.0
 - **创建日期**: 2025-11-12
-- **最后更新**: 2025-11-12
+- **最后更新**: 2025-11-14
 - **状态**: 当前版本
 
 ## 1. 项目概览
@@ -107,11 +107,13 @@
 **详细设计**：参见 [AssetManagementArchitecture.md](./AssetManagementArchitecture.md)
 
 **关键组件**：
+
 - `AssetRegistry`: 素材注册表，支持内置/自定义素材分类
 - `AssetService`: 业务友好的 API（如 `getProfilesBySeries()`）
 - Asset 类型：`ProfileAsset`, `FastenerAsset`, `ConnectorAsset`, `AccessoryAsset`
 
 **核心概念**：
+
 - Asset 是模板，不包含实例数据
 - 支持参数化定义
 - 分为内置素材和用户自定义素材
@@ -123,6 +125,7 @@
 **详细设计**：参见 [DesignerArchitecture.md](./DesignerArchitecture.md)
 
 **关键组件**：
+
 - `ObjectManager`: 场景对象生命周期管理
 - `RenderSyncService`: ObjectManager ↔ Renderer 的桥梁
 - `ModelCreationService`: 模型创建服务
@@ -131,6 +134,7 @@
 - `PlacementService`: 交互式放置服务（预览、射线检测、确认放置）
 
 **架构特点**：
+
 - ObjectManager 不直接依赖 Renderer
 - 通过事件总线发布变更
 - RenderSyncService 监听事件并同步到渲染器
@@ -140,6 +144,7 @@
 **职责**：提供与渲染库无关的渲染能力抽象。
 
 **核心接口** (`IRenderer`):
+
 - 生命周期：`initialize()`, `dispose()`, `resize()`
 - 场景管理：`setBackgroundColor()`, `enableGridHelper()`, `enableAxisHelper()`
 - 相机控制：`setCameraPosition()`, `setCameraTarget()`, `resetCamera()`
@@ -148,12 +153,14 @@
 - 原生对象访问：`getNativeScene()`, `getNativeCamera()`
 
 **Three.js 实现**：
+
 - `SceneManager`: 场景/灯光/辅助器管理
 - `CameraController`: 相机和 OrbitControls
 - `RaycasterService`: 射线检测
 - `RendererCore`: WebGL 渲染器和渲染循环
 
 **优势**：
+
 - 解耦业务代码与 Three.js
 - 未来可替换为其他渲染引擎
 - 接口最小化，只暴露必要功能
@@ -163,22 +170,122 @@
 **职责**：管理场景中的对象实例（SceneObject）。
 
 **核心概念**：
+
 - **SceneObject**: 场景实例，包含 transform、userParams、visual、compute、machiningOps
 - **双模型系统**:
   - `visual`: 简化的渲染模型（性能优化）
   - `compute`: 完整的几何描述（FEA 分析）
 
 **关键组件**：
+
 - `ObjectManager`: 对象 CRUD、事件发布
-- `ModelFactory`: 使用策略模式实例化对象
-- `ModelRepository`: 对象存储和查询
-- `ModelOperations`: 参数化操作（拉伸、缩放等）
+- `ModelFactory`: 使用策略模式实例化对象（详见 3.4.1）
 - `SceneIO`: 场景序列化和反序列化
 
 **Model vs SceneObject**：
+
 - 项目已从 Model 迁移到 SceneObject
 - SceneObject 支持双模型、加工操作、Asset 关联
 - 详见 [Model-vs-SceneObject-Analysis.md](./Model-vs-SceneObject-Analysis.md)
+
+#### 3.4.1 ModelFactory 详解 ⭐
+
+**设计目标**：
+
+- 将 Asset（模板）转换为 SceneObject（实例）
+- 支持多种素材类型的可扩展架构
+- 复杂几何体生成（型材拉伸、紧固件参数化等）
+
+**架构模式**：策略模式（Strategy Pattern）
+
+```typescript
+ModelFactory {
+  strategyMap: Map<AssetType, InstanceStrategy>
+
+  registerStrategy(type, strategy)  // 注册策略
+  createFromAsset(assetId, options) // 创建对象
+  updateGeometry(sceneObject)       // 更新几何体
+}
+
+InstanceStrategy {
+  canHandle(asset): boolean
+  createSceneObject(asset, options): SceneObject
+  updateGeometry(sceneObject, asset): void
+}
+```
+
+**当前状态** (2025-11-14)：
+
+| 策略类型                  | 文件                          | 状态      | 说明                         |
+| ------------------------- | ----------------------------- | --------- | ---------------------------- |
+| StubProfileStrategy       | ✅ 已实现                     | ✅ 已注册 | 临时方案：返回简单立方体     |
+| ProfileInstanceStrategy   | ✅ 已定义                     | ⚠️ 未实现 | 需要实现型材截面拉伸逻辑     |
+| FastenerInstanceStrategy  | ✅ 已定义                     | ⚠️ 未实现 | 需要实现紧固件参数化模型     |
+| ConnectorInstanceStrategy | ✅ 已定义                     | ⚠️ 未实现 | 需要实现连接件参数化模型     |
+
+**核心待实现功能**：
+
+1. **型材截面拉伸**（ProfileInstanceStrategy）
+   - 输入：SVG Path（截面轮廓）+ 长度参数
+   - 输出：Three.js ExtrudeGeometry
+   - 技术方案：
+
+     ```typescript
+     // 方案 A: 使用 Three.js Shape + ExtrudeGeometry
+     const shape = new THREE.Shape();
+     parseSVGPath(svgPath).forEach(cmd => shape[cmd.type](...cmd.args));
+     const geometry = new THREE.ExtrudeGeometry(shape, { depth: length });
+
+     // 方案 B: 使用第三方库（如 svg-path-parser + earcut）
+     const points = parseSVGPath(svgPath);
+     const triangles = earcut(points);
+     const geometry = createExtrudedMesh(triangles, length);
+     ```
+
+   - 难点：
+     - SVG Path 解析（M, L, C, Q, A 命令）
+     - 复杂截面的三角剖分
+     - UV 坐标生成（用于纹理映射）
+   - 参考资料：[Three.js ExtrudeGeometry 文档](https://threejs.org/docs/#api/en/geometries/ExtrudeGeometry)
+
+2. **加工操作应用**（ProfileInstanceStrategy）
+   - 打孔（HOLE）：Boolean 运算减去圆柱体
+   - 切角（CHAMFER）：修改边缘顶点位置
+   - 攻丝（THREAD）：添加螺纹几何（可选，仅用于高精度渲染）
+   - 槽口（NOTCH）：Boolean 运算减去矩形体
+   - 技术方案：使用 three-bvh-csg 库进行 CSG 运算
+
+3. **紧固件参数化模型**（FastenerInstanceStrategy）
+   - 螺栓：圆柱体 + 六角头 + 螺纹（可选）
+   - 螺母：六角柱 + 内螺纹（可选）
+   - T型螺母：特殊形状的参数化生成
+
+4. **GeometryFactory 集成**
+   - 当前 GeometryFactory 有部分静态方法
+   - 需要重构为实例方法，供策略使用
+   - 策略通过构造函数注入 GeometryFactory
+
+**策略注册问题**：
+
+- ✅ **已解决**：ObjectManager 初始化时注册 Stub 策略
+- ✅ **临时方案**：StubProfileStrategy 返回简单立方体（验证流程用）
+- ⏳ **最终方案**：实现完整几何生成逻辑后替换 Stub 策略
+
+**依赖关系**：
+
+```
+ModelFactory (core/object)
+  ↓ 依赖
+InstanceStrategy (core/object/strategies)
+  ↓ 依赖
+GeometryFactory (core/renderer/threejs)  // ⚠️ 架构问题：Core 依赖具体渲染库
+```
+
+**架构改进方向**：
+
+- 方案 A：将 GeometryFactory 提升为抽象接口（IGeometryFactory）
+- 方案 B：策略只生成几何描述，由 Renderer 负责创建 Mesh
+- 方案 C：接受依赖，Core 层允许使用 Three.js 作为底层库
 
 ---
 
@@ -187,10 +294,12 @@
 ### 4.1 Context Provider 模式
 
 **设计原则**：
+
 - **UI 状态**：使用 Props 在组件内部管理（如选中工具、面板展开状态）
 - **业务状态**：通过 Context 传递（如 ObjectManager、AssetService 实例）
 
 **Context 提供内容**：
+
 ```typescript
 interface DesignerContextValue {
   services: {
@@ -205,6 +314,7 @@ interface DesignerContextValue {
 ```
 
 **使用 Hooks**：
+
 - `useDesignerContext()`: 访问服务实例
 - `useDesignerObjects()`: 订阅对象列表（通过 Zustand Store）
 - `useDesignerProject()`: 订阅项目信息
@@ -213,11 +323,13 @@ interface DesignerContextValue {
 ### 4.2 Event Bus 通信
 
 **事件类型**：
+
 - **命令事件** (`command:*`): UI → Service（用户操作）
 - **对象事件** (`object:*`): ObjectManager → Service（对象变更）
 - **状态事件** (`state:*`): Service → UI（状态通知）
 
 **事件流示例**：
+
 ```
 用户点击创建按钮
     ↓
@@ -235,11 +347,13 @@ Store 更新 → useDesignerObjects() → UI 重渲染
 ### 4.3 Store 管理
 
 **Zustand Stores**：
+
 - `designerObjectStore`: 场景对象列表
 - `designerProjectStore`: 项目信息（名称、ID、修改时间）
 - `libraryStore`: 素材库状态
 
 **更新机制**：
+
 - ObjectManager 通过事件发布变更
 - DesignerPage 监听事件并更新 Store
 - UI 组件通过 Hook 订阅 Store
@@ -254,12 +368,12 @@ Store 更新 → useDesignerObjects() → UI 重渲染
 
 ### 5.1 命令分类
 
-| 分类 | 命令前缀 | 示例 |
-|------|---------|------|
-| 模型创建 | `command:create:` | `command:create:cube` |
-| 相机控制 | `command:camera:` | `command:camera:reset` |
-| 模型编辑 | `command:model:` | `command:model:delete` |
-| 选择操作 | `command:selection:` | `command:selection:clear` |
+| 分类       | 命令前缀             | 示例                      |
+| ---------- | -------------------- | ------------------------- |
+| 模型创建   | `command:create:`    | `command:create:cube`     |
+| 相机控制   | `command:camera:`    | `command:camera:reset`    |
+| 模型编辑   | `command:model:`     | `command:model:delete`    |
+| 选择操作   | `command:selection:` | `command:selection:clear` |
 | 交互式放置 | `command:placement:` | `command:placement:start` |
 
 ### 5.2 命令流程
@@ -295,44 +409,79 @@ Store 更新 → useDesignerObjects() → UI 重渲染
 **目标**：实现交互式型材放置功能，支持鼠标预览和射线检测
 
 **核心功能**：
+
+- **工作平面放置** ⭐ **NEW (2025-11-14)**：物体沿相机前方虚拟平面移动
 - **射线检测**：RaycasterService 计算鼠标位置对应的 3D 坐标
-- **实时预览**：PreviewService 管理半透明预览对象
+- **实时预览**：PreviewManager 管理半透明预览对象
 - **交互式放置**：PlacementController 编排完整的放置流程
 - **智能吸附**：支持端点、边缘、网格吸附（规划中）
 - **键盘快捷键**：旋转、取消、确认（规划中）
 
-**架构特点**（方案 C - 事件驱动）：
+**架构特点**（方案 C - 事件驱动 + 工作平面模式）：
+
 - UI 层发送屏幕坐标 + viewport 信息到 Core 层
 - Core 层计算 NDC 并执行 raycasting
 - 通过状态事件更新 UI（`state:placement:started/completed/cancelled`）
 - 避免 Core 层直接访问 DOM（保持架构纯净）
+- **工作平面动态计算**：垂直于相机视线，距离相机 10 米
+- **适配任意视角**：不依赖固定地面，符合 CAD 软件习惯
+
+**工作平面模式**（2025-11-14 重构）：
+
+```
+传统地面模式（已废弃）：
+  固定 y=0 平面 → 只适配俯视 → 侧视无法放置
+
+工作平面模式（当前）：
+  动态计算平面 → 垂直于相机 → 任意视角可用
+
+计算逻辑：
+  1. 获取相机位置和朝向
+  2. 计算前方向量 = (0,0,-1).applyQuaternion(camera.quaternion)
+  3. 平面点 = cameraPos + forward * 10米
+  4. 平面法线 = -forward（指向相机）
+```
 
 **数据流**：
+
 ```
 UI 层（usePlacementInput）
   ↓ sendCommand('command:placement:updatePointer', {screenX, screenY, viewport})
 EventBus
   ↓
 PlacementController
-  ↓ NDC calculation → RaycasterService
+  ↓ calculateWorkPlane() → 动态工作平面
+  ↓ renderer.raycastFromScreen() → WorkPlane intersection
   ↓ 3D position
-PreviewService
+  ↓ renderer.updatePreviewTransform()
   ↓ emit('state:placement:updated', {previewPosition})
 UI 层更新
 ```
 
 **实现组件**：
-- `PlacementController`: 放置流程编排
-- `RaycasterService`: 射线检测服务
-- `PreviewService`: 预览对象管理
+
+- `PlacementController`: 放置流程编排 + 工作平面计算
+- `RaycasterService`: 射线检测服务（支持任意平面）
+- `PreviewManager`: 预览对象管理（ThreeRenderer 内部）
 - `usePlacementInput`: UI 层输入监听 Hook
 - `usePlacementState`: 放置状态管理 Hook
 
+**类型定义**：
+
+- `WorkPlaneConfig`: 工作平面定义（法线 + 共面点）
+- `RaycastHit`: 射线检测结果（含 `isWorkPlane` 标记）
+
 **命令和事件**（详见 CommandReference.md）：
+
 - 命令：`command:placement:start/updatePointer/confirm/cancel`
 - 状态事件：`state:placement:started/completed/cancelled`
 
-**状态**：✅ 已实现核心功能（2025-11-13）
+**状态**：
+
+- ✅ 核心功能实现（2025-11-13）
+- ✅ 工作平面模式重构（2025-11-14 上午）
+- ✅ ModelFactory Stub 策略实现（2025-11-14 下午）
+- ✅ 首个物体成功放置验证（2025-11-14）
 
 ### 6.2 未来功能
 
@@ -368,6 +517,7 @@ UI 层更新
 **当前状态**：测试计划待制定
 
 **计划包含**：
+
 - 单元测试（Jest + React Testing Library）
 - 集成测试（各模块协作）
 - E2E 测试（Playwright）
@@ -378,14 +528,17 @@ UI 层更新
 ## 8. 相关文档
 
 ### 核心架构文档
+
 - [Asset 管理架构](./AssetManagementArchitecture.md)
 - [Designer 模块架构](./DesignerArchitecture.md)
 - [Model vs SceneObject 分析](./Model-vs-SceneObject-Analysis.md)
 
 ### API 文档
+
 - [命令系统参考](./api/CommandReference.md)
 
 ### 历史记录
+
 - [开发日志](./DevelopLog.md)
 
 ---
