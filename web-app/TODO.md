@@ -405,29 +405,39 @@ _当前无 P0 任务_
 
 ### 10. 制定测试计划
 
-**状态**: ⏳ 待执行
+**状态**: ✅ 已完成（2025-11-15）
 
 **描述**: 建立完整的测试体系，确保代码质量和功能正确性。
 
-**任务**:
+**完成任务**:
 
-- [ ] 制定单元测试计划
-  - 确定需要测试的核心模块（ObjectManager, AssetService, etc.）
-  - 选择测试框架（Jest + React Testing Library）
+- ✅ 制定单元测试计划
+  - 确定核心模块测试清单（ObjectManager、AssetService、eventBus 等）
+  - 选择测试框架（Vitest + React Testing Library）
   - 编写测试用例规范
-- [ ] 制定集成测试计划
-  - 测试模块间协作（Event Bus, Context Provider）
-  - 测试数据流（命令 → 服务 → Store → UI）
-- [ ] 制定 E2E 测试计划
-  - 测试核心用户流程（创建型材、编辑属性、保存工程）
-  - 选择 E2E 框架（Playwright / Cypress）
-- [ ] 分配测试资源和时间
+- ✅ 制定集成测试计划
+  - 定义模块协作测试场景（Event Bus、Context Provider）
+  - 规划数据流测试（命令 → 服务 → Store → UI）
+- ✅ 制定 E2E 测试计划
+  - 定义核心用户流程（型材创建、对象编辑、自动保存、路由切换）
+  - 选择 E2E 框架（Playwright）
+- ✅ 配置测试基础设施
+  - Vitest + jsdom 环境
+  - Playwright 跨浏览器测试
+  - GitHub Actions CI 集成
+- ✅ 编写示例测试
+  - eventBus 单元测试
+  - BaseButton 组件测试
+  - 基础导航 E2E 测试
 
 **交付物**:
 
-- 测试计划文档
-- 测试用例列表
-- 测试覆盖率目标
+- ✅ `doc/TestPlan.md` - 完整测试计划文档
+- ✅ `vitest.config.ts` - Vitest 配置
+- ✅ `playwright.config.ts` - Playwright 配置
+- ✅ `.github/workflows/test.yml` - CI 工作流
+- ✅ 示例测试文件（9 个测试用例全部通过）
+- ✅ npm 测试脚本（test、test:unit、test:e2e、test:coverage 等）
 
 ---
 
@@ -733,6 +743,26 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 ## 已完成事项
 
 ### ✅ 2025-11-15
+
+- **测试体系建立（任务 #10）** ⭐
+  - 创建 `doc/TestPlan.md` 完整测试计划（单元/集成/E2E）
+  - 配置 Vitest + React Testing Library 单元测试框架
+  - 配置 Playwright E2E 测试框架
+  - 创建 `.github/workflows/test.yml` GitHub Actions CI
+  - 编写示例测试：eventBus 单元测试、BaseButton 组件测试、基础导航 E2E
+  - 添加测试脚本：`npm run test`、`test:unit`、`test:e2e`、`test:coverage`
+  - 设定覆盖率目标：整体 75%+，核心模块 90%+
+  - 🎉 **里程碑：测试基础设施完成，所有示例测试通过**
+
+- **文档与代码同步机制（任务 #17）** ⭐
+  - 创建 `doc/WorkflowGuidelines.md` 定义协同运行规范与文档同步流程
+  - 建立 PR 文档审查流程（详见 WorkflowGuidelines 5.1）
+  - 统一文档版本管理标准（"最后更新"字段）
+  - 落地文档自动化检查：markdownlint、cspell、元信息校验脚本
+  - 创建 `.github/workflows/doc-check.yml` GitHub Actions 工作流
+  - 集成链接有效性检查（lychee-action）
+  - 新增 `npm run doc:check` 本地检查命令
+  - 🎉 **里程碑：文档质量保障体系建立完成**
 
 - **应用级状态管理与自动保存重构（任务 #18）** ⭐
   - 创建 CoreServiceProvider（应用级服务容器）
