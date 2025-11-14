@@ -1,0 +1,20 @@
+// Markdownlint configuration for documentation quality checks
+{
+  "config": {
+    "MD013": false,
+    "MD024": false,
+    "MD025": false,
+    "MD033": false,
+    "MD036": false,
+    "MD037": false,
+    "MD040": {
+      "code_blocks": false,
+      "fenced_code_blocks": false,
+    },
+    "MD060": false,
+    "MD046": {
+      "style": "fenced",
+    },
+  },
+  "globs": ["README.md", "TODO.md", "doc/WorkflowGuidelines.md"],
+}

@@ -295,7 +295,8 @@ _当前无 P0 任务_
 - ✅ 预览功能正常（半透明立方体跟随鼠标）
 - ✅ 射线检测正常（工作平面交点计算正确）
 - ❌ 点击确认后对象无法创建，控制台报错：
-  ```
+
+  ```text
   No instance strategy found for asset type: profile
   ```
 
@@ -704,25 +705,28 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 
 ### 17. 建立文档与代码同步机制
 
-**状态**: 🔄 进行中（2025-11-15）
+**状态**: ✅ 已完成（2025-11-15）
 
 **描述**: 确保文档内容与代码库保持同步，并建立协同流程。
 
 **阶段成果**:
 
 - ✅ `doc/WorkflowGuidelines.md`：定义协同运行规范与文档同步流程。
+- ✅ `doc/WorkflowGuidelines.md`：新增 PR 文档审查流程、版本字段约定、自动化检查规划。
+- ✅ `.github/workflows/doc-check.yml`：落地文档自动化检查流水线。
 
-**剩余任务**:
+**完成子任务**:
 
-- [ ] 建立文档审查流程
-  - PR 中涉及架构变更时需更新文档
+- ✅ 建立文档审查流程
+  - PR 中涉及架构变更时需更新文档（详见 WorkflowGuidelines 5.1）
   - Code Review 加入文档检查步骤
-- [ ] 建立文档版本管理
-  - 文档记录版本号/更新日期
-  - 过期内容标记或归档
-- [ ] 建立文档自动化检查
-  - 检查文档中的代码示例是否有效
-  - 检查文档链接是否失效
+- ✅ 建立文档版本管理
+  - 文档记录版本号/更新日期（统一使用“最后更新”字段）
+  - 过期内容标记或归档流程
+- ✅ 建立文档自动化检查
+  - GitHub Actions：`.github/workflows/doc-check.yml`
+  - `npm run doc:check` 统一执行 markdownlint、cspell、自定义元信息脚本
+  - `lychee-action` 输出链接检查报告（`lychee-report` 工件）
 
 ---
 

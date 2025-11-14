@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "public",
+    ".git",
+    "package-lock.json"
+  ],
+  "words": [
+    "AutoSave",
+    "AutoSaveService",
+    "AutoSaveIndicator",
+    "docsync",
+    "Lychee",
+    "lycheeverse",
+    "markdownlint",
+    "Precommit",
+    "Raycaster",
+    "Raycasting",
+    "ThreeJS",
+    "Workplane",
+    "WorkflowGuidelines",
+    "Zustand"
+  ]
+}
