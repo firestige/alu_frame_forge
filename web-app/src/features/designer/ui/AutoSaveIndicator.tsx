@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useCoreServices } from '@/core';
 
 /**
@@ -54,28 +54,56 @@ export const AutoSaveIndicator: React.FC = () => {
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [visible, setVisible] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     // 订阅 AutoSaveService 的状态事件
     const handlePending = () => {
       setStatus('pending');
       setErrorMessage('');
+      setVisible(true);
+      // pending 状态持续显示
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
     };
 
     const handleSaving = () => {
       setStatus('saving');
       setErrorMessage('');
+      setVisible(true);
+      // saving 状态持续显示
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
     };
 
     const handleSaved = () => {
       setStatus('saved');
       setLastSavedTime(new Date());
       setErrorMessage('');
+      setVisible(true);
+      // "已保存"状态显示2秒后隐藏
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+      }
+      hideTimerRef.current = setTimeout(() => {
+        setVisible(false);
+      }, 2000) as unknown as number;
     };
 
     const handleError = (data: { error: Error }) => {
       setStatus('error');
       setErrorMessage(data.error.message);
+      setVisible(true);
+      // error 状态持续显示，直到用户手动保存
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
       console.error('[AutoSaveIndicator] 保存失败:', data.error);
     };
 
@@ -87,6 +115,10 @@ export const AutoSaveIndicator: React.FC = () => {
     autoSave.on('autosave:error', handleError);
 
     return () => {
+      // 清理定时器
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+      }
       autoSave.off('autosave:pending', handlePending);
       autoSave.off('autosave:saving', handleSaving);
       autoSave.off('autosave:saved', handleSaved);
@@ -119,6 +151,9 @@ export const AutoSaveIndicator: React.FC = () => {
   };
 
   const config = STATUS_CONFIG[status];
+
+  // 不可见时不渲染
+  if (!visible) return null;
 
   return (
     <div className="flex items-center gap-2 px-3 py-1 rounded bg-[#2a2a2a] border border-[#3a3a3a]">

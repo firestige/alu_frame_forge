@@ -87,8 +87,10 @@ const DesignerPage: React.FC = () => {
 
     return () => {
       console.log('[DesignerPage] 清理 Features 层服务');
+      // 页面卸载前强制保存，防止路由切换时丢失数据
+      coreServices.autoSave.forceSave();
     };
-  }, [coreServices.objectManager]);
+  }, [coreServices.objectManager, coreServices.autoSave]);
 
   // 当 renderer 就绪时，创建依赖 renderer 的服务
   React.useEffect(() => {
