@@ -10,7 +10,11 @@
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "doc:markdown": "markdownlint-cli2",
+    "doc:spell": "cspell lint README.md TODO.md doc/WorkflowGuidelines.md",
+    "doc:meta": "node ./scripts/doc-check/verify-doc-metadata.mjs",
+    "doc:check": "npm run doc:markdown && npm run doc:spell && npm run doc:meta"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.16",
@@ -45,6 +49,7 @@
     "@typescript-eslint/parser": "^8.46.3",
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "^19.1.0-rc.3",
+    "cspell": "^9.3.1",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
@@ -52,6 +57,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
+    "markdownlint-cli2": "^0.19.0",
     "prettier": "^3.6.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
