@@ -32,7 +32,7 @@ export class RenderSyncService {
   private syncExistingObjects(): void {
     const allObjects = this.objectManager.getAllObjects();
 
-    allObjects.forEach((object) => {
+    allObjects.forEach(object => {
       if (!object.visual?.mesh) {
         return;
       }

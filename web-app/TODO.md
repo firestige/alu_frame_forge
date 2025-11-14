@@ -617,7 +617,7 @@ RouterProvider
 
 **核心实现**:
 
-```typescript
+````typescript
 class ProfileInstanceStrategy implements InstanceStrategy {
   createSceneObject(
     asset: ProfileAsset,
@@ -684,7 +684,7 @@ class ProfileInstanceStrategy implements InstanceStrategy {
     };
   }
 }
-```
+````
 
 **任务列表**:
 

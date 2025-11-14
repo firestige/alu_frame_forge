@@ -7,16 +7,19 @@
 ### 1. 安装 GitHub CLI
 
 **Windows (PowerShell):**
+
 ```powershell
 winget install GitHub.cli
 ```
 
 **macOS:**
+
 ```bash
 brew install gh
 ```
 
 **Linux:**
+
 ```bash
 # Debian/Ubuntu
 sudo apt install gh
@@ -32,6 +35,7 @@ gh auth login
 ```
 
 按提示选择：
+
 - GitHub.com
 - HTTPS
 - Login with a web browser
@@ -65,6 +69,7 @@ Set-Alias lp List-PRs
 ```
 
 保存后重启 PowerShell，即可使用简短命令：
+
 ```powershell
 nf 19 camera-controls
 ff
@@ -81,17 +86,20 @@ cf
 创建新的 feature 分支并切换。
 
 **用法：**
+
 ```bash
 ./scripts/new-feature.sh <任务编号> <描述>
 ```
 
 **示例：**
+
 ```bash
 ./scripts/new-feature.sh 19 camera-controls
 # 创建分支: feature/task-19-camera-controls
 ```
 
 **分支命名规范：**
+
 - `feature/task-<编号>-<描述>` - 功能开发
 - `fix/task-<编号>-<描述>` - 修复 bug
 - `refactor/<描述>` - 重构
@@ -104,16 +112,19 @@ cf
 推送当前分支到远程，并自动创建 Pull Request。
 
 **用法：**
+
 ```bash
 ./scripts/finish-feature.sh
 ```
 
 **功能：**
+
 - 推送当前分支到 GitHub
 - 自动创建 PR（基于最近的提交信息）
 - PR 标题和描述使用 `--fill` 自动生成
 
 **注意：**
+
 - 必须在 feature 分支上运行
 - 确保已有至少一次提交
 
@@ -124,11 +135,13 @@ cf
 在当前 feature 分支上查找对应的 PR 并自动 squash merge。
 
 **用法：**
+
 ```bash
 ./scripts/merge-pr.sh
 ```
 
 **功能：**
+
 - 查找当前分支的 PR
 - 显示 PR 详情供确认
 - Squash merge 到 main 分支
@@ -144,11 +157,13 @@ cf
 切换回 main 分支，同步最新代码，删除本地 feature 分支。
 
 **用法：**
+
 ```bash
 ./scripts/cleanup-feature.sh
 ```
 
 **功能：**
+
 - 切换到 main 分支
 - 拉取最新代码（包含刚合并的内容）
 - 删除本地 feature 分支
@@ -160,6 +175,7 @@ cf
 列出当前仓库所有打开的 Pull Requests。
 
 **用法：**
+
 ```bash
 ./scripts/list-prs.sh
 ```
@@ -210,6 +226,7 @@ git commit -m "docs: 更新文档"
 每个 feature 分支内的提交可以随意，但最终 squash merge 时建议遵循 [Conventional Commits](https://www.conventionalcommits.org/)：
 
 **格式：**
+
 ```
 <类型>: <简短描述>
 
@@ -219,6 +236,7 @@ git commit -m "docs: 更新文档"
 ```
 
 **类型：**
+
 - `feat`: 新功能
 - `fix`: 修复 bug
 - `refactor`: 重构（不改变外部行为）
@@ -228,6 +246,7 @@ git commit -m "docs: 更新文档"
 - `chore`: 构建/工具/依赖更新
 
 **示例：**
+
 ```
 feat: 实现 3D 视角控制功能
 
@@ -244,22 +263,27 @@ Closes #19
 ## 常见问题
 
 ### Q: 如何查看当前分支？
+
 ```bash
 git branch --show-current
 ```
 
 ### Q: 如何切换回之前的分支？
+
 ```bash
 git checkout -
 ```
 
 ### Q: PR 创建失败怎么办？
+
 检查：
+
 1. GitHub CLI 是否已认证（`gh auth status`）
 2. 当前分支是否已推送到远程
 3. 是否有提交内容
 
 ### Q: 合并后发现有问题怎么办？
+
 ```bash
 # 在 main 分支上
 git revert HEAD  # 回退最后一次提交
@@ -267,12 +291,15 @@ git push
 ```
 
 ### Q: 如何删除远程分支（手动）？
+
 ```bash
 git push origin --delete feature/task-19-camera-controls
 ```
 
 ### Q: Windows 上运行 .sh 脚本报错？
+
 确保使用 Git Bash 或配置了 WSL：
+
 ```powershell
 bash ./scripts/new-feature.sh 19 camera-controls
 ```
