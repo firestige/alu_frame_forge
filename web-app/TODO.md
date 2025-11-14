@@ -1,14 +1,16 @@
 # 铝型材框架设计器 - 待办事项
 
-**最后更新**: 2025-11-14
+**最后更新**: 2025-11-15
 
 ---
 
 ## P0 - 最高优先级（立即执行）
 
-### 18. 应用级状态管理与自动保存重构 ⭐
+_当前无 P0 任务_
 
-**状态**: 🔄 进行中（2025-11-14）
+---
+
+## P1 - 高优先级（本周完成）
 
 **背景问题**：
 
@@ -522,6 +524,118 @@ RouterProvider
 
 ---
 
+### 19. 实现 3D 视角控制
+
+**状态**: ⏳ 待执行
+
+**描述**: 实现标准的 3D 视角控制，支持旋转、平移、缩放。
+
+**技术方案**: 使用 Three.js OrbitControls
+
+**任务列表**:
+
+- [ ] 集成 OrbitControls 到 ThreeRenderer
+- [ ] 配置控制参数（旋转速度、缩放范围等）
+- [ ] 添加视角预设（正视图、侧视图、俯视图、等轴测）
+- [ ] 添加"重置视角"功能
+- [ ] 键盘快捷键支持
+
+---
+
+### 20. 实现对象选中功能
+
+**状态**: ⏳ 待执行
+
+**描述**: 实现 3D 场景中对象的选中和高亮显示。
+
+**技术方案**: 射线检测 + 轮廓高亮
+
+**任务列表**:
+
+- [ ] 实现鼠标点击选中（使用 RaycasterService）
+- [ ] 实现选中对象高亮（OutlinePass 或材质替换）
+- [ ] 实现多选（Ctrl + 点击）
+- [ ] 实现框选（拖拽矩形选择）
+- [ ] 同步选中状态到 Store
+- [ ] 在对象列表中显示选中状态
+
+---
+
+### 21. 实现对象移动和旋转
+
+**状态**: ⏳ 待执行
+
+**描述**: 实现 3D 场景中对象的交互式移动和旋转。
+
+**技术方案**: TransformControls
+
+**任务列表**:
+
+- [ ] 集成 TransformControls 到场景
+- [ ] 实现移动模式（translate）
+- [ ] 实现旋转模式（rotate）
+- [ ] 实现缩放模式（scale，可选）
+- [ ] 添加工具栏切换按钮（移动/旋转/选择）
+- [ ] 变换完成后同步到 ObjectManager
+- [ ] 支持键盘快捷键（W/E/R 切换模式）
+
+---
+
+### 22. 实现右键上下文菜单
+
+**状态**: ⏳ 待执行
+
+**描述**: 在 3D 场景和对象列表中实现右键菜单。
+
+**技术方案**: 使用已有的 Popover 组件
+
+**任务列表**:
+
+- [ ] 实现场景右键菜单（创建对象、视角控制等）
+- [ ] 实现对象右键菜单（删除、复制、隐藏等）
+- [ ] 实现对象列表项右键菜单
+- [ ] 集成到 DesignerPageUI
+- [ ] 添加快捷键提示
+
+---
+
+## P3 - 低优先级（长期规划）
+
+### 11. 实现 ProfileInstanceStrategy（真实型材生成）
+
+**状态**: ⏳ 待执行
+
+**前置条件**: StubProfileStrategy 验证通过
+
+**描述**: 实现真实的型材截面拉伸逻辑，替换当前的 Stub 策略。
+
+**技术方案**:
+
+- SVG Path 解析：将 `crossSection.path` 转换为 Three.js Shape
+- 几何体生成：使用 `THREE.ExtrudeGeometry` 进行拉伸
+- 参数化尺寸：从 `userParams.length` 读取拉伸长度
+
+**核心实现**:
+
+```typescript
+class ProfileInstanceStrategy implements InstanceStrategy {
+  createSceneObject(
+    asset: ProfileAsset,
+    options: SceneObjectCreateOptions
+  ): SceneObject {
+    // 1. 解析 SVG Path
+    const shape = this.parseSVGPath(asset.parameters.crossSection.path);
+  - 选择 E2E 框架（Playwright / Cypress）
+- [ ] 分配测试资源和时间
+
+**交付物**:
+
+- 测试计划文档
+- 测试用例列表
+- 测试覆盖率目标
+
+---
+
 ### 11. 实现 ProfileInstanceStrategy（真实型材生成）
 
 **状态**: ⏳ 待执行
@@ -664,8 +778,6 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 
 ---
 
-## P3 - 低优先级（长期规划）
-
 ### 16. 建立持续集成机制
 
 **状态**: ⏳ 待执行
@@ -705,6 +817,18 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 ---
 
 ## 已完成事项
+
+### ✅ 2025-11-15
+
+- **应用级状态管理与自动保存重构（任务 #18）** ⭐
+  - 创建 CoreServiceProvider（应用级服务容器）
+  - 创建 AutoSaveService（防抖保存 + 三层持久化）
+  - 集成到 main.tsx，包裹 RouterProvider
+  - 重构 DesignerPage，使用 useCoreServices()
+  - 创建 AutoSaveIndicator UI 组件（按需显示）
+  - 路由切换前强制保存
+  - RenderSyncService 初始化同步已存在对象
+  - 🎉 **里程碑：路由切换数据保持 + 自动保存功能完成**
 
 ### ✅ 2025-11-14
 
