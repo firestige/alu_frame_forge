@@ -12,101 +12,7 @@ _当前无 P0 任务_
 
 ## P1 - 高优先级（本周完成）
 
-**背景问题**：
-
-- 路由切换（/designer ↔ /library）导致场景对象丢失
-- ObjectManager 在组件级别创建，组件卸载时被销毁
-- 无自动保存机制，浏览器刷新/关闭导致工作成果丢失
-
-**架构问题根源**：
-
-- Core 层服务（ObjectManager）在 Features 层（useBusinessServices Hook）创建
-- 违反架构原则：Core 层应该在应用级别，不依赖 Features 层
-
-**解决方案**：应用级状态管理 + 自动保存机制
-
-#### 实施计划（分 5 步执行）
-
-**步骤 1: 创建 CoreServiceProvider（应用级服务容器）**
-
-- [ ] 创建 `src/core/CoreServiceProvider.tsx`
-- [ ] 定义 `CoreServices` 接口（objectManager, assetService, eventBus）
-- [ ] 实现 `CoreServiceProvider` 组件（使用 useRef 保证单例）
-- [ ] 导出 `useCoreServices` Hook
-
-**步骤 2: 创建 AutoSaveService（自动保存服务）**
-
-- [ ] 创建 `src/core/services/AutoSaveService.ts`
-- [ ] 实现变更监听（监听 ObjectManager 事件）
-- [ ] 实现防抖保存逻辑（3秒延迟 + 30秒最小间隔）
-- [ ] 实现三层保存：localStorage（同步）+ 云端（异步）+ 手动保存
-- [ ] 实现保存状态管理（idle/pending/saving/saved/error）
-- [ ] 导出事件接口（autosave:pending/saving/saved/error）
-
-**步骤 3: 集成 CoreServiceProvider 到应用入口**
-
-- [ ] 修改 `src/main.tsx`，用 CoreServiceProvider 包裹 RouterProvider
-- [ ] 在 CoreServiceProvider 中初始化 AutoSaveService
-- [ ] 测试应用启动，验证服务单例创建
-
-**步骤 4: 重构 DesignerPage（从应用级获取服务）**
-
-- [ ] 修改 `src/pages/DesignerPage.tsx`
-- [ ] 使用 `useCoreServices()` 替代 `useBusinessServices()`
-- [ ] 保留 Features 层服务的页面级创建（RenderSyncService, PlacementController）
-- [ ] 修改项目加载逻辑，确保从 localStorage 恢复数据
-- [ ] 删除 `src/features/designer/hooks/useBusinessServices.ts`（不再需要）
-
-**步骤 5: 创建自动保存状态 UI 组件**
-
-- [ ] 创建 `src/features/designer/ui/AutoSaveIndicator.tsx`
-- [ ] 订阅 AutoSaveService 事件，显示保存状态
-- [ ] 集成到 AppBar 右上角
-- [ ] 添加"立即保存"按钮
-
-#### 技术架构图
-
-```
-应用根节点 (main.tsx)
-    ↓
-CoreServiceProvider（应用级，单例）
-    ├─ ObjectManager ✅ 路由切换时保留
-    ├─ AssetService ✅ 路由切换时保留
-    ├─ AutoSaveService ✅ 监听变更，自动保存
-    └─ eventBus ✅ 全局事件总线
-    ↓
-RouterProvider
-    ├─ /designer → DesignerPage
-    │   ↓
-    │   DesignerProvider（页面级）
-    │   ├─ ModelCreationService ⚡ 页面挂载时创建
-    │   ├─ ModelEditorService ⚡ 页面挂载时创建
-    │   ├─ PlacementController ⚡ renderer 就绪后创建
-    │   └─ RenderSyncService ⚡ renderer 就绪后创建
-    │
-    └─ /library → LibraryPage
-        └─ 库相关服务
-```
-
-#### 数据持久化策略（三层）
-
-1. **内存层**（应用级）：ObjectManager 在应用生命周期持久化
-   - 解决路由切换数据丢失问题
-2. **本地存储层**（localStorage）：自动保存（防抖 3秒）
-   - 解决浏览器刷新/关闭数据丢失问题
-   - 最小保存间隔 30秒（避免过于频繁）
-3. **云端存储层**（可选）：异步非阻塞上传
-   - 解决跨设备/协作问题
-   - 保存失败不影响本地保存
-
-#### 预期效果
-
-✅ **路由切换**：场景数据保留在内存，即时恢复，无延迟  
-✅ **浏览器刷新**：从 localStorage 加载最后保存的版本  
-✅ **自动保存**：用户操作 3 秒后自动保存，状态实时显示  
-✅ **架构合规**：Core 层在应用级别，符合分层架构原则
-
-**相关文档**: `doc/Architecture.md`, `doc/ArchitecturePrompt.md`
+当前聚焦任务：测试体系与 3D 交互基础能力（详见任务 10、19-22）。
 
 ---
 
@@ -798,18 +704,22 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 
 ### 17. 建立文档与代码同步机制
 
-**状态**: ⏳ 待执行
+**状态**: 🔄 进行中（2025-11-15）
 
-**描述**: 确保文档内容与代码库保持同步。
+**描述**: 确保文档内容与代码库保持同步，并建立协同流程。
 
-**任务**:
+**阶段成果**:
+
+- ✅ `doc/WorkflowGuidelines.md`：定义协同运行规范与文档同步流程。
+
+**剩余任务**:
 
 - [ ] 建立文档审查流程
   - PR 中涉及架构变更时需更新文档
-  - Code Review 包含文档审查
+  - Code Review 加入文档检查步骤
 - [ ] 建立文档版本管理
-  - 文档添加版本号和更新日期
-  - 过期文档标记或归档
+  - 文档记录版本号/更新日期
+  - 过期内容标记或归档
 - [ ] 建立文档自动化检查
   - 检查文档中的代码示例是否有效
   - 检查文档链接是否失效

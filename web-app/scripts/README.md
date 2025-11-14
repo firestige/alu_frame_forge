@@ -2,6 +2,8 @@
 
 基于 Feature Branch + Squash Merge 的工作流，保持 main 分支历史简洁。
 
+> 📘 协同的完整运行规范请参考 `doc/WorkflowGuidelines.md`。
+
 ## 前置要求
 
 ### 1. 安装 GitHub CLI
