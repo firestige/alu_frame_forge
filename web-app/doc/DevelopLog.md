@@ -2,6 +2,116 @@
 
 ## 2025-11-15
 
+### Bug修复：RenderSyncService初始化同步 + 自动保存优化
+
+**提交记录**：
+- `423289f` - fix: RenderSyncService初始化时同步已存在对象到渲染场景
+- `f81d999` - fix: 优化自动保存体验
+
+**问题1：路由切换后3D实体消失**
+
+**现象**：
+- 切换路由后，`ObjectManager` 中的对象数据保留
+- 但 Three.js 场景中的 3D 实体全部消失
+
+**根本原因**：
+- `DesignerPage` 卸载时，Three.js 的 `Scene` 对象被销毁
+- 重新进入时创建新的 `ThreeRenderer` 和新的 `Scene`
+- `RenderSyncService` 只监听**未来事件**，未同步**已存在对象**
+
+**解决方案**：
+- 在 `RenderSyncService` 构造函数中添加 `syncExistingObjects()` 方法
+- 遍历 `ObjectManager.getAllObjects()`，将所有对象的 `visual.mesh` 添加到新场景
+- 恢复每个对象的变换（position/rotation/scale）和可见性
+
+**代码变更**（`src/features/designer/services/RenderSyncService.ts`）：
+```typescript
+constructor(objectManager: ObjectManager, renderer: IRenderer) {
+  this.objectManager = objectManager;
+  this.renderer = renderer;
+  this.setupEventListeners();
+  this.syncExistingObjects(); // 🆕 初始化同步
+}
+
+private syncExistingObjects(): void {
+  const allObjects = this.objectManager.getAllObjects();
+  allObjects.forEach((object) => {
+    if (!object.visual?.mesh) return;
+    // 添加到渲染器、恢复变换、恢复可见性、记录映射
+  });
+}
+```
+
+**问题2：路由切换可能丢失未保存数据**
+
+**现象**：
+- 用户修改后立即切换路由（3秒debounce期间）
+- 未保存的更改丢失
+
+**解决方案**：
+- 在 `DesignerPage` 的 `useEffect` 清理函数中调用 `forceSave()`
+- 确保页面卸载前强制保存
+
+**代码变更**（`src/pages/DesignerPage.tsx`）：
+```typescript
+React.useEffect(() => {
+  // ... 初始化服务
+  return () => {
+    console.log('[DesignerPage] 清理 Features 层服务');
+    coreServices.autoSave.forceSave(); // 🆕 路由切换前保存
+  };
+}, [coreServices.objectManager, coreServices.autoSave]);
+```
+
+**问题3：AutoSaveIndicator常驻显示占用空间**
+
+**现象**：
+- Indicator 在 AppBar 常驻显示，即使没有保存活动
+- 占用UI空间，用户体验不佳
+
+**解决方案**：
+- 改为仅在有活动时显示，类似Toast通知
+- `pending/saving/error` 状态：持续显示
+- `saved` 状态：显示2秒后自动隐藏
+- 状态切换时清理定时器，防止内存泄漏
+
+**代码变更**（`src/features/designer/ui/AutoSaveIndicator.tsx`）：
+```typescript
+const [visible, setVisible] = useState(false);
+const hideTimerRef = useRef<number | null>(null);
+
+const handleSaved = () => {
+  setStatus('saved');
+  setVisible(true);
+  if (hideTimerRef.current !== null) {
+    clearTimeout(hideTimerRef.current);
+  }
+  hideTimerRef.current = setTimeout(() => {
+    setVisible(false);
+  }, 2000) as unknown as number;
+};
+
+// 组件清理时清除定时器
+return () => {
+  if (hideTimerRef.current !== null) {
+    clearTimeout(hideTimerRef.current);
+  }
+  // ... 取消事件订阅
+};
+
+// 渲染时检查
+if (!visible) return null;
+```
+
+**影响范围**：
+- ✅ 路由切换保留3D场景
+- ✅ 路由切换前自动保存
+- ✅ AutoSaveIndicator按需显示
+
+---
+
+## 2025-11-15
+
 ### 架构重构：CoreServiceProvider + AutoSaveService
 
 **里程碑**：✅ **路由切换数据保持 + 自动保存功能实现**
