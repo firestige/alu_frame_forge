@@ -20,6 +20,50 @@ export class RenderSyncService {
 
     // 订阅 ObjectManager 事件
     this.setupEventListeners();
+
+    // 同步已存在的对象
+    this.syncExistingObjects();
+  }
+
+  /**
+   * 同步已存在的对象到渲染器
+   * 用于初始化时将 ObjectManager 中的所有对象添加到新的渲染场景
+   */
+  private syncExistingObjects(): void {
+    const allObjects = this.objectManager.getAllObjects();
+
+    allObjects.forEach((object) => {
+      if (!object.visual?.mesh) {
+        return;
+      }
+
+      // 添加到渲染器
+      this.renderer.addObject(object.visual.mesh, {
+        interactive: true,
+        modelId: object.id,
+        name: object.name,
+      });
+
+      // 设置变换
+      this.renderer.updateObjectTransform(object.visual.mesh, {
+        position: object.transform.position,
+        rotation: object.transform.rotation,
+        scale: object.transform.scale,
+      });
+
+      // 设置可见性
+      this.renderer.setObjectVisibility(
+        object.visual.mesh,
+        object.visual.isVisible
+      );
+
+      // 记录映射
+      this.objectRenderMap.set(object.id, object.visual.mesh);
+    });
+
+    console.log(
+      `[RenderSyncService] 已同步 ${allObjects.length} 个现有对象到渲染器`
+    );
   }
 
   /**
