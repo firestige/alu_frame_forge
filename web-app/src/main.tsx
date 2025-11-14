@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { RouterProvider } from 'react-router';
 import { routes } from './routes.ts';
+import { CoreServiceProvider } from './core/CoreServiceProvider';
 
 const root = document.getElementById('root');
 
 createRoot(root!).render(
   <StrictMode>
-    <RouterProvider router={routes} />
+    <CoreServiceProvider>
+      <RouterProvider router={routes} />
+    </CoreServiceProvider>
   </StrictMode>
 );

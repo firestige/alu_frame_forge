@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router';
 import { useDrawerStore } from '@/stores/drawerStore';
+import { AutoSaveIndicator } from '@/features/designer/ui/AutoSaveIndicator';
 
 const AppBar: React.FC = () => {
   const toggleDrawer = useDrawerStore(state => state.toggle);
@@ -57,7 +58,9 @@ const AppBar: React.FC = () => {
       </nav>
 
       {/* Status Section (Right-aligned) */}
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-4 ml-auto">
+        {/* AutoSave Indicator - Only show on designer page */}
+        {isActive('/designer') && <AutoSaveIndicator />}
         {/* Notification Button */}
         <button
           className="p-2 hover:bg-gray-700 rounded-md transition-colors"

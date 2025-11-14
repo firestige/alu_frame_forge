@@ -1,5 +1,8 @@
 import * as React from 'react';
-import { useBusinessServices } from '../features/designer/hooks/useBusinessServices';
+import { useCoreServices } from '@/core';
+import { ModelCreationService } from '../features/designer/services/ModelCreationService';
+import { ModelEditorService } from '../features/designer/services/ModelEditorService';
+import { PlacementController } from '../features/designer/services/PlacementService';
 import { RenderSyncService } from '../features/designer/services/RenderSyncService';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
 import { DesignerProvider } from '../features/designer/context';
@@ -24,14 +27,20 @@ function getProjectIdFromUrl(): string | null {
 }
 
 /**
- * DesignerPage - 设计器页面容器（重构后 - Container 模式）
+ * DesignerPage - 设计器页面容器（重构后 - 应用级状态管理）
  *
  * 职责：
- * 1. 初始化业务服务（ObjectManager、ModelCreationService 等）
- * 2. 接收 UI 层的 renderer，创建 RenderSyncService 粘合层
- * 3. 驱动项目加载（从 URL 或 localStorage）
- * 4. 设置事件桥梁（Command → ObjectManager、ObjectManager → Store）
- * 5. 提供 DesignerProvider，封装所有细节
+ * 1. 从应用级获取 Core 服务（ObjectManager、AssetService、AutoSaveService）
+ * 2. 创建页面级 Features 服务（ModelCreationService、ModelEditorService）
+ * 3. 接收 UI 层的 renderer，创建 RenderSyncService、PlacementController
+ * 4. 驱动项目加载（从 URL 或 localStorage）
+ * 5. 设置事件桥梁（Command → Service、ObjectManager → Store）
+ * 6. 提供 DesignerProvider，封装所有细节
+ *
+ * 架构变更（2025-11-14）：
+ * - Core 服务（ObjectManager）从应用级 CoreServiceProvider 获取
+ * - Features 服务（ModelCreationService）在页面级创建
+ * - 路由切换时 Core 服务保留，Features 服务重建
  *
  * 不做：
  * - 不管理 3D 容器和 renderer（UI 层的职责）
@@ -39,7 +48,11 @@ function getProjectIdFromUrl(): string | null {
  * - 不显示 Loading（委托给 UI 层）
  */
 const DesignerPage: React.FC = () => {
-  // ==================== 1. 管理 Renderer 引用 ====================
+  // ==================== 1. 从应用级获取 Core 服务 ====================
+
+  const coreServices = useCoreServices();
+
+  // ==================== 2. 管理 Renderer 引用 ====================
 
   const rendererRef = React.useRef<IRenderer | null>(null);
   const [isRendererReady, setIsRendererReady] = React.useState(false);
@@ -49,28 +62,57 @@ const DesignerPage: React.FC = () => {
     setIsRendererReady(true);
   }, []);
 
-  // ==================== 2. 初始化业务服务（包含 PlacementController）====================
+  // ==================== 3. 初始化 Features 层服务（页面级）====================
 
-  const services = useBusinessServices(rendererRef.current);
+  const [featureServices, setFeatureServices] = React.useState<{
+    creation: ModelCreationService | null;
+    editor: ModelEditorService | null;
+    placement: PlacementController | null;
+    renderSync: RenderSyncService | null;
+  }>({
+    creation: null,
+    editor: null,
+    placement: null,
+    renderSync: null,
+  });
 
-  // ==================== 3. 创建 RenderSyncService（粘合层）====================
-
+  // 初始化不依赖 renderer 的服务
   React.useEffect(() => {
-    // 只有当业务服务和渲染器都就绪时，才创建粘合层
-    if (services.status !== 'ready' || !rendererRef.current) {
-      return;
-    }
+    console.log('[DesignerPage] 初始化 Features 层服务');
 
-    // 创建 RenderSyncService 连接 ObjectManager 和 Renderer
-    const syncService = new RenderSyncService(
-      services.objectManager!,
+    const creation = new ModelCreationService(coreServices.objectManager);
+    const editor = new ModelEditorService(coreServices.objectManager);
+
+    setFeatureServices(prev => ({ ...prev, creation, editor }));
+
+    return () => {
+      console.log('[DesignerPage] 清理 Features 层服务');
+    };
+  }, [coreServices.objectManager]);
+
+  // 当 renderer 就绪时，创建依赖 renderer 的服务
+  React.useEffect(() => {
+    if (!rendererRef.current) return;
+
+    console.log('[DesignerPage] 创建 RenderSyncService 和 PlacementController');
+
+    const renderSync = new RenderSyncService(
+      coreServices.objectManager,
       rendererRef.current
     );
 
+    const placement = new PlacementController(
+      rendererRef.current,
+      coreServices.objectManager
+    );
+
+    setFeatureServices(prev => ({ ...prev, renderSync, placement }));
+
     return () => {
-      syncService.dispose();
+      renderSync.dispose();
+      placement.dispose();
     };
-  }, [services.status, isRendererReady, services.objectManager]);
+  }, [isRendererReady, coreServices.objectManager]);
 
   // ==================== 4. 项目加载逻辑 ====================
 
@@ -78,8 +120,8 @@ const DesignerPage: React.FC = () => {
 
   React.useEffect(() => {
     const loadProjectData = async () => {
-      // 只有当业务服务和渲染器都就绪时，才开始加载
-      if (services.status !== 'ready' || !isRendererReady) {
+      // 只有当渲染器就绪时，才开始加载
+      if (!isRendererReady) {
         return;
       }
 
@@ -92,8 +134,9 @@ const DesignerPage: React.FC = () => {
 
       if (!projectId) {
         // 场景1: 未指定项目ID - 创建空白项目
+        const newProjectId = `project-${Date.now()}`;
         useDesignerProjectStore.getState().setProject({
-          id: `project-${Date.now()}`,
+          id: newProjectId,
           name: '未命名项目',
           metadata: { name: '未命名项目' },
         });
@@ -108,7 +151,7 @@ const DesignerPage: React.FC = () => {
 
         if (projectData) {
           // 场景2.1: 加载成功
-          services.objectManager!.importScene(projectData);
+          coreServices.objectManager.importScene(projectData);
 
           useDesignerProjectStore.getState().setProject({
             id: projectId,
@@ -146,20 +189,21 @@ const DesignerPage: React.FC = () => {
     };
 
     loadProjectData();
-  }, [services.status, isRendererReady, services.objectManager]); // 依赖服务就绪和渲染器就绪
+  }, [isRendererReady, coreServices.objectManager]); // 依赖服务就绪和渲染器就绪
 
   // ==================== 5. 事件桥梁：Command → Service ====================
 
   React.useEffect(() => {
-    if (services.status !== 'ready') return;
+    if (!featureServices.creation || !featureServices.editor) return;
 
     // 监听创建命令
-    const handleCreateCube = () => services.creation?.createCube();
-    const handleCreateBox = () => services.creation?.createBox();
+    const handleCreateCube = () => featureServices.creation?.createCube();
+    const handleCreateBox = () => featureServices.creation?.createBox();
     const handleCreateProfile = () =>
-      services.creation?.createAluminumProfile();
-    const handleCreatePanel = () => services.creation?.createPanel();
-    const handleCreateConnector = () => services.creation?.createConnector();
+      featureServices.creation?.createAluminumProfile();
+    const handleCreatePanel = () => featureServices.creation?.createPanel();
+    const handleCreateConnector = () =>
+      featureServices.creation?.createConnector();
 
     // 监听新命令：准备创建型材（交互式）
     const handlePrepareProfile = (data: {
@@ -174,13 +218,13 @@ const DesignerPage: React.FC = () => {
 
     // 监听操作命令
     const handleDelete = (modelId: string) =>
-      services.objectManager?.removeObject(modelId);
+      coreServices.objectManager.removeObject(modelId);
 
     const handleToggleVisibility = (modelId: string) => {
-      const obj = services.objectManager?.getObject(modelId);
+      const obj = coreServices.objectManager.getObject(modelId);
       if (obj) {
         const newVisibility = !(obj.visual?.isVisible ?? true);
-        services.objectManager?.setObjectVisibility(modelId, newVisibility);
+        coreServices.objectManager.setObjectVisibility(modelId, newVisibility);
       }
     };
 
@@ -194,8 +238,7 @@ const DesignerPage: React.FC = () => {
         };
       };
     }) => {
-      const objectManager = services.objectManager;
-      if (!objectManager) return;
+      const objectManager = coreServices.objectManager;
 
       const obj = objectManager.getObject(data.id);
       if (!obj) return;
@@ -250,15 +293,17 @@ const DesignerPage: React.FC = () => {
       offCommand('command:camera:setView', handleCameraSetView);
       offCommand('command:camera:reset', handleCameraReset);
     };
-  }, [services.status, services.creation, services.objectManager]);
+  }, [
+    featureServices.creation,
+    featureServices.editor,
+    coreServices.objectManager,
+  ]);
 
   // ==================== 6. 事件桥梁：ObjectManager → Store ====================
 
   React.useEffect(() => {
-    if (services.status !== 'ready') return;
-
     const syncToStore = () => {
-      const objects = services.objectManager!.getAllObjects();
+      const objects = coreServices.objectManager.getAllObjects();
       useDesignerObjectStore.getState().setObjects(objects);
     };
 
@@ -266,37 +311,42 @@ const DesignerPage: React.FC = () => {
     syncToStore();
 
     // 监听变更
-    services.objectManager!.on('object:added', syncToStore);
-    services.objectManager!.on('object:removed', syncToStore);
-    services.objectManager!.on('object:updated', syncToStore);
-    services.objectManager!.on('objects:cleared', syncToStore);
+    coreServices.objectManager.on('object:added', syncToStore);
+    coreServices.objectManager.on('object:removed', syncToStore);
+    coreServices.objectManager.on('object:updated', syncToStore);
+    coreServices.objectManager.on('objects:cleared', syncToStore);
 
     return () => {
-      services.objectManager?.off('object:added', syncToStore);
-      services.objectManager?.off('object:removed', syncToStore);
-      services.objectManager?.off('object:updated', syncToStore);
-      services.objectManager?.off('objects:cleared', syncToStore);
+      coreServices.objectManager.off('object:added', syncToStore);
+      coreServices.objectManager.off('object:removed', syncToStore);
+      coreServices.objectManager.off('object:updated', syncToStore);
+      coreServices.objectManager.off('objects:cleared', syncToStore);
     };
-  }, [services.status, services.objectManager]);
+  }, [coreServices.objectManager]);
 
   // ==================== 7. 渲染 ====================
 
-  console.log('[DesignerPage] 渲染阶段 - status:', services.status);
+  console.log('[DesignerPage] 渲染阶段 - featureServices:', {
+    creation: !!featureServices.creation,
+    editor: !!featureServices.editor,
+    placement: !!featureServices.placement,
+    renderSync: !!featureServices.renderSync,
+  });
 
   // 计算状态：loading（初始化）或 ready（就绪）
   const uiStatus: 'loading' | 'ready' =
-    services.status === 'ready' && isRendererReady ? 'ready' : 'loading';
+    featureServices.creation && isRendererReady ? 'ready' : 'loading';
 
   return (
     <div className="relative w-full h-full">
-      {services.status === 'ready' ? (
+      {featureServices.creation && featureServices.editor ? (
         <DesignerProvider
           value={{
             services: {
-              objectManager: services.objectManager!,
-              creation: services.creation!,
-              editor: services.editor!,
-              placement: services.placement, // ← 允许为 null
+              objectManager: coreServices.objectManager,
+              creation: featureServices.creation,
+              editor: featureServices.editor,
+              placement: featureServices.placement, // ← 允许为 null
             },
             eventBus: designerEventBus,
           }}

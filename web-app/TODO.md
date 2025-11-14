@@ -6,6 +6,108 @@
 
 ## P0 - 最高优先级（立即执行）
 
+### 18. 应用级状态管理与自动保存重构 ⭐
+
+**状态**: 🔄 进行中（2025-11-14）
+
+**背景问题**：
+
+- 路由切换（/designer ↔ /library）导致场景对象丢失
+- ObjectManager 在组件级别创建，组件卸载时被销毁
+- 无自动保存机制，浏览器刷新/关闭导致工作成果丢失
+
+**架构问题根源**：
+
+- Core 层服务（ObjectManager）在 Features 层（useBusinessServices Hook）创建
+- 违反架构原则：Core 层应该在应用级别，不依赖 Features 层
+
+**解决方案**：应用级状态管理 + 自动保存机制
+
+#### 实施计划（分 5 步执行）
+
+**步骤 1: 创建 CoreServiceProvider（应用级服务容器）**
+
+- [ ] 创建 `src/core/CoreServiceProvider.tsx`
+- [ ] 定义 `CoreServices` 接口（objectManager, assetService, eventBus）
+- [ ] 实现 `CoreServiceProvider` 组件（使用 useRef 保证单例）
+- [ ] 导出 `useCoreServices` Hook
+
+**步骤 2: 创建 AutoSaveService（自动保存服务）**
+
+- [ ] 创建 `src/core/services/AutoSaveService.ts`
+- [ ] 实现变更监听（监听 ObjectManager 事件）
+- [ ] 实现防抖保存逻辑（3秒延迟 + 30秒最小间隔）
+- [ ] 实现三层保存：localStorage（同步）+ 云端（异步）+ 手动保存
+- [ ] 实现保存状态管理（idle/pending/saving/saved/error）
+- [ ] 导出事件接口（autosave:pending/saving/saved/error）
+
+**步骤 3: 集成 CoreServiceProvider 到应用入口**
+
+- [ ] 修改 `src/main.tsx`，用 CoreServiceProvider 包裹 RouterProvider
+- [ ] 在 CoreServiceProvider 中初始化 AutoSaveService
+- [ ] 测试应用启动，验证服务单例创建
+
+**步骤 4: 重构 DesignerPage（从应用级获取服务）**
+
+- [ ] 修改 `src/pages/DesignerPage.tsx`
+- [ ] 使用 `useCoreServices()` 替代 `useBusinessServices()`
+- [ ] 保留 Features 层服务的页面级创建（RenderSyncService, PlacementController）
+- [ ] 修改项目加载逻辑，确保从 localStorage 恢复数据
+- [ ] 删除 `src/features/designer/hooks/useBusinessServices.ts`（不再需要）
+
+**步骤 5: 创建自动保存状态 UI 组件**
+
+- [ ] 创建 `src/features/designer/ui/AutoSaveIndicator.tsx`
+- [ ] 订阅 AutoSaveService 事件，显示保存状态
+- [ ] 集成到 AppBar 右上角
+- [ ] 添加"立即保存"按钮
+
+#### 技术架构图
+
+```
+应用根节点 (main.tsx)
+    ↓
+CoreServiceProvider（应用级，单例）
+    ├─ ObjectManager ✅ 路由切换时保留
+    ├─ AssetService ✅ 路由切换时保留
+    ├─ AutoSaveService ✅ 监听变更，自动保存
+    └─ eventBus ✅ 全局事件总线
+    ↓
+RouterProvider
+    ├─ /designer → DesignerPage
+    │   ↓
+    │   DesignerProvider（页面级）
+    │   ├─ ModelCreationService ⚡ 页面挂载时创建
+    │   ├─ ModelEditorService ⚡ 页面挂载时创建
+    │   ├─ PlacementController ⚡ renderer 就绪后创建
+    │   └─ RenderSyncService ⚡ renderer 就绪后创建
+    │
+    └─ /library → LibraryPage
+        └─ 库相关服务
+```
+
+#### 数据持久化策略（三层）
+
+1. **内存层**（应用级）：ObjectManager 在应用生命周期持久化
+   - 解决路由切换数据丢失问题
+2. **本地存储层**（localStorage）：自动保存（防抖 3秒）
+   - 解决浏览器刷新/关闭数据丢失问题
+   - 最小保存间隔 30秒（避免过于频繁）
+3. **云端存储层**（可选）：异步非阻塞上传
+   - 解决跨设备/协作问题
+   - 保存失败不影响本地保存
+
+#### 预期效果
+
+✅ **路由切换**：场景数据保留在内存，即时恢复，无延迟  
+✅ **浏览器刷新**：从 localStorage 加载最后保存的版本  
+✅ **自动保存**：用户操作 3 秒后自动保存，状态实时显示  
+✅ **架构合规**：Core 层在应用级别，符合分层架构原则
+
+**相关文档**: `doc/Architecture.md`, `doc/ArchitecturePrompt.md`
+
+---
+
 ### 1. 检查 Context Provider 重构完成度
 
 **状态**: ✅ 已完成检查（2025-11-12）
@@ -281,6 +383,7 @@
 **前置条件**: 依赖 PlacementService 完成
 
 **背景**: 测试型材放置时发现：
+
 - ✅ 预览功能正常（半透明立方体跟随鼠标）
 - ✅ 射线检测正常（工作平面交点计算正确）
 - ❌ 点击确认后对象无法创建，控制台报错：
@@ -323,12 +426,14 @@
 **里程碑**: 🎉 **首个物体成功放置到场景中**
 
 **后续任务**（P2 优先级，见任务 11-15）:
+
 - 实现真实的 `ProfileInstanceStrategy`（SVG 路径解析 + ExtrudeGeometry）
 - 实现 `FastenerInstanceStrategy` 和 `ConnectorInstanceStrategy`
 - 集成 three-bvh-csg 库处理布尔运算
 - 实现加工操作（切割、钻孔、铣槽）
 
 **相关文档**:
+
 - `doc/Architecture.md` - 3.4.1 ModelFactory 详解
 - `doc/DevelopLog.md` - 2025-11-14 工作记录
 
@@ -339,15 +444,18 @@
 **状态**: ✅ 已完成（2025-11-14）
 
 **背景**: 测试型材放置功能时发现：
+
 - 预览立方体随鼠标移动而视觉大小变化（透视效果）
 - 左键点击无法放置物体（地面检测失败）
 
 **根本原因**:
+
 - 当前实现使用固定的"地面碰撞"模式（y=0 平面）
 - 假设用户总是俯视场景，不适配侧视/仰视等角度
 - 不符合专业 CAD 软件（Inventor、SolidWorks）的交互习惯
 
 **解决方案**: 工作平面模式（Work Plane Mode）
+
 - 工作平面垂直于相机视线，位于相机前方固定距离
 - 物体沿屏幕平面移动，视觉大小基本保持一致
 - 适配任意相机角度
@@ -374,11 +482,13 @@
   - 在 `updatePointer()` 和 `confirmPlacement()` 中使用工作平面
 
 **验证结果**:
+
 - ✅ 预览网格在任意视角下保持稳定位置
 - ✅ 可以在侧视/仰视角度下正常放置
 - ✅ 符合专业 CAD 软件交互习惯
 
 **相关文档**:
+
 - `doc/DevelopLog.md` - 2025-11-14 工作平面模式重构详细说明
 - `doc/Architecture.md` - 6.1.1 PlacementService 交互式放置
 
@@ -421,40 +531,49 @@
 **描述**: 实现真实的型材截面拉伸逻辑，替换当前的 Stub 策略。
 
 **技术方案**:
+
 - SVG Path 解析：将 `crossSection.path` 转换为 Three.js Shape
 - 几何体生成：使用 `THREE.ExtrudeGeometry` 进行拉伸
 - 参数化尺寸：从 `userParams.length` 读取拉伸长度
 
 **核心实现**:
+
 ```typescript
 class ProfileInstanceStrategy implements InstanceStrategy {
-  createSceneObject(asset: ProfileAsset, options: SceneObjectCreateOptions): SceneObject {
+  createSceneObject(
+    asset: ProfileAsset,
+    options: SceneObjectCreateOptions
+  ): SceneObject {
     // 1. 解析 SVG Path
     const shape = this.parseSVGPath(asset.parameters.crossSection.path);
-    
+
     // 2. 创建拉伸几何体
-    const length = options.userParams?.length ?? asset.parameters.length.default;
+    const length =
+      options.userParams?.length ?? asset.parameters.length.default;
     const geometry = new THREE.ExtrudeGeometry(shape, {
       depth: length,
-      bevelEnabled: false
+      bevelEnabled: false,
     });
-    
+
     // 3. 创建材质和网格
     const material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
     const mesh = new THREE.Mesh(geometry, material);
-    
+
     // 4. 应用加工操作（如果有）
     if (options.machiningOps && options.machiningOps.length > 0) {
       this.applyMachiningOperations(mesh, options.machiningOps);
     }
-    
+
     // 5. 返回 SceneObject
-    return { /* ... */ };
+    return {
+      /* ... */
+    };
   }
 }
 ```
 
 **任务列表**:
+
 - [ ] 实现 SVG Path 解析器（支持 M, L, C, Q, A 命令）
 - [ ] 实现 ExtrudeGeometry 生成逻辑
 - [ ] 实现加工操作应用（布尔运算）
@@ -463,6 +582,7 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 - [ ] 测试各种型材截面
 
 **参考资料**:
+
 - [Three.js ExtrudeGeometry 文档](https://threejs.org/docs/#api/en/geometries/ExtrudeGeometry)
 - [SVG Path 规范](https://www.w3.org/TR/SVG/paths.html)
 - [three-bvh-csg GitHub](https://github.com/gkjohnson/three-bvh-csg)
@@ -476,11 +596,13 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 **描述**: 实现紧固件（螺栓、螺母）的参数化模型生成。
 
 **技术方案**:
+
 - 螺栓：圆柱体 + 六角头 + 螺纹（可选）
 - 螺母：六角柱 + 内螺纹（可选）
 - T型螺母：特殊形状的参数化生成
 
 **任务列表**:
+
 - [ ] 实现螺栓几何体生成
 - [ ] 实现螺母几何体生成
 - [ ] 实现 T 型螺母几何体生成
@@ -496,6 +618,7 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 **描述**: 实现连接件（角码、直角连接件等）的参数化模型生成。
 
 **任务列表**:
+
 - [ ] 定义连接件类型枚举
 - [ ] 实现各种连接件几何体生成
 - [ ] 参数化控制（尺寸、孔位等）
@@ -510,10 +633,12 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 **描述**: 重构 GeometryFactory 为实例方法，供策略使用。
 
 **当前问题**:
+
 - GeometryFactory 有静态方法
 - 策略无法方便地使用其功能
 
 **重构方案**:
+
 - 将 GeometryFactory 改为实例类
 - 策略通过构造函数注入 GeometryFactory
 - 提供通用的几何体生成方法（圆柱、六角柱、布尔运算等）
@@ -529,6 +654,7 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 **技术方案**: 使用 three-bvh-csg 库进行 CSG 运算
 
 **任务列表**:
+
 - [ ] 集成 three-bvh-csg 库
 - [ ] 实现打孔操作（减去圆柱体）
 - [ ] 实现切角操作（修改顶点位置）

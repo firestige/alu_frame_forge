@@ -2,9 +2,9 @@
 
 ## 文档信息
 
-- **版本**: 1.1.0
+- **版本**: 1.2.0
 - **创建日期**: 2025-11-12
-- **最后更新**: 2025-11-14
+- **最后更新**: 2025-11-15
 - **状态**: 当前版本
 
 ## 1. 项目概览
@@ -59,6 +59,12 @@
 ┌───────────────────────────┼─────────────────────────────────┐
 │              Core Layer (核心能力层)                          │
 │                                                              │
+│  core/CoreServiceProvider - 应用级服务容器                   │
+│  │ ├─ ObjectManager       - 场景对象管理（单例）            │
+│  │ ├─ AssetService        - 资产服务（单例）                │
+│  │ ├─ EventBus            - 事件总线（单例）                │
+│  │ └─ AutoSaveService     - 自动保存服务（单例）            │
+│                                                              │
 │  core/asset/           - 资产模板管理                        │
 │  │ ├─ AssetRegistry   - 资产注册表                          │
 │  │ └─ AssetService    - 资产业务服务                        │
@@ -75,7 +81,8 @@
 │  core/services/        - 核心服务                            │
 │  │ ├─ eventBus        - 事件总线（mitt）                    │
 │  │ ├─ storage         - 持久化                              │
-│  │ └─ queryService    - 数据查询                            │
+│  │ ├─ queryService    - 数据查询                            │
+│  │ └─ AutoSaveService - 自动保存服务                        │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -100,6 +107,54 @@
 
 ## 3. 核心模块
 
+### 3.0 CoreServiceProvider - 应用级服务容器 ⭐
+
+**职责**：提供应用级单例服务，确保核心服务在路由切换时保持状态。
+
+**核心问题**：
+
+- 在 2025-11-14 发现，路由切换（`/designer` ↔ `/library`）会导致场景对象丢失
+- 根本原因：ObjectManager 在组件层创建，随组件卸载而销毁
+- 违反架构原则：Core 层服务不应在 Features 层创建
+
+**解决方案**：
+
+- 在 `main.tsx` 中使用 `CoreServiceProvider` 包裹 `RouterProvider`
+- 使用 `useRef` 确保服务单例在应用生命周期内存在
+- 提供 `useCoreServices()` Hook 供 Pages/Features 层访问
+
+**核心服务**：
+
+```typescript
+interface CoreServices {
+  objectManager: ObjectManager; // 场景对象管理（持久化）
+  assetService: AssetService; // 资产服务（持久化）
+  eventBus: Emitter<Events>; // 事件总线（持久化）
+  autoSave: AutoSaveService; // 自动保存服务（持久化）
+}
+```
+
+**实现要点**：
+
+1. **单例模式**：`useRef` 存储服务实例，避免重复创建
+2. **动态导入**：使用动态 import 避免循环依赖（`designerProjectStore`）
+3. **闭包缓存**：缓存 `getProjectId` 函数，减少重复查询
+4. **生命周期管理**：`useEffect` 初始化 AutoSaveService，`dispose()` 清理资源
+
+**文件位置**：
+
+- `src/core/CoreServiceProvider.tsx` - Provider 组件和 Hook
+- `src/main.tsx` - 应用入口，包裹 RouterProvider
+
+**优势**：
+
+- ✅ 路由切换时数据不丢失（内存持久化）
+- ✅ 配合 AutoSaveService 实现 localStorage 持久化
+- ✅ 符合分层架构原则（Core 在 App 层初始化）
+- ✅ 简化 Pages 层逻辑，无需重复创建服务
+
+---
+
 ### 3.1 Asset 管理模块
 
 **职责**：管理素材模板（铝型材、紧固件、连接件等）的定义和注册。
@@ -118,15 +173,134 @@
 - 支持参数化定义
 - 分为内置素材和用户自定义素材
 
+### 3.1.1 AutoSaveService - 自动保存服务 ⭐
+
+**职责**：监听场景变化，自动将项目保存到 localStorage 和云端。
+
+**核心功能**：
+
+1. **变化监听**：订阅 ObjectManager 的 4 个事件
+   - `object:added` - 对象添加
+   - `object:removed` - 对象删除
+   - `object:updated` - 对象属性更新
+   - `object:transform-changed` - 对象变换（位置/旋转/缩放）
+
+2. **防抖策略**：
+   - 变化触发 → 标记脏数据 → 3 秒后保存
+   - 最小保存间隔 30 秒（避免频繁写入）
+   - 手动保存 `forceSave()` 绕过限制
+
+3. **三层持久化**：
+
+   ```
+   ┌─────────────────┐
+   │ Memory (内存)    │ ← ObjectManager（应用生命周期）
+   └────────┬────────┘
+            │ AutoSave (3s 防抖 + 30s 最小间隔)
+   ┌────────▼────────┐
+   │ localStorage    │ ← 浏览器刷新后恢复
+   └────────┬────────┘
+            │ saveProjectToNetwork (异步)
+   ┌────────▼────────┐
+   │ 云端存储         │ ← 跨设备同步（可选）
+   └─────────────────┘
+   ```
+
+4. **状态事件**：
+   - `autosave:pending` - 待保存（3s 倒计时）
+   - `autosave:saving` - 保存中
+   - `autosave:saved` - 保存成功（附带时间戳）
+   - `autosave:error` - 保存失败（附带错误信息）
+
+**实现细节**：
+
+```typescript
+class AutoSaveService {
+  private isDirty = false;
+  private saveTimer: number | null = null;
+  private lastSaveTime: Date | null = null;
+
+  private markDirty = () => {
+    this.isDirty = true;
+    this.eventEmitter.emit('autosave:pending', undefined);
+
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => {
+      this.performSave();
+    }, this.saveDelay); // 3s
+  };
+
+  private async performSave() {
+    // 检查最小间隔（30s）
+    if (this.lastSaveTime) {
+      const elapsed = Date.now() - this.lastSaveTime.getTime();
+      if (elapsed < this.minSaveInterval) {
+        // 重新安排保存
+        this.saveTimer = setTimeout(() => this.performSave(), remaining);
+        return;
+      }
+    }
+
+    // 1. localStorage (同步)
+    saveProjectToLocalStorage(projectId, sceneData);
+    this.lastSaveTime = new Date();
+    this.eventEmitter.emit('autosave:saved', { timestamp: this.lastSaveTime });
+
+    // 2. 云端 (异步，不阻塞)
+    saveProjectToNetwork(projectId, sceneData).catch(err => {
+      this.eventEmitter.emit('autosave:error', { error: err });
+    });
+  }
+
+  public forceSave(): void {
+    this.lastSaveTime = null; // 重置，绕过最小间隔
+    this.performSave();
+  }
+}
+```
+
+**UI 集成**：
+
+- `AutoSaveIndicator` 组件订阅状态事件
+- 显示保存状态：💾 未保存、⏳ 待保存/保存中、✓ 已保存、✗ 保存失败
+- 显示最后保存时间："2秒前"、"5分钟前"
+- 提供"立即保存"按钮，调用 `forceSave()`
+
+**文件位置**：
+
+- `src/core/services/AutoSaveService.ts` - 服务实现
+- `src/features/designer/ui/AutoSaveIndicator.tsx` - UI 指示器
+- `src/layouts/AppBar.tsx` - 集成到应用栏（仅设计器页面显示）
+
+**优势**：
+
+- ✅ 用户无需手动保存，自动保护工作成果
+- ✅ 防抖 + 最小间隔，避免性能问题
+- ✅ localStorage 快速恢复，云端异步同步
+- ✅ 状态事件驱动，UI 解耦
+
+---
+
 ### 3.2 Designer 模块
 
 **职责**：提供 3D 设计器的核心功能，包括场景渲染、对象管理、交互操作。
 
 **详细设计**：参见 [DesignerArchitecture.md](./DesignerArchitecture.md)
 
+**架构重构（2025-11-14/15）**：
+
+- **旧架构问题**：
+  - ObjectManager 在 `useBusinessServices` Hook 中创建（Features 层）
+  - 路由切换导致组件卸载，ObjectManager 被销毁
+  - 场景数据丢失，用户体验极差
+- **新架构方案**：
+  - **Core 服务（应用级）**：ObjectManager, AssetService, AutoSaveService - 从 `CoreServiceProvider` 获取
+  - **Features 服务（页面级）**：CreationService, EditorService, PlacementService - 在 DesignerPage 中创建
+  - 服务分离原则：持久化数据用 Core，临时状态用 Features
+
 **关键组件**：
 
-- `ObjectManager`: 场景对象生命周期管理
+- `ObjectManager`: 场景对象生命周期管理（现由 CoreServiceProvider 提供）
 - `RenderSyncService`: ObjectManager ↔ Renderer 的桥梁
 - `ModelCreationService`: 模型创建服务
 - `ModelInteractionService`: 交互服务（选择、高亮、上下文菜单）
@@ -216,12 +390,12 @@ InstanceStrategy {
 
 **当前状态** (2025-11-14)：
 
-| 策略类型                  | 文件                          | 状态      | 说明                         |
-| ------------------------- | ----------------------------- | --------- | ---------------------------- |
-| StubProfileStrategy       | ✅ 已实现                     | ✅ 已注册 | 临时方案：返回简单立方体     |
-| ProfileInstanceStrategy   | ✅ 已定义                     | ⚠️ 未实现 | 需要实现型材截面拉伸逻辑     |
-| FastenerInstanceStrategy  | ✅ 已定义                     | ⚠️ 未实现 | 需要实现紧固件参数化模型     |
-| ConnectorInstanceStrategy | ✅ 已定义                     | ⚠️ 未实现 | 需要实现连接件参数化模型     |
+| 策略类型                  | 文件      | 状态      | 说明                     |
+| ------------------------- | --------- | --------- | ------------------------ |
+| StubProfileStrategy       | ✅ 已实现 | ✅ 已注册 | 临时方案：返回简单立方体 |
+| ProfileInstanceStrategy   | ✅ 已定义 | ⚠️ 未实现 | 需要实现型材截面拉伸逻辑 |
+| FastenerInstanceStrategy  | ✅ 已定义 | ⚠️ 未实现 | 需要实现紧固件参数化模型 |
+| ConnectorInstanceStrategy | ✅ 已定义 | ⚠️ 未实现 | 需要实现连接件参数化模型 |
 
 **核心待实现功能**：
 
@@ -482,6 +656,11 @@ UI 层更新
 - ✅ 工作平面模式重构（2025-11-14 上午）
 - ✅ ModelFactory Stub 策略实现（2025-11-14 下午）
 - ✅ 首个物体成功放置验证（2025-11-14）
+- ✅ 路由切换数据保持 + 自动保存功能（2025-11-14/15）
+  - CoreServiceProvider 架构重构（应用级服务容器）
+  - AutoSaveService 实现（3s 防抖 + 30s 最小间隔 + 三层持久化）
+  - AutoSaveIndicator UI 组件（状态显示 + 手动保存）
+  - localStorage 持久化（浏览器刷新后恢复场景）
 
 ### 6.2 未来功能
 

@@ -1,9 +1,9 @@
 # Architecture Context - 项目架构快速上下文
 
 > **文档用途**：本文档用于 AI 助手快速建立项目上下文，理解架构设计思想和技术决策。
-> 
-> **最后更新**：2025-11-13
-> 
+>
+> **最后更新**：2025-11-15
+>
 > **阅读时长**：5-8分钟
 
 ---
@@ -15,12 +15,14 @@
 **项目定位**：类 CAD 的 Web 3D 设计工具，用户可使用预置铝型材、紧固件、连接件搭建框架结构
 
 **核心价值主张**：
+
 1. **所见即所得设计** - 直观的 3D 可视化设计体验
 2. **智能计算分析** - 提供 FEA 静力分析和干涉检测增值服务
 3. **用户自定义** - 支持导入自定义型材截面
 4. **参数化建模** - 型材截面拉伸 + 紧固件/连接件参数化变体
 
 **技术栈**：
+
 - 前端：React 18 + TypeScript + Vite
 - 3D渲染：Three.js（带抽象层）
 - 状态管理：Zustand + React Context
@@ -34,13 +36,70 @@
 ### 核心设计原则（按重要性排序）
 
 1. **分层解耦**：Features → Core 单向依赖，Core 层不依赖 Features
-2. **事件驱动**：通过 Event Bus 实现模块间通信，避免直接依赖
-3. **职责分离**：Asset(模板) vs SceneObject(实例)，ObjectManager vs Renderer
-4. **策略模式**：支持无限扩展新素材类型，无需修改工厂代码
-5. **渲染器抽象**：业务逻辑不直接依赖 Three.js，保留引擎替换能力
-6. **Context Provider 模式**：业务状态通过 Context，UI 状态使用 Props
+2. **应用级服务容器**：Core 服务在 App 层初始化，路由切换时保持状态
+3. **事件驱动**：通过 Event Bus 实现模块间通信，避免直接依赖
+4. **职责分离**：Asset(模板) vs SceneObject(实例)，ObjectManager vs Renderer
+5. **策略模式**：支持无限扩展新素材类型，无需修改工厂代码
+6. **渲染器抽象**：业务逻辑不直接依赖 Three.js，保留引擎替换能力
+7. **Context Provider 模式**：业务状态通过 Context，UI 状态使用 Props
+8. **数据持久化**：三层策略（内存 → localStorage → 云端）
 
 ### 架构创新点
+
+#### 0. CoreServiceProvider - 应用级服务容器（2025-11-15 新增）
+
+**问题**：路由切换（`/designer` ↔ `/library`）导致场景对象丢失
+
+**根因**：ObjectManager 在组件层（Features 层）创建，随组件卸载而销毁
+
+**解决方案**：应用级服务容器
+
+```typescript
+// src/main.tsx
+<CoreServiceProvider>
+  <RouterProvider />
+</CoreServiceProvider>
+
+// src/core/CoreServiceProvider.tsx
+interface CoreServices {
+  objectManager: ObjectManager;  // 单例，路由切换时保持
+  assetService: AssetService;    // 单例，路由切换时保持
+  eventBus: Emitter<Events>;     // 单例，路由切换时保持
+  autoSave: AutoSaveService;     // 单例，自动保存场景
+}
+
+const CoreServiceProvider: React.FC<{ children }> = ({ children }) => {
+  const servicesRef = useRef<CoreServices | null>(null);
+
+  if (!servicesRef.current) {
+    // 初始化单例服务
+    const objectManager = new ObjectManager();
+    const assetService = new AssetService();
+    servicesRef.current = { objectManager, assetService, ... };
+  }
+
+  useEffect(() => {
+    // 动态导入避免循环依赖
+    import('@/features/designer/stores/designerProjectStore').then((module) => {
+      const autoSave = new AutoSaveService(
+        servicesRef.current!.objectManager,
+        () => module.designerProjectStore.getState().projectId
+      );
+      servicesRef.current!.autoSave = autoSave;
+    });
+  }, []);
+
+  return <Context.Provider value={servicesRef.current}>{children}</Context.Provider>;
+};
+```
+
+**优势**：
+
+- ✅ 路由切换时数据保持（内存持久化）
+- ✅ 符合分层架构原则（Core 在 App 层初始化）
+- ✅ 配合 AutoSaveService 实现 localStorage 持久化
+
+---
 
 #### 1. 双模型系统（核心创新）
 
@@ -69,12 +128,12 @@ SceneObject {
 
 **对比**：
 
-| 方面 | 工厂模式 (if/switch) | 策略模式 (策略注册) |
-|------|---------------------|---------------------|
-| 扩展性 | ❌ 需修改工厂代码 | ✅ 只需添加新策略类 |
-| 单一职责 | ❌ 工厂类臃肿 | ✅ 每个策略独立 |
-| 测试性 | 🟡 需测试整个工厂 | ✅ 策略可独立测试 |
-| 运行时扩展 | ❌ 不支持 | ✅ 可动态注册策略 |
+| 方面       | 工厂模式 (if/switch) | 策略模式 (策略注册) |
+| ---------- | -------------------- | ------------------- |
+| 扩展性     | ❌ 需修改工厂代码    | ✅ 只需添加新策略类 |
+| 单一职责   | ❌ 工厂类臃肿        | ✅ 每个策略独立     |
+| 测试性     | 🟡 需测试整个工厂    | ✅ 策略可独立测试   |
+| 运行时扩展 | ❌ 不支持            | ✅ 可动态注册策略   |
 
 **实现**：`ModelFactory` 维护策略注册表，根据 Asset 类型分发到对应策略
 
@@ -89,17 +148,17 @@ interface IRenderer {
   // 生命周期
   initialize(container: HTMLElement): void;
   dispose(): void;
-  
+
   // 场景管理
   setBackgroundColor(color: string): void;
-  
+
   // 相机控制
   setCameraPosition(x, y, z): void;
   resetCamera(): void;
-  
+
   // 射线检测
   raycastFromScreen(x, y): RaycastHit[];
-  
+
   // 原生对象访问（桥接）
   getNativeScene(): any;
   getNativeCamera(): any;
@@ -162,11 +221,13 @@ RenderSyncService (监听者)
 ### 依赖规则（严格遵守）
 
 ✅ **允许的依赖**：
+
 - Pages → Features
 - Features → Core
 - Core 内部模块互相依赖（需控制循环依赖）
 
 ❌ **禁止的依赖**：
+
 - Core → Features
 - Core → Pages
 - components/ → features/（通用组件不能依赖业务功能）
@@ -177,9 +238,9 @@ RenderSyncService (监听者)
 
 ### 1. Asset vs SceneObject
 
-| 概念 | 职责 | 存储位置 | 示例 |
-|------|------|---------|------|
-| **Asset** | 素材模板定义，不包含实例数据 | `AssetRegistry` | "20x20 型材的截面定义" |
+| 概念            | 职责                                               | 存储位置        | 示例                                     |
+| --------------- | -------------------------------------------------- | --------------- | ---------------------------------------- |
+| **Asset**       | 素材模板定义，不包含实例数据                       | `AssetRegistry` | "20x20 型材的截面定义"                   |
 | **SceneObject** | Asset 的实例化，包含 transform/params/machiningOps | `ObjectManager` | "长度1000mm，位置(0,0,0)的20x20型材实例" |
 
 **类比**：Asset = 类定义，SceneObject = 类实例
@@ -196,23 +257,23 @@ Asset (基类)
 
 ### 3. 事件类型分类
 
-| 事件前缀 | 方向 | 用途 | 示例 |
-|---------|------|------|------|
-| `command:*` | UI → Service | 用户操作命令 | `command:create:cube` |
-| `object:*` | ObjectManager → Service | 对象生命周期事件 | `object:added` |
-| `state:*` | Service → UI | 状态通知 | `state:model:created` |
-| `ui:*` | Service → UI | UI 控制指令 | `ui:selection:clear` |
+| 事件前缀    | 方向                    | 用途             | 示例                  |
+| ----------- | ----------------------- | ---------------- | --------------------- |
+| `command:*` | UI → Service            | 用户操作命令     | `command:create:cube` |
+| `object:*`  | ObjectManager → Service | 对象生命周期事件 | `object:added`        |
+| `state:*`   | Service → UI            | 状态通知         | `state:model:created` |
+| `ui:*`      | Service → UI            | UI 控制指令      | `ui:selection:clear`  |
 
 ### 4. 加工操作（MachiningOperation）
 
 **仅适用于型材（ProfileAsset）**
 
-| 类型 | 说明 | 影响 |
-|------|------|------|
-| `HOLE` | 打孔 | FEA 强度降低、装配约束点 |
-| `CHAMFER` | 切角 | 应力集中优化 |
-| `THREAD` | 攻丝 | 紧固件连接 |
-| `NOTCH` | 槽口 | 截面强度降低 |
+| 类型      | 说明 | 影响                     |
+| --------- | ---- | ------------------------ |
+| `HOLE`    | 打孔 | FEA 强度降低、装配约束点 |
+| `CHAMFER` | 切角 | 应力集中优化             |
+| `THREAD`  | 攻丝 | 紧固件连接               |
+| `NOTCH`   | 槽口 | 截面强度降低             |
 
 ---
 
@@ -223,13 +284,13 @@ Asset (基类)
 ```
 1. 用户从素材库选择型材
    sendCommand('command:placement:start', { assetId })
-   
+
 2. DesignerPage 监听命令
    PlacementController.start() → 发布 state:placement:started
-   
+
 3. UI 层进入放置模式
    usePlacementState 监听状态事件 → 启用输入监听
-   
+
 4. 用户移动鼠标
    usePlacementInput Hook 监听 mousemove
    ↓
@@ -241,7 +302,7 @@ Asset (基类)
    PlacementController 计算 NDC → RaycasterService
    ↓
    PreviewService 更新预览位置
-   
+
 5. 用户确认位置（点击鼠标）
    sendCommand('command:placement:confirm', { userParams })
    ↓
@@ -252,15 +313,16 @@ Asset (基类)
    │   └─ 创建 compute.geometry（完整描述）
    ├─ ObjectManager.add(sceneObject) → emit('object:added')
    └─ 发布 state:placement:completed
-   
+
 6. 同步到渲染器
    RenderSyncService 监听 → Renderer.addObject(visual.mesh)
-   
+
 7. 更新 UI
    designerObjectStore 更新 → useDesignerObjects() → UI 重渲染
 ```
 
 **架构要点（方案 C）**：
+
 - UI 层发送屏幕坐标 + viewport 信息（不传递 DOM ref）
 - Core 层计算 NDC 并执行 raycasting
 - 通过状态事件实现 UI 响应（避免回调地狱）
@@ -270,10 +332,10 @@ Asset (基类)
 ```
 1. 用户点击保存
    sendCommand('command:project:save')
-   
+
 2. 序列化场景
    ProjectSerializer.serialize(sceneObjects, metadata)
-   
+
 3. 生成轻量 JSON（工程文件格式）
    {
      objects: [
@@ -286,7 +348,7 @@ Asset (基类)
        }
      ]
    }
-   
+
 4. 保存到本地/云端
    localStorage.setItem('project', json)
 ```
@@ -296,7 +358,7 @@ Asset (基类)
 ```
 1. 用户点击导出
    sendCommand('command:project:export:cad')
-   
+
 2. 生成完整 JSON（CAD 导出格式）
    {
      objects: [
@@ -314,12 +376,13 @@ Asset (基类)
      ],
      connections: [...]
    }
-   
+
 3. 发送到服务端进行 FEA 分析
    POST /api/fea/analyze { cadJson }
 ```
 
 **PlacementService 架构要点（方案 C）**：
+
 - UI 层发送屏幕坐标 + viewport 信息（不传递 DOM ref）
 - Core 层计算 NDC 并执行 raycasting
 - 通过状态事件实现 UI 响应（避免回调地狱）
@@ -333,6 +396,7 @@ Asset (基类)
 ### Context Provider 模式
 
 **设计原则**：
+
 - **业务状态** → Context 传递（服务实例、全局配置）
 - **UI 状态** → Props 传递（选中工具、面板展开状态）
 
@@ -352,6 +416,7 @@ interface DesignerContextValue {
 ```
 
 **使用 Hooks**：
+
 - `useDesignerContext()` - 访问服务实例
 - `useDesignerObjects()` - 订阅对象列表（Zustand Store）
 - `useDesignerProject()` - 订阅项目信息
@@ -461,12 +526,14 @@ src/
 **背景**：需要支持多种 Asset 类型的实例化（型材、紧固件、连接件、配件）
 
 **考虑的方案**：
+
 - 方案 A：工厂模式（if/switch）
 - 方案 B：策略模式（策略注册）
 
 **决策**：选择方案 B
 
 **理由**：
+
 1. 开闭原则：新增素材类型无需修改 ModelFactory
 2. 单一职责：每个策略类专注一种类型
 3. 可测试性：策略可独立单元测试
@@ -477,12 +544,14 @@ src/
 **背景**：需要同时满足渲染性能和 FEA 计算精度
 
 **问题**：
+
 - 渲染需要简化几何（低多边形、LOD）
 - FEA 需要完整描述（截面参数、加工操作、材料属性）
 
 **决策**：每个 SceneObject 包含 visual 和 compute 两套模型
 
 **优势**：
+
 1. 渲染性能：支持大规模场景流畅渲染
 2. 计算精度：保证 FEA 分析准确性
 3. 灵活切换：可根据需要选择性更新
@@ -492,25 +561,28 @@ src/
 **背景**：ObjectManager 直接操作 Three.js 场景导致职责混乱
 
 **问题**：
+
 - ObjectManager 应专注业务逻辑（参数化、约束、碰撞检测）
 - 渲染细节（材质、光照、LOD）不应污染业务代码
 
 **决策**：引入 RenderSyncService 作为桥梁
 
 **实现**：
+
 ```typescript
 // ObjectManager 发布事件
 objectManager.addObject(sceneObject);
 emit('object:added', sceneObject);
 
 // RenderSyncService 监听事件
-on('object:added', (sceneObject) => {
+on('object:added', sceneObject => {
   const renderHandle = renderer.addObject(sceneObject.visual.mesh);
   this.syncMap.set(sceneObject.id, renderHandle);
 });
 ```
 
 **优势**：
+
 1. 职责清晰：ObjectManager 不依赖 Renderer
 2. 易于测试：可 mock RenderSyncService
 3. 灵活替换：可替换渲染实现
@@ -520,17 +592,20 @@ on('object:added', (sceneObject) => {
 **背景**：需要支持工程文件保存和 CAD 导出两种场景
 
 **需求差异**：
+
 - 工程文件：轻量、人类可读、快速加载
 - CAD 导出：完整、自包含、适合 FEA 引擎
 
 **决策**：设计两种格式
 
 **工程文件格式**（轻量）：
+
 - 只存 assetId + userParams + transform + machiningOps
 - 依赖 AssetRegistry（Asset 必须存在）
 - 体积小（~10KB）
 
 **CAD 导出格式**（完整）：
+
 - 包含完整几何描述 + 材料属性 + 连接关系
 - 自包含，不依赖 AssetRegistry
 - 体积大（~500KB）
@@ -569,6 +644,7 @@ on('object:added', (sceneObject) => {
 ### 待完成功能 📋
 
 **P0 优先级**（必须完成）：
+
 1. ⏳ 检查 Context Provider 重构完成度
    - 确认所有 UI 组件使用 `useDesignerContext()`
    - 验证无 Props Drilling
@@ -613,6 +689,7 @@ on('object:added', (sceneObject) => {
 ### Q1: 为什么不直接使用 Three.js，而要抽象 IRenderer？
 
 **A**: 主要有三个原因：
+
 1. **解耦业务逻辑**：业务代码不应依赖具体渲染库
 2. **易于替换**：未来可能替换为 Babylon.js、PlayCanvas 等
 3. **简化接口**：只暴露必要功能，降低学习成本
@@ -620,6 +697,7 @@ on('object:added', (sceneObject) => {
 ### Q2: 双模型系统会不会增加内存开销？
 
 **A**: 内存开销可控：
+
 - `visual.mesh` 是简化模型（顶点少）
 - `compute.geometry` 只是参数描述（非 Mesh 对象），内存占用极小
 - 实测：1000个对象约增加 50MB 内存
@@ -627,19 +705,38 @@ on('object:added', (sceneObject) => {
 ### Q3: 为什么型材要参数化，而紧固件用变体？
 
 **A**: 取决于几何特性：
+
 - **型材**：截面固定，长度连续变化 → 拉伸操作天然支持参数化
 - **紧固件**：规格离散（M5/M6/M8），但长度可调 → 基础模型 + 长度参数
 
 ### Q4: Context Provider 和 Zustand 如何分工？
 
 **A**:
-- **Context Provider**：传递服务实例（ObjectManager、AssetService）和配置
-- **Zustand Store**：管理响应式数据（对象列表、项目信息）
-- **原则**：Context 传递依赖，Store 管理状态
 
-### Q5: 如何扩展新的 Asset 类型？
+- **CoreServiceProvider (App 层)**：提供应用级单例服务（ObjectManager, AssetService, AutoSaveService）
+- **Context Provider (Features 层)**：传递页面级服务实例和配置
+- **Zustand Store**：管理响应式 UI 状态（对象列表、项目信息、面板状态）
+- **原则**：
+  - Core 服务 → CoreServiceProvider（路由切换时保持）
+  - Features 服务 → Context Provider（路由切换时销毁重建）
+  - UI 状态 → Zustand Store（响应式更新）
+
+### Q5: AutoSaveService 的保存策略是什么？
+
+**A**: 三层持久化 + 防抖优化
+
+- **内存层**：ObjectManager（应用生命周期内存在）
+- **localStorage 层**：3 秒防抖 + 30 秒最小间隔，浏览器刷新后恢复
+- **云端层**：异步保存，不阻塞用户操作
+- **防抖逻辑**：
+  - 变化触发 → 标记脏数据 → 等待 3 秒
+  - 重复变化 → 重置 3 秒倒计时
+  - 最小间隔保护 → 避免频繁写入
+
+### Q6: 如何扩展新的 Asset 类型？
 
 **A**: 三步走：
+
 1. 定义 Asset 类型（如 `CustomAsset extends Asset`）
 2. 创建实例化策略（如 `CustomInstanceStrategy implements InstanceStrategy`）
 3. 注册策略：`modelFactory.registerStrategy(AssetType.CUSTOM, new CustomInstanceStrategy())`
@@ -682,14 +779,14 @@ on('object:added', (sceneObject) => {
 
 ## 相关文档索引
 
-| 文档 | 用途 | 阅读优先级 |
-|------|------|-----------|
-| [Architecture.md](./Architecture.md) | 架构总览 | ⭐⭐⭐⭐⭐ |
-| [AssetManagementArchitecture.md](./AssetManagementArchitecture.md) | Asset 系统详细设计 | ⭐⭐⭐⭐ |
-| [DesignerArchitecture.md](./DesignerArchitecture.md) | Designer 三层架构 | ⭐⭐⭐⭐ |
-| [CommandReference.md](./api/CommandReference.md) | 命令系统 API | ⭐⭐⭐ |
-| [Model-vs-SceneObject-Analysis.md](./Model-vs-SceneObject-Analysis.md) | 架构演进分析 | ⭐⭐ |
-| [DevelopLog.md](./DevelopLog.md) | 历史记录 | ⭐ |
+| 文档                                                                   | 用途               | 阅读优先级 |
+| ---------------------------------------------------------------------- | ------------------ | ---------- |
+| [Architecture.md](./Architecture.md)                                   | 架构总览           | ⭐⭐⭐⭐⭐ |
+| [AssetManagementArchitecture.md](./AssetManagementArchitecture.md)     | Asset 系统详细设计 | ⭐⭐⭐⭐   |
+| [DesignerArchitecture.md](./DesignerArchitecture.md)                   | Designer 三层架构  | ⭐⭐⭐⭐   |
+| [CommandReference.md](./api/CommandReference.md)                       | 命令系统 API       | ⭐⭐⭐     |
+| [Model-vs-SceneObject-Analysis.md](./Model-vs-SceneObject-Analysis.md) | 架构演进分析       | ⭐⭐       |
+| [DevelopLog.md](./DevelopLog.md)                                       | 历史记录           | ⭐         |
 
 ---
 

@@ -1,5 +1,128 @@
 # 开发日志
 
+## 2025-11-15
+
+### 架构重构：CoreServiceProvider + AutoSaveService
+
+**里程碑**：✅ **路由切换数据保持 + 自动保存功能实现**
+
+**问题发现**：
+
+- 用户反馈：从设计器切换到型材库再返回时，所有场景对象消失
+- 根本原因：`ObjectManager` 在 `useBusinessServices` Hook 中创建（Features 层）
+- 架构违反：Core 层服务不应在 Features 层创建，随组件卸载而销毁
+- 后果：路由切换 → 组件卸载 → ObjectManager 销毁 → 场景数据丢失
+
+**解决方案**：应用级服务容器 + 自动保存
+
+**阶段一：CoreServiceProvider 实现**
+
+1. **创建 `src/core/CoreServiceProvider.tsx`**（130 行）
+   - 定义 `CoreServices` 接口：`objectManager`, `assetService`, `eventBus`, `autoSave`
+   - 使用 `useRef` 实现单例模式，确保应用生命周期内只创建一次
+   - 提供 `useCoreServices()` Hook 供 Pages/Features 层访问
+   - 错误处理：Context 外使用抛出友好错误信息
+
+2. **集成到 `src/main.tsx`**
+   - 用 `<CoreServiceProvider>` 包裹 `<RouterProvider>`
+   - 确保核心服务在路由层之上初始化
+
+**阶段二：AutoSaveService 实现**
+
+1. **创建 `src/core/services/AutoSaveService.ts`**（360 行）
+   - **监听机制**：订阅 ObjectManager 的 4 个事件
+     - `object:added`, `object:removed`, `object:updated`, `object:transform-changed`
+   - **防抖策略**：
+     - 变化触发 → 标记脏数据 → 3 秒后保存
+     - 最小保存间隔 30 秒（避免频繁写入）
+     - 重复变化会重置 3 秒倒计时
+   - **三层持久化**：
+     - 内存：ObjectManager（应用生命周期）
+     - localStorage：`saveProjectToLocalStorage()`（浏览器刷新后恢复）
+     - 云端：`saveProjectToNetwork()`（异步，不阻塞）
+   - **状态事件**：`autosave:pending/saving/saved/error`
+   - **手动保存**：`forceSave()` 方法，绕过防抖和最小间隔
+
+2. **循环依赖解决**
+   - 问题：CoreServiceProvider 需要 `designerProjectStore` 获取 projectId
+   - 方案：动态 import + 闭包缓存
+
+   ```typescript
+   useEffect(() => {
+     let cachedGetProjectId: (() => string | null) | null = null;
+
+     import('@/features/designer/stores/designerProjectStore').then(module => {
+       cachedGetProjectId = () =>
+         module.designerProjectStore.getState().projectId;
+       // 初始化 AutoSaveService
+     });
+   }, []);
+   ```
+
+3. **类型修正**
+   - `setTimeout` 返回 `number` 而非 `NodeJS.Timeout`（跨平台兼容）
+   - `exportScene()` 需要 `metadata` 参数
+
+**阶段三：DesignerPage 重构**
+
+1. **服务拆分**
+   - **Core 服务（应用级）**：从 `useCoreServices()` 获取
+     - `objectManager`, `assetService`, `autoSave` - 路由切换时保持
+   - **Features 服务（页面级）**：在 DesignerPage 中创建
+     - `creation`, `editor`, `placement`, `renderSync` - 路由切换时销毁重建
+
+2. **关键修改**
+   - 移除 `useBusinessServices` 依赖
+   - 更新项目加载：`coreServices.objectManager.importScene()`
+   - 更新事件监听器：区分 `coreServices` 和 `featureServices`
+   - 更新渲染逻辑：改用 `featureServices.creation` 判断就绪状态
+   - 删除 `src/features/designer/hooks/useBusinessServices.ts` 文件
+
+**阶段四：AutoSaveIndicator UI**
+
+1. **创建 `src/features/designer/ui/AutoSaveIndicator.tsx`**（150 行）
+   - 订阅 AutoSaveService 的状态事件
+   - 显示保存状态：
+     - 💾 未保存（灰色）
+     - ⏳ 待保存/保存中（黄色/蓝色）
+     - ✓ 已保存（绿色）
+     - ✗ 保存失败（红色）
+   - 显示最后保存时间："2秒前"、"5分钟前"
+   - 提供"立即保存"按钮，调用 `autoSave.forceSave()`
+
+2. **集成到 `src/layouts/AppBar.tsx`**
+   - 仅在设计器页面（`/designer`）显示
+   - 放置在右侧状态栏区域
+
+**技术细节**：
+
+- 使用 emoji 图标（💾⏳✓✗）避免引入 MUI icons 依赖
+- 原生 `<button>` 替代 `IconButton` 组件
+- Tailwind CSS 实现深色主题样式
+
+**测试验证**：
+
+- ✅ 路由切换（`/designer` ↔ `/library`）后场景对象保持
+- ✅ 添加/删除对象后 3 秒自动保存
+- ✅ 浏览器刷新后从 localStorage 恢复场景
+- ✅ AutoSaveIndicator 正确显示保存状态
+- ✅ 手动保存按钮立即触发保存
+
+**架构优势**：
+
+- ✅ 符合分层架构原则：Core 服务在 App 层初始化
+- ✅ 数据持久化：内存 → localStorage → 云端（三层保护）
+- ✅ 用户体验：自动保存，无需手动操作
+- ✅ 可扩展：事件驱动，UI 与业务逻辑解耦
+
+**文档更新**：
+
+- ✅ `TODO.md` - 记录 Task #18（5 步实施计划）
+- ✅ `doc/Architecture.md` - 添加 CoreServiceProvider 和 AutoSaveService 章节
+- ⏳ `doc/ArchitecturePrompt.md` - 待更新
+
+---
+
 ## 2025-11-14
 
 ### Stub 策略实现与放置功能验证（下午）
