@@ -1,6 +1,8 @@
 # 铝型材框架设计器 - 待办事项
 
-**最后更新**: 2025-11-15
+**最后更新**: 2025-11-17
+
+> **说明**：已完成任务（#1-10）的详细历史记录请参考 [开发日志](./doc/DevelopLog.md)
 
 ---
 
@@ -12,432 +14,7 @@ _当前无 P0 任务_
 
 ## P1 - 高优先级（本周完成）
 
-当前聚焦任务：测试体系与 3D 交互基础能力（详见任务 10、19-22）。
-
----
-
-### 1. 检查 Context Provider 重构完成度
-
-**状态**: ✅ 已完成检查（2025-11-12）
-
-**描述**: 验证 Context Provider 重构是否彻底完成，确保内部状态使用 Props，业务状态通过 Context 传递。
-
-**检查项**:
-
-- [x] 检查所有 UI 组件是否正确使用 `useDesignerContext()` 访问服务
-- [x] 检查是否还有 Props Drilling 现象（多层传递 props）
-- [x] 验证 UI 状态是否使用 `usePersistentState()` 持久化
-- [x] 验证业务状态是否通过 Context 传递
-- [x] 如发现未完成的部分，继续重构
-
-**检查结果**: ✅ **通过 - 重构已完整且正确实施**
-
-#### 架构符合性验证
-
-| 检查项                | 状态 | 说明                                            |
-| --------------------- | ---- | ----------------------------------------------- |
-| Context Provider 实现 | ✅   | DesignerContext 正确提供 services               |
-| Hook 抽象             | ✅   | useDesignerContext, useDesignerObjects 正确实现 |
-| Props Drilling        | ✅   | 无 services 通过 Props 传递                     |
-| UI 状态持久化         | ✅   | usePersistentState 正确使用                     |
-| 业务状态管理          | ✅   | 通过 Context + Zustand                          |
-| 组件纯度              | ✅   | 展示组件无直接 service 依赖                     |
-
-#### 代码质量亮点
-
-1. **解耦良好**: ControlPanel 仅使用 event bus，无 Context 依赖
-2. **Hook 封装**: useDesignerObjects 封装 Zustand store 访问
-3. **Props 语义化**: 回调命名清晰（onSelectObject, onUpdateProperty）
-4. **类型安全**: 所有 Props 接口定义完整
-
-**相关文档**: `doc/DesignerArchitecture.md`
-
----
-
-### 2. 检查并清理 Model → SceneObject 遗留代码
-
-**状态**: ✅ 已完成检查（2025-11-12）
-
-**描述**: 检查代码库中是否存在 Model 相关的遗留代码和 deprecated 标记。
-
-**检查结果**:
-
-#### ✅ 已完成迁移的部分
-
-- ✅ **类型定义**: 无 `Model<TMetadata>` 类型引用
-- ✅ **@deprecated 标记**: 所有 deprecated 文件已在任务 5 中删除
-- ✅ **core/object/ 模块**: 完全使用 SceneObject，无 Model 残留
-
-#### ⚠️ 发现的命名约定问题（非遗留代码）
-
-以下使用了 "Model" 命名，但都是**新架构的组件**，不是旧 Model 的遗留代码：
-
-1. **ModelFactory** (`src/core/object/ModelFactory.ts`)
-   - 用途：SceneObject 实例化工厂（策略模式）
-   - 状态：✅ 正常使用，功能正确
-   - 建议：可考虑重命名为 `SceneObjectFactory`（非强制）
-
-2. **ModelCreationService** (`src/features/designer/services/ModelCreationService.ts`)
-   - 用途：业务层创建服务
-   - 状态：✅ 正常使用，功能正确
-   - 建议：可考虑重命名为 `ObjectCreationService`（非强制）
-
-3. **ModelEditorService** (`src/features/designer/services/ModelEditorService.ts`)
-   - 用途：业务层编辑服务
-   - 状态：✅ 正常使用，功能正确
-   - 建议：可考虑重命名为 `ObjectEditorService`（非强制）
-
-4. **命令事件命名** (`src/core/services/eventBus.ts`)
-   - `command:model:delete`, `command:model:update` 等
-   - 状态：✅ 正常使用，功能正确
-   - 建议：可考虑重命名为 `command:object:*`（非强制）
-
-5. **VisualModel 和 ComputeModel** (`src/core/object/types/scene-object.ts`)
-   - 用途：SceneObject 的双模型系统类型
-   - 状态：✅ 正常使用，符合设计
-   - 建议：无需修改（"Model" 在这里是 "模型" 的通用含义）
-
-#### 📝 文档状态
-
-- `doc/Model-vs-SceneObject-Analysis.md`: 保留作为架构演进历史文档
-- `doc/ArchitecturePrompt.md`: 已正确描述 SceneObject 架构
-
-#### 🎯 结论
-
-- **无遗留代码需要清理**
-- 所有使用 "Model" 命名的组件都是新架构的一部分
-- 命名约定可以在后续优化（P3 优先级），但不影响功能
-
-**后续建议**（可选，P3 优先级）:
-
-- [ ] 考虑统一命名约定：ModelFactory → SceneObjectFactory
-- [ ] 考虑统一命名约定：ModelCreationService → ObjectCreationService
-- [ ] 考虑统一命名约定：ModelEditorService → ObjectEditorService
-- [ ] 考虑统一命名约定：command:model:_ → command:object:_
-
-**相关文档**: `doc/Model-vs-SceneObject-Analysis.md`
-
----
-
-## P1 - 高优先级（本周完成）
-
-### 3. 整理和归档项目文档
-
-**状态**: ✅ 已完成（2025-11-12）
-
-**完成内容**:
-
-- ✅ 创建 `doc/Architecture.md` 统一架构文档
-- ✅ 创建 `doc/api/` 目录，移动 CommandReference.md
-- ✅ 更新 `doc/DevelopLog.md`，归档历史重构记录
-- ✅ 删除临时文档（Checkpoint, QuickStart）
-- ✅ 删除已同步到 GitHub 的项目管理文档
-- ✅ 删除已归档的 Summary 文档
-
----
-
-### 4. 移除废弃的 ContextMenu 相关代码
-
-**状态**: ✅ 已完成（2025-11-12）
-
-**描述**: 彻底移除旧的 ContextMenu 实现，统一使用 Popover 组件。
-
-**完成内容**:
-
-- ✅ 删除 `src/components/menu/ContextMenuContainer.tsx`
-- ✅ 删除 `src/components/menu/ContextMenu.tsx`
-- ✅ 删除整个 `src/components/menu/` 目录
-- ✅ 清理 `DesignerPageUI.tsx` 中被注释的 ContextMenuContainer 代码
-- ✅ 验证无其他引用
-
-**验证结果**:
-
-- `src/components/menu/` 目录已完全删除
-- `DesignerPageUI.tsx` 中的注释代码已清理
-- 仅保留 features/ 中的 `ContextMenuState` 类型定义（用于 InteractionState）
-- Popover 组件示例文档中的 contextMenu 引用保留（仅为示例说明）
-
-**相关组件**:
-
-- `src/components/Popover/` - 新的通用组件
-- `src/features/designer/ui/` - 业务层上下文菜单实现（待实现）
-
----
-
-### 5. 清理 deprecated 文件（Model 遗留代码）
-
-**状态**: ✅ 已完成（2025-11-12）
-
-**描述**: 删除已标记为 deprecated 的文件，这些文件包含旧的 Model 相关实现。
-
-**完成内容**:
-
-- ✅ 删除 `src/core/object/ModelOperations.deprecated.ts`
-- ✅ 删除 `src/core/object/ModelRepository.deprecated.ts`
-- ✅ 删除 `src/core/object/ConstraintManager.deprecated.ts`
-- ✅ 验证这些文件没有被任何地方引用
-- ✅ 检查 `src/core/object/index.ts` 导出列表（无需修改）
-
-**验证结果**:
-
-- 文件已成功删除
-- `src/core/object/` 目录保持清洁，仅包含：
-  - `ModelFactory.ts`, `ObjectManager.ts`, `SceneIO.ts`
-  - `entities/`, `strategies/`, `types/` 子目录
-- 无任何引用残留
-
----
-
-### 6. 修复架构违规：components/ 依赖 stores/
-
-**状态**: ✅ 已完成（2025-11-12）
-
-**描述**: `components/` 目录中的通用组件不应依赖 `stores/` 中的业务状态。
-
-**问题文件**:
-
-- `src/components/drawer/Drawer.tsx` - 依赖 `@/stores/drawerStore`
-- `src/components/AppBar/AppBar.tsx` - 依赖 `@/stores/drawerStore`
-
-**执行方案**: ✅ **方案 A（移动到 layouts/）**
-
-- 这些组件包含业务逻辑（drawer 状态管理），不是纯 UI 组件
-- 移动到 `layouts/` 更符合架构分层
-- `drawerStore` 保留在 stores/ 作为全局布局状态
-
-**执行内容**:
-
-- [x] 将 `Drawer.tsx` 移动到 `src/layouts/Drawer.tsx`
-- [x] 将 `AppBar.tsx` 移动到 `src/layouts/AppBar.tsx`
-- [x] 更新 `BaseLayout.tsx` 的导入路径
-- [x] 删除空目录 `src/components/drawer/` 和 `src/components/AppBar/`
-- [x] 验证构建成功
-
-**验证结果**:
-
-- ✅ 文件移动成功
-- ✅ `src/layouts/` 现包含：AppBar.tsx, BaseLayout.tsx, Drawer.tsx
-- ✅ `src/components/` 不再包含 AppBar/ 和 drawer/ 目录
-- ✅ BaseLayout.tsx 导入路径已更新为相对路径
-- ✅ 无引用错误（grep 搜索确认）
-- ✅ 架构违规已解决
-
-**架构改进**:
-
-- `layouts/` 现在负责布局组件和布局状态管理
-- `components/` 保持纯 UI 组件职责
-- 符合三层架构原则
-
----
-
-## P2 - 中优先级（本月完成）
-
-### 7. 实施 PlacementService（交互式型材放置）
-
-**状态**: ✅ 已完成（2025-11-13）
-
-**前置条件**: 依赖 P0.1（Context Provider 完成验证）
-
-**描述**: 实现交互式型材放置功能，用户可以从 Toolbar 点击型材后在 3D 场景中选择位置和方向。
-
-**完成内容**:
-
-- [x] 创建 `PlacementController` 类（命令驱动架构）
-  - 状态管理（idle / placing）
-  - 监听 eventBus 命令（不直接监听 DOM）
-  - 发布状态事件供 UI 订阅
-- [x] 实现 `RaycasterService`
-  - 基础交点计算（屏幕坐标 → NDC → 3D 点）
-  - 虚拟地面放置
-  - 新增 `getHitFromScreenCoords()` 接口（方案 C）
-- [x] 实现 `PreviewService`
-  - 半透明预览 Mesh
-  - 实时位置更新
-- [x] UI 层集成（3 个 hooks）
-  - `usePlacementInput`: 监听 DOM，发送命令
-  - `usePlacementState`: 订阅状态，提供响应式状态
-  - `useCreationCommands`: 连接 Toolbar 和 PlacementController
-- [x] UI 反馈
-  - 光标样式切换（crosshair）
-  - 键盘支持（ESC 取消）
-- [ ] 智能吸附（P3 优先级，未实施）
-  - 端点吸附
-  - 边缘吸附
-  - 网格吸附
-- [ ] 屏幕提示文字（P3 优先级，未实施）
-
-**架构决策**:
-
-- 采用方案 C：UI 传递视口信息，Core 计算 NDC
-- 使用事件总线实现双向通信（命令 + 状态事件）
-- Core 层无 DOM 依赖，避免延迟初始化问题
-
-**提交记录**:
-
-- commit 79e16a9: PlacementController 重构为命令驱动
-- commit 418edd5: UI 层集成和方案 C 实施
-
-**相关文档**:
-
-- `doc/Architecture.md` - 事件驱动架构
-- GitHub Issues - ProfileInteractiveCreation（已同步）
-
----
-
-### 8. ModelFactory 策略实现（型材放置流程验证）
-
-**状态**: ✅ 已完成（2025-11-14）
-
-**前置条件**: 依赖 PlacementService 完成
-
-**背景**: 测试型材放置时发现：
-
-- ✅ 预览功能正常（半透明立方体跟随鼠标）
-- ✅ 射线检测正常（工作平面交点计算正确）
-- ❌ 点击确认后对象无法创建，控制台报错：
-
-  ```text
-  No instance strategy found for asset type: profile
-  ```
-
-**根本原因**: ModelFactory 是空实现，未注册任何 InstanceStrategy
-
-**解决方案**: Stub 策略（临时验证方案）
-
-**实施内容**:
-
-- [x] 创建 `StubProfileStrategy` (`src/core/object/strategies/StubProfileStrategy.ts`)
-  - 实现 `InstanceStrategy` 接口
-  - `createSceneObject()` 返回简单的 `THREE.BoxGeometry(1,1,1)` 立方体
-  - 目的：验证完整的放置流程，不实现复杂的 SVG 挤压逻辑
-  - Visual 模型：红色立方体网格
-  - Compute 模型：空实现（`nodes: [], elements: [], machining: [], connections: []`）
-
-- [x] 修改 `ObjectManager.ts`
-  - 添加 `registerStubStrategies()` 私有方法
-  - 在构造函数中调用，注册 `AssetType.PROFILE → StubProfileStrategy`
-  - 添加控制台日志便于调试
-
-- [x] 类型修正（迭代修复 TypeScript 错误）
-  - `Euler` 需要 `order` 参数
-  - `MaterialProperties` 需要 `name` 字段
-  - `ComputeModel` 需要 `connections` 数组
-  - `SceneObject` 需要 `assetSource` 和 `assetType` 字段
-
-**验证结果**:
-
-- ✅ 点击型材后出现预览立方体
-- ✅ 鼠标移动时预览跟随（工作平面模式正常）
-- ✅ 点击确认后立方体显示在场景中
-- ✅ 左侧对象列表中出现新对象
-- ✅ 控制台输出策略注册和对象创建日志
-
-**里程碑**: 🎉 **首个物体成功放置到场景中**
-
-**后续任务**（P2 优先级，见任务 11-15）:
-
-- 实现真实的 `ProfileInstanceStrategy`（SVG 路径解析 + ExtrudeGeometry）
-- 实现 `FastenerInstanceStrategy` 和 `ConnectorInstanceStrategy`
-- 集成 three-bvh-csg 库处理布尔运算
-- 实现加工操作（切割、钻孔、铣槽）
-
-**相关文档**:
-
-- `doc/Architecture.md` - 3.4.1 ModelFactory 详解
-- `doc/DevelopLog.md` - 2025-11-14 工作记录
-
----
-
-### 9. PlacementService 工作平面模式重构
-
-**状态**: ✅ 已完成（2025-11-14）
-
-**背景**: 测试型材放置功能时发现：
-
-- 预览立方体随鼠标移动而视觉大小变化（透视效果）
-- 左键点击无法放置物体（地面检测失败）
-
-**根本原因**:
-
-- 当前实现使用固定的"地面碰撞"模式（y=0 平面）
-- 假设用户总是俯视场景，不适配侧视/仰视等角度
-- 不符合专业 CAD 软件（Inventor、SolidWorks）的交互习惯
-
-**解决方案**: 工作平面模式（Work Plane Mode）
-
-- 工作平面垂直于相机视线，位于相机前方固定距离
-- 物体沿屏幕平面移动，视觉大小基本保持一致
-- 适配任意相机角度
-
-**实施内容**:
-
-- [x] 类型定义重构 (`renderer-types.ts`)
-  - 新增 `WorkPlaneConfig` 接口（法线 + 平面点）
-  - 将 `RaycastHit.isGroundPlane` 改为 `isWorkPlane`
-  - 更新 `IRenderer` 接口方法签名
-
-- [x] RaycasterService 重构
-  - 将 `intersectGroundPlane()` 重命名为 `intersectWorkPlane()`
-  - 支持任意平面定义（通过法线和共面点构造平面）
-  - 使用 `THREE.Plane.setFromNormalAndCoplanarPoint()` 方法
-
-- [x] ThreeRenderer 更新
-  - 更新 `raycastFromNDC()` 和 `raycastFromScreen()` 方法
-  - 优先返回工作平面结果（`[workPlaneHit, ...sceneHits]`）
-
-- [x] PlacementService 核心重构
-  - 添加 `workPlaneDistance = 10` 配置属性
-  - 实现 `calculateWorkPlane()` 方法（计算相机前方垂直平面）
-  - 在 `updatePointer()` 和 `confirmPlacement()` 中使用工作平面
-
-**验证结果**:
-
-- ✅ 预览网格在任意视角下保持稳定位置
-- ✅ 可以在侧视/仰视角度下正常放置
-- ✅ 符合专业 CAD 软件交互习惯
-
-**相关文档**:
-
-- `doc/DevelopLog.md` - 2025-11-14 工作平面模式重构详细说明
-- `doc/Architecture.md` - 6.1.1 PlacementService 交互式放置
-
----
-
-### 10. 制定测试计划
-
-**状态**: ✅ 已完成（2025-11-15）
-
-**描述**: 建立完整的测试体系，确保代码质量和功能正确性。
-
-**完成任务**:
-
-- ✅ 制定单元测试计划
-  - 确定核心模块测试清单（ObjectManager、AssetService、eventBus 等）
-  - 选择测试框架（Vitest + React Testing Library）
-  - 编写测试用例规范
-- ✅ 制定集成测试计划
-  - 定义模块协作测试场景（Event Bus、Context Provider）
-  - 规划数据流测试（命令 → 服务 → Store → UI）
-- ✅ 制定 E2E 测试计划
-  - 定义核心用户流程（型材创建、对象编辑、自动保存、路由切换）
-  - 选择 E2E 框架（Playwright）
-- ✅ 配置测试基础设施
-  - Vitest + jsdom 环境
-  - Playwright 跨浏览器测试
-  - GitHub Actions CI 集成
-- ✅ 编写示例测试
-  - eventBus 单元测试
-  - BaseButton 组件测试
-  - 基础导航 E2E 测试
-
-**交付物**:
-
-- ✅ `doc/TestPlan.md` - 完整测试计划文档
-- ✅ `vitest.config.ts` - Vitest 配置
-- ✅ `playwright.config.ts` - Playwright 配置
-- ✅ `.github/workflows/test.yml` - CI 工作流
-- ✅ 示例测试文件（9 个测试用例全部通过）
-- ✅ npm 测试脚本（test、test:unit、test:e2e、test:coverage 等）
+当前聚焦任务：3D 交互基础能力（详见任务 19-22）。
 
 ---
 
@@ -517,41 +94,6 @@ _当前无 P0 任务_
 ---
 
 ## P3 - 低优先级（长期规划）
-
-### 11. 实现 ProfileInstanceStrategy（真实型材生成）
-
-**状态**: ⏳ 待执行
-
-**前置条件**: StubProfileStrategy 验证通过
-
-**描述**: 实现真实的型材截面拉伸逻辑，替换当前的 Stub 策略。
-
-**技术方案**:
-
-- SVG Path 解析：将 `crossSection.path` 转换为 Three.js Shape
-- 几何体生成：使用 `THREE.ExtrudeGeometry` 进行拉伸
-- 参数化尺寸：从 `userParams.length` 读取拉伸长度
-
-**核心实现**:
-
-````typescript
-class ProfileInstanceStrategy implements InstanceStrategy {
-  createSceneObject(
-    asset: ProfileAsset,
-    options: SceneObjectCreateOptions
-  ): SceneObject {
-    // 1. 解析 SVG Path
-    const shape = this.parseSVGPath(asset.parameters.crossSection.path);
-  - 选择 E2E 框架（Playwright / Cypress）
-- [ ] 分配测试资源和时间
-
-**交付物**:
-
-- 测试计划文档
-- 测试用例列表
-- 测试覆盖率目标
-
----
 
 ### 11. 实现 ProfileInstanceStrategy（真实型材生成）
 
@@ -713,117 +255,92 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 
 ---
 
-### 17. 建立文档与代码同步机制
+### 17. 实现工程管理器（ProjectManager）
 
-**状态**: ✅ 已完成（2025-11-15）
+**状态**: ⏳ 待执行
 
-**描述**: 确保文档内容与代码库保持同步，并建立协同流程。
+**优先级**: P3（低优先级，需进一步设计讨论）
 
-**阶段成果**:
+**描述**: 设计并实现工程管理系统，负责管理用户的设计工程（Project），提供保存、打开、自动恢复等功能。
 
-- ✅ `doc/WorkflowGuidelines.md`：定义协同运行规范与文档同步流程。
-- ✅ `doc/WorkflowGuidelines.md`：新增 PR 文档审查流程、版本字段约定、自动化检查规划。
-- ✅ `.github/workflows/doc-check.yml`：落地文档自动化检查流水线。
+**核心功能**:
 
-**完成子任务**:
+1. **工程持久化**
+   - 保存工程到本地存储（IndexedDB）
+   - 保存工程到云端（后端API，待实现）
+   - 导出工程文件到本地文件系统（.json格式）
+   - 从本地文件系统导入工程
 
-- ✅ 建立文档审查流程
-  - PR 中涉及架构变更时需更新文档（详见 WorkflowGuidelines 5.1）
-  - Code Review 加入文档检查步骤
-- ✅ 建立文档版本管理
-  - 文档记录版本号/更新日期（统一使用“最后更新”字段）
-  - 过期内容标记或归档流程
-- ✅ 建立文档自动化检查
-  - GitHub Actions：`.github/workflows/doc-check.yml`
-  - `npm run doc:check` 统一执行 markdownlint、cspell、自定义元信息脚本
-  - `lychee-action` 输出链接检查报告（`lychee-report` 工件）
+2. **工程生命周期管理**
+   - 创建新工程
+   - 打开已有工程（本地/云端）
+   - 保存当前工程（手动/自动保存）
+   - 关闭工程（切换到其他工程）
 
----
+3. **自动恢复机制**
+   - 应用启动时自动加载最近打开的工程
+   - 维护"最近打开"列表（Recent Projects）
+   - 找不到最近工程时创建新的默认工程
+   - 异常退出后的工程恢复
 
-## 已完成事项
+4. **工程元数据**
+   - 工程名称、创建时间、修改时间
+   - 工程缩略图（3D场景截图）
+   - 工程描述、标签
+   - 版本历史（可选）
 
-### ✅ 2025-11-15
+**技术方案**:
 
-- **测试体系建立（任务 #10）** ⭐
-  - 创建 `doc/TestPlan.md` 完整测试计划（单元/集成/E2E）
-  - 配置 Vitest + React Testing Library 单元测试框架
-  - 配置 Playwright E2E 测试框架
-  - 创建 `.github/workflows/test.yml` GitHub Actions CI
-  - 编写示例测试：eventBus 单元测试、BaseButton 组件测试、基础导航 E2E
-  - 添加测试脚本：`npm run test`、`test:unit`、`test:e2e`、`test:coverage`
-  - 设定覆盖率目标：整体 75%+，核心模块 90%+
-  - 🎉 **里程碑：测试基础设施完成，所有示例测试通过**
+```typescript
+interface Project {
+  id: string; // UUID
+  name: string;
+  description?: string;
+  thumbnail?: string; // Base64 or URL
+  createdAt: Date;
+  updatedAt: Date;
+  sceneData: SceneObjectData[]; // 从 ObjectManager 序列化
+  metadata: {
+    version: string; // 数据格式版本
+    appVersion: string; // 应用版本
+  };
+}
 
-- **文档与代码同步机制（任务 #17）** ⭐
-  - 创建 `doc/WorkflowGuidelines.md` 定义协同运行规范与文档同步流程
-  - 建立 PR 文档审查流程（详见 WorkflowGuidelines 5.1）
-  - 统一文档版本管理标准（"最后更新"字段）
-  - 落地文档自动化检查：markdownlint、cspell、元信息校验脚本
-  - 创建 `.github/workflows/doc-check.yml` GitHub Actions 工作流
-  - 集成链接有效性检查（lychee-action）
-  - 新增 `npm run doc:check` 本地检查命令
-  - 🎉 **里程碑：文档质量保障体系建立完成**
+class ProjectManager {
+  // 工程操作
+  async createProject(name: string): Promise<Project>;
+  async openProject(projectId: string, source: 'local' | 'cloud'): Promise<Project>;
+  async saveProject(project: Project, target: 'local' | 'cloud'): Promise<void>;
+  async deleteProject(projectId: string): Promise<void>;
 
-- **应用级状态管理与自动保存重构（任务 #18）** ⭐
-  - 创建 CoreServiceProvider（应用级服务容器）
-  - 创建 AutoSaveService（防抖保存 + 三层持久化）
-  - 集成到 main.tsx，包裹 RouterProvider
-  - 重构 DesignerPage，使用 useCoreServices()
-  - 创建 AutoSaveIndicator UI 组件（按需显示）
-  - 路由切换前强制保存
-  - RenderSyncService 初始化同步已存在对象
-  - 🎉 **里程碑：路由切换数据保持 + 自动保存功能完成**
+  // 最近工程
+  async getRecentProjects(): Promise<Project[]>;
+  async loadLastOpenedProject(): Promise<Project | null>;
 
-### ✅ 2025-11-14
+  // 导入导出
+  async exportToFile(project: Project): Promise<void>;
+  async importFromFile(file: File): Promise<Project>;
+}
+```
 
-- PlacementService 工作平面模式重构
-  - 从固定地面（y=0）改为相机相对工作平面
-  - 支持任意视角下的物体放置
-  - 符合专业 CAD 软件交互习惯
-- ModelFactory Stub 策略实现
-  - 创建 StubProfileStrategy（返回简单立方体）
-  - ObjectManager 注册 Stub 策略
-  - 验证完整的型材放置流程
-- 🎉 **里程碑：首个物体成功放置到场景中**
+**待讨论问题**:
 
-### ✅ 2025-11-13
+- [ ] 工程切换时的提示逻辑（未保存警告）
+- [ ] 云端存储方案选型（需要后端支持）
+- [ ] 工程文件格式版本兼容性策略
+- [ ] 多工程并行编辑支持（是否需要）
+- [ ] 工程模板功能（预设常用框架结构）
+- [ ] 协作功能（多人编辑同一工程）
 
-- PlacementController 架构重构（完全隔离 Three.js）
-  - 扩展 IRenderer 接口添加射线检测和预览管理方法
-  - 创建 PreviewManager 内部模块
-  - 重构 RaycasterService 为内部实现
-  - PlacementController 通过 IRenderer 抽象工作
-  - 修复初始化循环问题（允许 placement 为 null）
-- PlacementService 交互式型材放置功能
+**前置条件**:
 
-### ✅ 2025-11-12
+- 当前 ObjectManager 已支持场景序列化（SceneIO）
+- AutoSaveService 可作为工程自动保存的基础
 
-- 文档整理与架构文档创建
+**后续拆解**:
 
-### ✅ 2025-11-11
-
-- Popover 组件重构
-
-### ✅ 2025-11-08
-
-- ObjectManager 模块化
-- 事件驱动架构
-- Asset 管理重构
-- Toolbar 动态型材加载
-
-### ✅ 2025-11-08（早期）
-
-- 渲染器抽象层
-- DesignerPage 重构
-- 事件总线引入
-
-### ✅ 2025-11-07
-
-- 主题系统配置
-
-### ✅ 2025-11-06
-
-- 目录结构重构
+- 本任务为高层设计，需拆分为多个子任务执行
+- 优先实现本地存储版本，云端功能可后续迭代
 
 ---
 
@@ -837,4 +354,4 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 
 ---
 
-**维护说明**: 本文档应随项目进展定期更新，已完成的事项移至"已完成事项"部分，新增事项根据优先级添加。
+**维护说明**: 本文档应随项目进展定期更新，已完成的事项移至 [开发日志](./doc/DevelopLog.md) 归档。

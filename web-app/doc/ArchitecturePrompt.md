@@ -2,7 +2,7 @@
 
 > **文档用途**：本文档用于 AI 助手快速建立项目上下文，理解架构设计思想和技术决策。
 >
-> **最后更新**：2025-11-15
+> **最后更新**：2025-11-17
 >
 > **阅读时长**：5-8分钟
 
@@ -28,6 +28,9 @@
 - 状态管理：Zustand + React Context
 - 样式：Tailwind CSS v4
 - 事件系统：mitt
+- 测试：Vitest + Playwright + @testing-library/react ⭐
+- 文档检查：markdownlint-cli2 + cspell + 自定义元信息校验 ⭐
+- CI/CD：GitHub Actions（测试、文档检查）⭐
 
 ---
 
@@ -35,14 +38,14 @@
 
 ### 核心设计原则（按重要性排序）
 
-1. **分层解耦**：Features → Core 单向依赖，Core 层不依赖 Features
-2. **应用级服务容器**：Core 服务在 App 层初始化，路由切换时保持状态
+1. **应用级服务容器**：Core 服务在 App 层初始化，路由切换时保持状态 ⭐
+2. **分层解耦**：App → Pages → Features → Core 单向依赖，Core 层不依赖 Features
 3. **事件驱动**：通过 Event Bus 实现模块间通信，避免直接依赖
 4. **职责分离**：Asset(模板) vs SceneObject(实例)，ObjectManager vs Renderer
-5. **策略模式**：支持无限扩展新素材类型，无需修改工厂代码
+5. **策略模式**：支持无限扩展新素材类型（Stub/Profile/Fastener/Connector），无需修改工厂代码
 6. **渲染器抽象**：业务逻辑不直接依赖 Three.js，保留引擎替换能力
 7. **Context Provider 模式**：业务状态通过 Context，UI 状态使用 Props
-8. **数据持久化**：三层策略（内存 → localStorage → 云端）
+8. **自动持久化**：三层策略（内存 → localStorage → 云端），防抖 + 最小间隔控制 ⭐
 
 ### 架构创新点
 
@@ -124,7 +127,104 @@ SceneObject {
 
 **优势**：性能与精度平衡，支持大规模场景 + 高精度计算
 
-#### 2. 策略模式优于工厂模式
+---
+
+#### 2. RenderSyncService - 初始化同步机制（2025-11-15）⭐
+
+**问题**：路由切换（`/designer` ↔ `/library`）后，3D实体从渲染场景消失
+
+**根因**：
+
+- `DesignerPage` 卸载时 Three.js `Scene` 对象被销毁
+- 重新进入时创建新的 `ThreeRenderer` 和新的 `Scene`
+- `RenderSyncService` 只监听**未来事件**，未同步**已存在对象**
+
+**解决方案**：在 `RenderSyncService` 构造函数中添加 `syncExistingObjects()` 方法
+
+```typescript
+constructor(objectManager: ObjectManager, renderer: IRenderer) {
+  this.objectManager = objectManager;
+  this.renderer = renderer;
+  this.setupEventListeners();      // 监听未来事件
+  this.syncExistingObjects();      // 🆕 同步已存在对象
+}
+
+private syncExistingObjects(): void {
+  const allObjects = this.objectManager.getAllObjects();
+  allObjects.forEach((object) => {
+    if (!object.visual?.mesh) return;
+    // 1. 添加到渲染器
+    this.renderer.addObject(object.visual.mesh);
+    // 2. 恢复变换（position/rotation/scale）
+    // 3. 恢复可见性
+    // 4. 记录映射关系
+  });
+}
+```
+
+**效果**：路由切换时，ObjectManager 中的对象（内存）保持，重建 Renderer 后自动恢复 3D 渲染
+
+---
+
+#### 3. 测试体系建立（2025-11-15）⭐
+
+**目标**：为项目建立完整的测试基础设施
+
+**完成内容**：
+
+1. **单元测试**：Vitest 4.0.9 + @testing-library/react + jsdom
+   - 配置文件：`vitest.config.ts`
+   - 示例测试：`eventBus.test.ts`（5个测试）、`BaseButton.test.tsx`（4个测试）
+   - 覆盖率目标：整体75%+，核心模块90%+
+
+2. **E2E测试**：Playwright（Chromium + Firefox）
+   - 配置文件：`playwright.config.ts`
+   - 示例测试：`e2e/basic-navigation.spec.ts`
+
+3. **CI集成**：`.github/workflows/test.yml`
+   - 并行任务：unit-tests + e2e-tests
+   - 覆盖率报告上传
+
+**npm脚本**：
+```bash
+npm run test              # 运行所有测试
+npm run test:unit         # 仅单元测试
+npm run test:e2e          # 仅E2E测试
+npm run test:coverage     # 生成覆盖率报告
+npm run test:ui           # Vitest UI界面
+```
+
+---
+
+#### 4. 文档质量保障体系（2025-11-15）⭐
+
+**目标**：确保文档与代码同步更新
+
+**完成内容**：
+
+1. **协同工作流程**：`doc/WorkflowGuidelines.md`
+   - 分支模型（feature分支 + squash merge）
+   - PR文档审查流程
+   - 文档版本管理标准（"最后更新"字段）
+
+2. **文档自动化检查**：
+   - Markdown格式：markdownlint-cli2 + `.markdownlint-cli2.jsonc`
+   - 拼写检查：cspell + `cspell.json`
+   - 元信息校验：`scripts/doc-check/verify-doc-metadata.mjs`
+   - 链接有效性：lychee-action
+
+3. **CI集成**：`.github/workflows/doc-check.yml`
+   - 触发条件：PR包含 `doc/**` 或 `*.md` 文件变更
+   - 失败处理：任何检查失败则阻止PR合并
+
+**npm脚本**：
+```bash
+npm run doc:check         # 一键运行所有文档检查
+```
+
+---
+
+#### 5. 策略模式优于工厂模式
 
 **对比**：
 
