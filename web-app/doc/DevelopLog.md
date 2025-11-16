@@ -1,10 +1,172 @@
 # 开发日志
 
-**最后更新**: 2025-11-15
+**最后更新**: 2025-11-17
+
+---
+
+## 2025-11-17
+
+### 文档整理：TODO归档与结构优化
+
+**目标**：将TODO.md中已完成的任务（#1-10, #17）归档到DevelopLog.md，保持TODO.md专注于待办事项跟踪。
+
+**执行内容**：
+
+- 删除TODO.md中任务#1-10的详细完成记录（~420行）
+- 删除任务#17（文档同步机制，已完成）
+- 保持任务#11-16, #19-22完整无损
+- 添加归档说明指向DevelopLog.md
+
+**文件变化**：
+
+- TODO.md: 841行 → ~220行（减少73%）
+- DevelopLog.md: 新增任务#10, #17归档章节
+
+**架构理念**：
+
+- TODO.md: 专注待办事项
+- DevelopLog.md: 完整开发历史
+- 职责分离，避免文档腐化
 
 ---
 
 ## 2025-11-15
+
+### 任务归档：测试体系建立（任务 #10）
+
+**目标**：为项目建立完整的测试基础设施，包括单元测试、E2E测试和CI集成。
+
+**完成时间**：2025-11-15
+
+**完成内容**：
+
+1. **测试计划文档**
+   - 创建 `doc/TestPlan.md` 定义三层测试策略（单元/集成/E2E）
+   - 制定模块级测试计划（P0核心模块、P1重要模块、P2辅助模块）
+   - 设定覆盖率目标：整体 75%+，核心模块 90%+
+
+2. **单元测试框架**
+   - 配置 Vitest 4.0.9 + @testing-library/react
+   - 创建 `vitest.config.ts` 配置文件（jsdom环境、覆盖率报告）
+   - 创建 `src/__tests__/setup.ts` 测试环境初始化
+   - 编写示例测试：
+     - `eventBus.test.ts`：5个测试（事件发布/订阅/取消订阅）
+     - `BaseButton.test.tsx`：4个组件测试（渲染、点击、禁用、样式变体）
+
+3. **E2E测试框架**
+   - 配置 Playwright（Chromium + Firefox）
+   - 创建 `playwright.config.ts` 配置文件
+   - 编写示例测试：`e2e/basic-navigation.spec.ts`（页面导航、标题验证）
+
+4. **CI/CD集成**
+   - 创建 `.github/workflows/test.yml` GitHub Actions工作流
+   - 两个并行任务：
+     - `unit-tests`：运行Vitest，生成覆盖率报告，上传工件
+     - `e2e-tests`：运行Playwright（双浏览器矩阵），上传测试报告
+
+5. **开发脚本**
+   - `npm run test`：运行所有测试
+   - `npm run test:unit`：仅单元测试
+   - `npm run test:e2e`：仅E2E测试
+   - `npm run test:coverage`：生成覆盖率报告
+   - `npm run test:ui`：Vitest UI界面
+
+**验证结果**：
+- ✅ 所有9个单元测试通过（5个eventBus + 4个BaseButton）
+- ✅ E2E测试通过（基础导航）
+- ✅ CI工作流配置正确，准备就绪
+
+**技术决策**：
+- 选择 Vitest 而非 Jest（原生ESM支持，Vite集成更好）
+- 使用 jsdom 而非 happy-dom（生态更成熟）
+- 覆盖率工具选择 @vitest/coverage-v8（性能优势）
+
+**交付物**：
+- `doc/TestPlan.md`
+- `vitest.config.ts`
+- `playwright.config.ts`
+- `.github/workflows/test.yml`
+- 示例测试文件（9个测试用例）
+- npm测试脚本
+
+**里程碑**：🎉 测试基础设施完成，为后续功能开发提供质量保障
+
+---
+
+### 任务归档：文档与代码同步机制（任务 #17）
+
+**目标**：建立文档质量保障体系，确保文档与代码同步更新，提高协作效率。
+
+**完成时间**：2025-11-15
+
+**完成内容**：
+
+1. **协同工作流程文档**
+   - 创建 `doc/WorkflowGuidelines.md` 定义团队协作规范
+   - 核心内容：
+     - 分支模型（feature分支 + squash merge）
+     - PR文档审查流程（代码变更必需文档更新）
+     - 文档版本管理标准（"最后更新"字段格式：YYYY-MM-DD）
+     - 文档类型分类（架构/开发日志/TODO/测试计划等）
+
+2. **文档自动化检查**
+   - **Markdown格式检查**：markdownlint-cli2
+     - 配置文件：`.markdownlint-cli2.jsonc`
+     - 规则定制：允许内联HTML、调整标题层级规则
+   
+   - **拼写检查**：cspell
+     - 配置文件：`cspell.json`
+     - 自定义词典：添加技术术语（TypeScript、Vite、Vitest、Playwright等）
+     - 中文支持：启用CJK字符忽略
+   
+   - **元信息校验**：自定义Node.js脚本
+     - 脚本：`scripts/doc-check/verify-doc-metadata.mjs`
+     - 验证内容：
+       - 检查"最后更新"字段存在性
+       - 验证日期格式（YYYY-MM-DD）
+       - 检查日期是否在未来（防止错误）
+   
+   - **链接有效性检查**：lychee-action
+     - GitHub Actions集成
+     - 检查所有Markdown链接的可达性
+     - 生成链接检查报告工件
+
+3. **CI/CD集成**
+   - 创建 `.github/workflows/doc-check.yml` GitHub Actions工作流
+   - 触发条件：PR包含 `doc/**` 或 `*.md` 文件变更
+   - 检查项：
+     - ✅ Markdown格式检查（markdownlint）
+     - ✅ 拼写检查（cspell）
+     - ✅ 元信息校验（自定义脚本）
+     - ✅ 链接有效性检查（lychee）
+   - 失败处理：任何检查失败则阻止PR合并
+
+4. **本地开发支持**
+   - `npm run doc:check`：一键运行所有文档检查
+   - 开发者在提交前可本地验证
+
+**验证结果**：
+- ✅ 所有现有文档通过格式检查
+- ✅ 拼写检查0错误（词典完善）
+- ✅ 元信息校验通过（所有文档包含有效"最后更新"字段）
+- ✅ CI工作流配置正确
+
+**技术决策**：
+- 选择 markdownlint-cli2 而非 markdownlint-cli（配置更灵活）
+- 使用 Node.js脚本实现自定义校验（可扩展性强）
+- cspell 词典采用增量方式维护（避免误报）
+
+**交付物**：
+- `doc/WorkflowGuidelines.md`
+- `.markdownlint-cli2.jsonc`
+- `cspell.json`
+- `scripts/doc-check/verify-doc-metadata.mjs`
+- `.github/workflows/doc-check.yml`
+- npm脚本：`doc:check`
+
+**里程碑**：🎉 文档质量保障体系建立完成，确保文档始终与代码同步
+
+---
 
 ### Bug修复：RenderSyncService初始化同步 + 自动保存优化
 
