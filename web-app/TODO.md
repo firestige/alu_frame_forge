@@ -252,3 +252,106 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 - [ ] 配置测试覆盖率报告
   - 配置自动部署（Preview 环境）
 - [ ] 设置 PR 检查门禁
+
+---
+
+### 17. 实现工程管理器（ProjectManager）
+
+**状态**: ⏳ 待执行
+
+**优先级**: P3（低优先级，需进一步设计讨论）
+
+**描述**: 设计并实现工程管理系统，负责管理用户的设计工程（Project），提供保存、打开、自动恢复等功能。
+
+**核心功能**:
+
+1. **工程持久化**
+   - 保存工程到本地存储（IndexedDB）
+   - 保存工程到云端（后端API，待实现）
+   - 导出工程文件到本地文件系统（.json格式）
+   - 从本地文件系统导入工程
+
+2. **工程生命周期管理**
+   - 创建新工程
+   - 打开已有工程（本地/云端）
+   - 保存当前工程（手动/自动保存）
+   - 关闭工程（切换到其他工程）
+
+3. **自动恢复机制**
+   - 应用启动时自动加载最近打开的工程
+   - 维护"最近打开"列表（Recent Projects）
+   - 找不到最近工程时创建新的默认工程
+   - 异常退出后的工程恢复
+
+4. **工程元数据**
+   - 工程名称、创建时间、修改时间
+   - 工程缩略图（3D场景截图）
+   - 工程描述、标签
+   - 版本历史（可选）
+
+**技术方案**:
+
+```typescript
+interface Project {
+  id: string; // UUID
+  name: string;
+  description?: string;
+  thumbnail?: string; // Base64 or URL
+  createdAt: Date;
+  updatedAt: Date;
+  sceneData: SceneObjectData[]; // 从 ObjectManager 序列化
+  metadata: {
+    version: string; // 数据格式版本
+    appVersion: string; // 应用版本
+  };
+}
+
+class ProjectManager {
+  // 工程操作
+  async createProject(name: string): Promise<Project>;
+  async openProject(projectId: string, source: 'local' | 'cloud'): Promise<Project>;
+  async saveProject(project: Project, target: 'local' | 'cloud'): Promise<void>;
+  async deleteProject(projectId: string): Promise<void>;
+
+  // 最近工程
+  async getRecentProjects(): Promise<Project[]>;
+  async loadLastOpenedProject(): Promise<Project | null>;
+
+  // 导入导出
+  async exportToFile(project: Project): Promise<void>;
+  async importFromFile(file: File): Promise<Project>;
+}
+```
+
+**待讨论问题**:
+
+- [ ] 工程切换时的提示逻辑（未保存警告）
+- [ ] 云端存储方案选型（需要后端支持）
+- [ ] 工程文件格式版本兼容性策略
+- [ ] 多工程并行编辑支持（是否需要）
+- [ ] 工程模板功能（预设常用框架结构）
+- [ ] 协作功能（多人编辑同一工程）
+
+**前置条件**:
+
+- 当前 ObjectManager 已支持场景序列化（SceneIO）
+- AutoSaveService 可作为工程自动保存的基础
+
+**后续拆解**:
+
+- 本任务为高层设计，需拆分为多个子任务执行
+- 优先实现本地存储版本，云端功能可后续迭代
+
+---
+
+## 参考文档
+
+- [系统架构文档](./doc/Architecture.md)
+- [开发日志](./doc/DevelopLog.md)
+- [Asset 管理架构](./doc/AssetManagementArchitecture.md)
+- [Designer 模块架构](./doc/DesignerArchitecture.md)
+- [命令系统参考](./doc/api/CommandReference.md)
+
+---
+
+**维护说明**: 本文档应随项目进展定期更新，已完成的事项移至 [开发日志](./doc/DevelopLog.md) 归档。
