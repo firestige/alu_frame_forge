@@ -2,9 +2,36 @@
 
 > **文档用途**：本文档用于 AI 助手快速建立项目上下文，理解架构设计思想和技术决策。
 >
-> **最后更新**：2025-11-17
+> **最后更新**：2025-11-21
 >
 > **阅读时长**：5-8分钟
+
+---
+
+## 📚 文档结构说明
+
+本项目采用 **"总章+分册"** 文档组织形式：
+
+- **ArchitecturePrompt.md**（本文档）- 快速上下文入口，核心设计理念
+- **Architecture.md** - 项目总览、技术栈、模块索引
+- **design/** 目录 - 各子系统详细设计文档
+
+### 📖 详细设计文档索引
+
+| 文档                                                | 描述                                              |
+| --------------------------------------------------- | ------------------------------------------------- |
+| [Architecture.md](./Architecture.md)                | 项目总览、技术栈、核心理念、模块索引              |
+| [CoreArchitecture.md](./design/CoreArchitecture.md) | 分层架构、CoreServiceProvider、事件驱动、策略模式 |
+| [UIDesign.md](./design/UIDesign.md)                 | 主题系统、Framer Motion、组件库、响应式设计       |
+| [StateManagement.md](./design/StateManagement.md)   | Context Provider、Zustand、usePersistentState     |
+| [StorageSystem.md](./design/StorageSystem.md)       | AutoSaveService、三层持久化、SceneIO              |
+| [RenderingSystem.md](./design/RenderingSystem.md)   | 渲染器抽象、Three.js 实现、RenderSyncService      |
+
+**使用建议**：
+
+- 快速了解项目 → 阅读本文档（ArchitecturePrompt.md）
+- 深入某个子系统 → 阅读 design/ 目录对应文档
+- 查看完整索引 → 阅读 Architecture.md
 
 ---
 
@@ -23,14 +50,16 @@
 
 **技术栈**：
 
-- 前端：React 18 + TypeScript + Vite
+- 前端：React 19 + TypeScript + Vite
 - 3D渲染：Three.js（带抽象层）
 - 状态管理：Zustand + React Context
-- 样式：Tailwind CSS v4
+- 样式：Tailwind CSS 4.0 + Framer Motion
 - 事件系统：mitt
 - 测试：Vitest + Playwright + @testing-library/react ⭐
 - 文档检查：markdownlint-cli2 + cspell + 自定义元信息校验 ⭐
 - CI/CD：GitHub Actions（测试、文档检查）⭐
+
+**详细技术栈说明** → 参阅 [Architecture.md](./Architecture.md#2-技术栈)
 
 ---
 
@@ -186,6 +215,7 @@ private syncExistingObjects(): void {
    - 覆盖率报告上传
 
 **npm脚本**：
+
 ```bash
 npm run test              # 运行所有测试
 npm run test:unit         # 仅单元测试
@@ -218,6 +248,7 @@ npm run test:ui           # Vitest UI界面
    - 失败处理：任何检查失败则阻止PR合并
 
 **npm脚本**：
+
 ```bash
 npm run doc:check         # 一键运行所有文档检查
 ```
