@@ -538,9 +538,14 @@ npm run test:e2e:ui            # 打开 Playwright UI
 ### 10.1 相关文档
 
 - [ArchitecturePrompt.md](./ArchitecturePrompt.md) - 快速上下文文档（AI Copilot 入口）
-- [TestPlan.md](./TestPlan.md) - 测试计划
-- [WorkflowGuidelines.md](./WorkflowGuidelines.md) - 开发工作流指南
 - [DevelopLog.md](./DevelopLog.md) - 开发日志
+- [文档中心](./README.md) - 完整文档导航
+
+### 10.2 开发指南
+
+- [Workflow.md](./guides/Workflow.md) - 协同工作流规范
+- [GitAutomation.md](./guides/GitAutomation.md) - Git 自动化脚本
+- [Testing.md](./guides/Testing.md) - 测试计划
 
 ### 10.2 设计文档（design/ 目录）
 

@@ -1,6 +1,13 @@
 # 协同工作流运行规范
 
-**最后更新**: 2025-11-15
+**最后更新**: 2025-11-21  
+**文档位置**: `doc/guides/Workflow.md`
+
+> **相关文档**:
+>
+> - [Git 自动化脚本](./GitAutomation.md) - 工具使用详解
+> - [测试计划](./Testing.md) - 测试策略和覆盖率目标
+> - [文档中心](../README.md) - 完整文档导航
 
 **适用范围**：本项目中所有由 AI 协助完成的开发任务，默认遵循方案 A（Feature Branch + Squash Merge）。
 
@@ -45,7 +52,36 @@
   - `fix: 修复自动保存指示器显示异常`
 - **文档同步**：完成需求后，确保 TODO、DevelopLog 等文档与代码状态一致。
 
-## 5. 文档同步机制（任务 #17）
+## 6. 文档维护规范
+
+### 6.1 文档结构
+
+项目采用 **"总章+分册"** 结构：
+
+- **核心文档**: Architecture.md、ArchitecturePrompt.md
+- **设计文档**: doc/design/（5 个子系统文档）
+- **开发指南**: doc/guides/（Workflow、GitAutomation、Testing）
+- **项目管理**: TODO.md、DevelopLog.md
+
+完整索引 → [doc/README.md](../README.md)
+
+### 6.2 更新规则
+
+1. 修改文档时更新"最后更新"日期
+2. 重大变更时归档旧版本到 \_archive/
+3. 运行文档校验：`node scripts/doc-check/verify-doc-metadata.mjs`
+
+### 6.3 元信息格式
+
+所有文档必须包含：
+
+```markdown
+# 文档标题
+
+**最后更新**: YYYY-MM-DD
+**文档版本**: X.Y（可选）
+**状态**: Active
+```
 
 为保证文档与代码同步，执行下列流程：
 

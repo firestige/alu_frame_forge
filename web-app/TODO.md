@@ -619,6 +619,7 @@ class ProjectManager {
 
 - [项目总览](./doc/Architecture.md) - 项目整体架构、技术栈、模块索引
 - [快速上下文](./doc/ArchitecturePrompt.md) - AI 助手快速理解项目的入口文档
+- [文档中心](./doc/README.md) - 完整文档导航
 
 ### 设计子系统文档
 
@@ -628,11 +629,15 @@ class ProjectManager {
 - [存储与持久化](./doc/design/StorageSystem.md) - AutoSaveService、三层持久化、SceneIO
 - [渲染系统设计](./doc/design/RenderingSystem.md) - 渲染器抽象、Three.js 实现、RenderSyncService
 
+### 开发指南
+
+- [工作流规范](./doc/guides/Workflow.md) - 协同工作流、Git 规则、文档同步
+- [Git 自动化](./doc/guides/GitAutomation.md) - 自动化脚本使用指南
+- [测试计划](./doc/guides/Testing.md) - 测试策略和计划
+
 ### 其他文档
 
 - [开发日志](./doc/DevelopLog.md) - 已完成任务的详细历史记录
-- [测试计划](./doc/TestPlan.md) - 测试策略和计划
-- [工作流指南](./doc/WorkflowGuidelines.md) - 开发工作流和 Git 规范
 - [命令系统参考](./doc/api/CommandReference.md) - API 命令参考
 
 ---

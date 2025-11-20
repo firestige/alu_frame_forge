@@ -1,8 +1,14 @@
 # Git 工作流自动化脚本
 
-基于 Feature Branch + Squash Merge 的工作流，保持 main 分支历史简洁。
+**最后更新**: 2025-11-21  
+**文档位置**: `doc/guides/GitAutomation.md`
 
-> 📘 协同的完整运行规范请参考 `doc/WorkflowGuidelines.md`。
+> **相关文档**:
+>
+> - [工作流规范](./Workflow.md) - 完整协同工作流规范
+> - [文档中心](../README.md) - 完整文档导航
+
+基于 Feature Branch + Squash Merge 的工作流，保持 main 分支历史简洁。
 
 ## 前置要求
 
