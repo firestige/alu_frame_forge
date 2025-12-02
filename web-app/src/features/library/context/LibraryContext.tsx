@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { AssetService } from '@/core/asset';
+import { useCoreServices } from '@/core';
+import type { AssetService } from '@/core/asset';
 
 /**
  * Library Context 值类型
@@ -23,21 +24,24 @@ export interface LibraryProviderProps {
 }
 
 /**
- * LibraryProvider - 型材库独立 Context Provider
+ * LibraryProvider - 型材库 Context Provider
  *
- * 特点：
- * - 创建独立的 AssetService 实例
- * - 与 Designer 的 AssetService 隔离
- * - 在 Provider 初始化时加载数据
+ * 职责：
+ * - 从 CoreServices 获取共享的 AssetService 实例
+ * - 提供统一的访问接口给 Library 模块
+ *
+ * 架构说明：
+ * - 使用 CoreServiceProvider 中的 AssetService 单例
+ * - 与 Designer 模块共享相同的资产数据
+ * - 遵循"单一数据源"原则
+ *
+ * 修复：Issue #9 - 移除重复的 AssetService 实例创建
  */
 export const LibraryProvider: React.FC<LibraryProviderProps> = ({
   children,
 }) => {
-  const assetService = React.useMemo(() => {
-    const service = new AssetService();
-    service.initialize();
-    return service;
-  }, []);
+  // 从 CoreServices 获取共享的 AssetService 实例
+  const { assetService } = useCoreServices();
 
   const value: LibraryContextValue = {
     assetService,
@@ -50,6 +54,14 @@ export const LibraryProvider: React.FC<LibraryProviderProps> = ({
 
 /**
  * useLibraryContext Hook
+ *
+ * 提供对共享 AssetService 的访问
+ *
+ * @example
+ * ```tsx
+ * const { assetService } = useLibraryContext();
+ * const profiles = assetService.getAllProfiles();
+ * ```
  */
 export const useLibraryContext = (): LibraryContextValue => {
   const context = React.useContext(LibraryContext);
