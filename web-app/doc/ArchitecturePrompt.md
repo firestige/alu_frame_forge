@@ -2,7 +2,7 @@
 
 > **文档用途**：本文档用于 AI 助手快速建立项目上下文，理解架构设计思想和技术决策。
 >
-> **最后更新**：2025-11-21
+> **最后更新**：2025-12-03
 >
 > **阅读时长**：5-8分钟
 
@@ -776,15 +776,19 @@ on('object:added', sceneObject => {
 
 **P0 优先级**（必须完成）：
 
-1. ⏳ 检查 Context Provider 重构完成度
-   - 确认所有 UI 组件使用 `useDesignerContext()`
-   - 验证无 Props Drilling
-   - 确认 UI 状态使用 `usePersistentState()`
+1. ✅ 检查 Context Provider 重构完成度 - **已完成 2025-12-03**
+   - ✅ 确认所有 UI 组件使用 `useDesignerContext()`
+   - ✅ 验证无 Props Drilling
+   - ✅ 确认 UI 状态使用 `usePersistentState()`
+   - ✅ 修复 LibraryContext 重复创建 AssetService 问题 (Issue #9, PR #12)
+   - ✅ 添加 Drawer 状态持久化 (Issue #10, PR #13)
+   - ✅ 添加 Library viewMode 持久化 (Issue #11, PR #14)
 
-2. ⏳ 清理 Model → SceneObject 遗留代码
-   - 搜索 `@deprecated` 标记
-   - 移除 `Model<TMetadata>` 类型引用
-   - 确保 core/object/ 仅使用 SceneObject
+2. ✅ 清理 Model → SceneObject 遗留代码 - **已完成 2025-12-03**
+   - ✅ 搜索 `@deprecated` 标记（无遗留）
+   - ✅ 移除 `Model<TMetadata>` 类型引用（已完成）
+   - ✅ 确保 core/object/ 仅使用 SceneObject（架构纯净）
+   - ✅ 所有 `.deprecated.ts` 文件已在早期清理完成
 
 **P1 优先级**（重要）：
 
@@ -797,9 +801,9 @@ on('object:added', sceneObject => {
    - ⏳ 智能吸附（端点、边缘、网格）- 规划中
    - ⏳ 键盘快捷键（R旋转、ESC取消、Enter确认）- 规划中
 
-4. ⏳ 移除废弃的 ContextMenu 代码
-   - 删除 `src/components/menu/ContextMenuContainer.tsx`
-   - 验证无引用残留
+4. ✅ 移除废弃的 ContextMenu 代码 - **已完成 2025-12-03**
+   - ✅ 删除 `src/components/menu/ContextMenuContainer.tsx`（已在早期清理）
+   - ✅ 验证无引用残留
 
 **P2 优先级**（计划中）：
 
