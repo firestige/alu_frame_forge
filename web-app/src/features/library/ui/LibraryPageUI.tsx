@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { usePersistentState } from '@/features/designer/hooks/usePersistentState';
 import LibraryToolbar from './LibraryToolbar';
 import GalleryView from './GalleryView';
 import ListView from './ListView';
@@ -26,7 +27,12 @@ export interface LibraryPageUIProps {
 
 /**
  * LibraryPageUI - 型材库显示层组件
- * 负责组织具体的显示层实现，通过 props 接收数据和回调
+ *
+ * 职责：
+ * - 负责组织具体的显示层实现，通过 props 接收数据和回调
+ * - 管理视图模式状态（持久化用户偏好）
+ *
+ * 修复：Issue #11 - 视图模式现在持久化到 localStorage
  */
 const LibraryPageUI: React.FC<LibraryPageUIProps> = ({
   onSearch,
@@ -40,8 +46,11 @@ const LibraryPageUI: React.FC<LibraryPageUIProps> = ({
   onSelectAsset,
   onSelectAll,
 }) => {
-  // viewMode 是内部状态：生产者（toolbar）和消费者（渲染逻辑）都在组件内部
-  const [viewMode, setViewMode] = useState<'gallery' | 'list'>('gallery');
+  // 使用持久化状态保存用户的视图模式偏好
+  const [viewMode, setViewMode] = usePersistentState<'gallery' | 'list'>(
+    'library.viewMode',
+    'gallery'
+  );
   return (
     <div className="library-page-ui flex flex-col h-full">
       <LibraryToolbar
