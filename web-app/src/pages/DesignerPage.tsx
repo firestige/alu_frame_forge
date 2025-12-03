@@ -4,6 +4,8 @@ import { ModelCreationService } from '../features/designer/services/ModelCreatio
 import { ModelEditorService } from '../features/designer/services/ModelEditorService';
 import { PlacementController } from '../features/designer/services/PlacementService';
 import { RenderSyncService } from '../features/designer/services/RenderSyncService';
+import { CameraService } from '@/core/renderer/services/CameraService';
+import { CameraCommandHandler } from '../features/designer/services/CameraCommandHandler';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
 import { DesignerProvider } from '../features/designer/context';
 import {
@@ -69,11 +71,15 @@ const DesignerPage: React.FC = () => {
     editor: ModelEditorService | null;
     placement: PlacementController | null;
     renderSync: RenderSyncService | null;
+    cameraService: CameraService | null;
+    cameraCommandHandler: CameraCommandHandler | null;
   }>({
     creation: null,
     editor: null,
     placement: null,
     renderSync: null,
+    cameraService: null,
+    cameraCommandHandler: null,
   });
 
   // 初始化不依赖 renderer 的服务
@@ -96,7 +102,9 @@ const DesignerPage: React.FC = () => {
   React.useEffect(() => {
     if (!rendererRef.current) return;
 
-    console.log('[DesignerPage] 创建 RenderSyncService 和 PlacementController');
+    console.log(
+      '[DesignerPage] 创建 RenderSyncService、PlacementController 和 CameraService'
+    );
 
     const renderSync = new RenderSyncService(
       coreServices.objectManager,
@@ -108,11 +116,30 @@ const DesignerPage: React.FC = () => {
       coreServices.objectManager
     );
 
-    setFeatureServices(prev => ({ ...prev, renderSync, placement }));
+    // 初始化 CameraService 和 CameraCommandHandler
+    const cameraController = (rendererRef.current as any).cameraController;
+    if (!cameraController) {
+      console.error('[DesignerPage] CameraController not found in renderer');
+      return;
+    }
+
+    const cameraService = new CameraService(cameraController, 10);
+    cameraService.loadSavedView(); // 加载保存的视角
+
+    const cameraCommandHandler = new CameraCommandHandler(cameraService);
+
+    setFeatureServices(prev => ({
+      ...prev,
+      renderSync,
+      placement,
+      cameraService,
+      cameraCommandHandler,
+    }));
 
     return () => {
       renderSync.dispose();
       placement.dispose();
+      cameraCommandHandler.dispose();
     };
   }, [isRendererReady, coreServices.objectManager]);
 
@@ -267,21 +294,6 @@ const DesignerPage: React.FC = () => {
     onCommand('command:model:toggleVisibility', handleToggleVisibility);
     onCommand('command:model:update', handleModelUpdate);
 
-    // 监听相机命令 (相机是 UI 状态，这里暂时保留框架)
-    const handleCameraSetView = (_data: {
-      position: { x: number; y: number; z: number };
-      target: { x: number; y: number; z: number };
-    }) => {
-      // TODO: 实现相机视图设置 (将来可能委托给 renderer)
-    };
-
-    const handleCameraReset = () => {
-      // TODO: 实现相机重置 (将来可能委托给 renderer)
-    };
-
-    onCommand('command:camera:setView', handleCameraSetView);
-    onCommand('command:camera:reset', handleCameraReset);
-
     return () => {
       offCommand('command:create:cube', handleCreateCube);
       offCommand('command:create:box', handleCreateBox);
@@ -292,8 +304,6 @@ const DesignerPage: React.FC = () => {
       offCommand('command:model:delete', handleDelete);
       offCommand('command:model:toggleVisibility', handleToggleVisibility);
       offCommand('command:model:update', handleModelUpdate);
-      offCommand('command:camera:setView', handleCameraSetView);
-      offCommand('command:camera:reset', handleCameraReset);
     };
   }, [
     featureServices.creation,

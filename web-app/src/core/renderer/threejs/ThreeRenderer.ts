@@ -60,6 +60,9 @@ export class ThreeRenderer implements IRenderer {
     // 初始化相机控制器
     this.cameraController = new CameraController(config.container);
 
+    // 设置场景引用（用于获取对象包围盒）
+    this.cameraController.setScene(this.sceneManager.getScene());
+
     // 初始化预览管理器
     this.previewManager = new PreviewManager(this.sceneManager.getScene());
 
@@ -147,6 +150,14 @@ export class ThreeRenderer implements IRenderer {
 
     // 添加到场景
     this.sceneManager.getScene().add(obj);
+
+    console.log('[ThreeRenderer] Object added to scene:', {
+      type: obj.type,
+      uuid: obj.uuid,
+      modelId: obj.userData?.modelId,
+      parent: obj.parent?.type,
+      inScene: this.sceneManager.getScene().children.includes(obj),
+    });
   }
 
   removeObject(object: unknown): void {
@@ -175,6 +186,19 @@ export class ThreeRenderer implements IRenderer {
     const obj = object as THREE.Object3D;
 
     if (transform.position) {
+      // 验证数据有效性（null、undefined、NaN 都会导致问题）
+      if (
+        transform.position.x == null ||
+        transform.position.y == null ||
+        transform.position.z == null ||
+        isNaN(transform.position.x) ||
+        isNaN(transform.position.y) ||
+        isNaN(transform.position.z)
+      ) {
+        console.error('[ThreeRenderer] Invalid position:', transform.position);
+        return;
+      }
+
       obj.position.set(
         transform.position.x,
         transform.position.y,
@@ -183,6 +207,19 @@ export class ThreeRenderer implements IRenderer {
     }
 
     if (transform.rotation) {
+      // 验证数据有效性
+      if (
+        transform.rotation.x == null ||
+        transform.rotation.y == null ||
+        transform.rotation.z == null ||
+        isNaN(transform.rotation.x) ||
+        isNaN(transform.rotation.y) ||
+        isNaN(transform.rotation.z)
+      ) {
+        console.error('[ThreeRenderer] Invalid rotation:', transform.rotation);
+        return;
+      }
+
       obj.rotation.set(
         transform.rotation.x,
         transform.rotation.y,
@@ -192,6 +229,19 @@ export class ThreeRenderer implements IRenderer {
     }
 
     if (transform.scale) {
+      // 验证数据有效性
+      if (
+        transform.scale.x == null ||
+        transform.scale.y == null ||
+        transform.scale.z == null ||
+        isNaN(transform.scale.x) ||
+        isNaN(transform.scale.y) ||
+        isNaN(transform.scale.z)
+      ) {
+        console.error('[ThreeRenderer] Invalid scale:', transform.scale);
+        return;
+      }
+
       obj.scale.set(transform.scale.x, transform.scale.y, transform.scale.z);
     }
   }
@@ -464,7 +514,10 @@ export class ThreeRenderer implements IRenderer {
     this.rendererCore.startRenderLoop(
       scene,
       camera,
-      () => this.cameraController?.updateControls(),
+      () => {
+        // 更新相机控制器
+        this.cameraController?.updateControls();
+      },
       callback
     );
   }

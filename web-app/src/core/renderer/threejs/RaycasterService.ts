@@ -171,6 +171,19 @@ export class RaycasterService {
         }
       }
 
+      // 始终跳过 TransformControls 的组件
+      // TransformControlsRoot 包含 gizmo 和 plane，应该完全排除在交互之外
+      // @ts-ignore - isTransformControlsRoot is a custom property
+      if (
+        obj.isTransformControlsRoot ||
+        obj.type === 'TransformControlsGizmo' ||
+        obj.type === 'TransformControlsPlane' ||
+        obj.name === 'TransformControlsGizmo' ||
+        obj.name === 'TransformControlsPlane'
+      ) {
+        return;
+      }
+
       // 只添加标记为可交互的对象或具有 Mesh 的对象
       if (obj.userData.interactive || obj instanceof THREE.Mesh) {
         objects.push(obj);

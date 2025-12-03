@@ -52,6 +52,75 @@ export interface Vector2 {
  */
 export type ColorHex = number;
 
+// ==================== 相机视角控制 ====================
+
+/**
+ * 标准相机预设（26个标准位置）
+ * 支持面（6个）、棱（12个）、角（8个）视图
+ */
+export enum CameraPreset {
+  // === 6 个面视图 ===
+  FRONT = 'front',
+  BACK = 'back',
+  LEFT = 'left',
+  RIGHT = 'right',
+  TOP = 'top',
+  BOTTOM = 'bottom',
+
+  // === 12 个棱视图 ===
+  FRONT_TOP = 'front-top',
+  FRONT_BOTTOM = 'front-bottom',
+  FRONT_LEFT = 'front-left',
+  FRONT_RIGHT = 'front-right',
+  BACK_TOP = 'back-top',
+  BACK_BOTTOM = 'back-bottom',
+  BACK_LEFT = 'back-left',
+  BACK_RIGHT = 'back-right',
+  TOP_LEFT = 'top-left',
+  TOP_RIGHT = 'top-right',
+  BOTTOM_LEFT = 'bottom-left',
+  BOTTOM_RIGHT = 'bottom-right',
+
+  // === 8 个角视图 ===
+  FRONT_TOP_LEFT = 'front-top-left',
+  FRONT_TOP_RIGHT = 'front-top-right',
+  FRONT_BOTTOM_LEFT = 'front-bottom-left',
+  FRONT_BOTTOM_RIGHT = 'front-bottom-right',
+  BACK_TOP_LEFT = 'back-top-left',
+  BACK_TOP_RIGHT = 'back-top-right',
+  BACK_BOTTOM_LEFT = 'back-bottom-left',
+  BACK_BOTTOM_RIGHT = 'back-bottom-right',
+
+  // === 常用等轴测 ===
+  ISOMETRIC = 'isometric', // 等同于 FRONT_TOP_RIGHT
+  ISOMETRIC_ALT = 'isometric-alt', // 等同于 BACK_TOP_LEFT
+}
+
+/**
+ * 视角描述符 - 统一的视角定义格式
+ * 支持从预设枚举或自由向量创建
+ */
+export interface ViewDescriptor {
+  /** 相机位置 */
+  position: Vector3;
+  /** 观察目标点 */
+  target: Vector3;
+  /** 上方向（用于特殊视图如顶视图） */
+  up?: Vector3;
+  /** 视角名称（用于 UI 显示） */
+  name?: string;
+  /** 预设标识（如果是预设视角） */
+  preset?: CameraPreset;
+}
+
+/**
+ * 包围盒
+ */
+export interface BoundingBox {
+  min: Vector3;
+  max: Vector3;
+}
+
 // ==================== 渲染对象 ====================
 
 /**
