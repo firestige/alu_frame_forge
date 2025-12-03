@@ -964,6 +964,185 @@ export class GridHelperPlugin implements IRendererPlugin {
 
 ---
 
+## 6. 相机控制系统
+
+### 6.1 CameraService
+
+**职责**：
+
+- 管理 26 个标准视角预设（6 面 + 12 棱 + 8 角 + 等轴测）
+- 视角切换动画（manual lerp + easeInOutCubic）
+- 状态持久化到 localStorage
+- 通过 eventBus 发布状态变更
+
+**预设视角**：
+
+```typescript
+export enum CameraPreset {
+  // 6 个面视图
+  FRONT = 'front',
+  BACK = 'back',
+  LEFT = 'left',
+  RIGHT = 'right',
+  TOP = 'top',
+  BOTTOM = 'bottom',
+
+  // 等轴测（默认视角）
+  ISOMETRIC = 'isometric',
+
+  // 12 个棱视图（预留，未在 MVP UI 中暴露）
+  FRONT_TOP = 'front-top',
+  FRONT_BOTTOM = 'front-bottom',
+  FRONT_LEFT = 'front-left',
+  FRONT_RIGHT = 'front-right',
+  BACK_TOP = 'back-top',
+  BACK_BOTTOM = 'back-bottom',
+  BACK_LEFT = 'back-left',
+  BACK_RIGHT = 'back-right',
+  TOP_LEFT = 'top-left',
+  TOP_RIGHT = 'top-right',
+  BOTTOM_LEFT = 'bottom-left',
+  BOTTOM_RIGHT = 'bottom-right',
+
+  // 8 个角视图（预留）
+  FRONT_TOP_LEFT = 'front-top-left',
+  FRONT_TOP_RIGHT = 'front-top-right',
+  FRONT_BOTTOM_LEFT = 'front-bottom-left',
+  FRONT_BOTTOM_RIGHT = 'front-bottom-right',
+  BACK_TOP_LEFT = 'back-top-left',
+  BACK_TOP_RIGHT = 'back-top-right',
+  BACK_BOTTOM_LEFT = 'back-bottom-left',
+  BACK_BOTTOM_RIGHT = 'back-bottom-right',
+}
+```
+
+**API**：
+
+```typescript
+class CameraService {
+  // 设置预设视角
+  async setViewPreset(preset: CameraPreset, animated?: boolean): Promise<void>;
+
+  // 通过方向向量设置视角
+  async setViewByDirection(
+    direction: Vector3,
+    up?: Vector3,
+    animated?: boolean
+  ): Promise<void>;
+
+  // 聚焦到对象
+  async focusOnObject(objectId: string, padding?: number): Promise<void>;
+
+  // 重置到等轴测
+  async reset(animated?: boolean): Promise<void>;
+
+  // 获取当前视角
+  getCurrentView(): ViewDescriptor;
+
+  // 判断当前是否为某预设
+  isPresetActive(preset: CameraPreset): boolean;
+}
+```
+
+**事件流**：
+
+```
+ControlPanel (UI)
+  → command:camera:setPreset (EventBus)
+    → CameraCommandHandler
+      → CameraService.setViewPreset()
+        → CameraController.animateToPosition()
+          → camera:viewChanged (EventBus)
+            → ControlPanel 更新激活状态
+```
+
+**快捷键**：
+
+- `1-7`: 切换面视图和等轴测
+- `H`: 重置到等轴测（Home）
+
+### 6.2 TransformControls 系统
+
+**职责**：
+
+- 交互式对象变换（移动/旋转/缩放）
+- 自动处理与 OrbitControls 的冲突
+- 变换完成后同步到 ObjectManager
+
+**架构**：
+
+```
+TransformToolbar (UI)
+  → command:transform:setMode (EventBus)
+    → TransformCommandHandler
+      → TransformService.setMode()
+        → TransformController (Three.js TransformControls)
+          → state:transform:completed (EventBus)
+            → ObjectManager.updateTransform()
+```
+
+**API**：
+
+```typescript
+class TransformService {
+  // 附加到对象
+  attachToObject(objectId: string): void;
+
+  // 分离当前对象
+  detach(): void;
+
+  // 设置模式
+  setMode(mode: 'translate' | 'rotate' | 'scale'): void;
+
+  // 设置空间（local/world）
+  setSpace(space: 'local' | 'world'): void;
+
+  // 启用/禁用
+  setEnabled(enabled: boolean): void;
+}
+```
+
+**快捷键**：
+
+- `W`: 切换到移动模式
+- `E`: 切换到旋转模式
+- `R`: 切换到缩放模式
+- `Q` / `Esc`: 取消选择（分离）
+
+**实现细节**：
+
+1. **Gizmo 位置同步**：TransformControls 的 `_gizmo` 需要在 `attach()` 后手动同步到对象的世界坐标，并在每帧渲染时更新，否则 gizmo 会停留在原点 `(0,0,0)`。
+
+2. **可见性配置**：
+   - `_gizmo.visible = true` - 强制 gizmo 可见
+   - `material.depthTest = false` - 禁用深度测试，防止被对象遮挡
+   - `renderOrder = 999` - 确保 gizmo 在最上层渲染
+   - `size = 3` - 增大尺寸（3倍），让箭头从对象中心伸出来
+
+3. **渲染循环更新**：
+
+   ```typescript
+   // 在 ThreeRenderer.startRenderLoop() 的每帧回调中
+   if (controls.object && controls._gizmo) {
+     const worldPosition = new THREE.Vector3();
+     controls.object.getWorldPosition(worldPosition);
+     controls._gizmo.position.copy(worldPosition);
+     controls._gizmo.updateMatrixWorld(true);
+   }
+   ```
+
+4. **数据验证**：TransformService 在同步变换数据到 ObjectManager 前，会验证 position/rotation/scale 是否包含 `NaN` / `Infinity` / `null` / `undefined`，防止无效数据导致对象消失。
+
+**自动 Attach**：
+
+当用户通过 UI 选中对象时，自动触发 `command:selection:set` 命令，DesignerPage 监听该命令并调用 `TransformService.attachToObject()`。
+
+**冲突处理**：
+
+拖拽 TransformControls 时自动禁用 OrbitControls，释放鼠标后恢复。
+
+---
+
 **相关文档**：
 
 - [核心架构设计](./CoreArchitecture.md) - ObjectManager、事件驱动

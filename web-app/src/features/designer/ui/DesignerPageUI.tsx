@@ -1,10 +1,12 @@
 import * as React from 'react';
 import ControlPanel from './camera/ControlPanel';
+import TransformToolbar from './transform/TransformToolbar';
 import Toolbar from './DesignerToolbar';
 import ObjectManagerSidebar from './ObjectManagerSidebar';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { use3DViewer } from '../hooks/use3DViewer';
 import { useSelectionService } from '../hooks/useSelectionService';
+import { useSceneClick } from '../hooks/useSceneClick';
 import { usePlacementInput } from '../hooks/usePlacementInput';
 import { usePlacementState } from '../hooks/usePlacementState';
 import { useCreationCommands } from '../hooks/useCreationCommands';
@@ -66,16 +68,20 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   useSelectionService(renderer);
 
-  // ==================== 3. 创建命令处理 ====================
+  // ==================== 3. 场景点击事件处理 ====================
+
+  useSceneClick(containerRef, renderer);
+
+  // ==================== 4. 创建命令处理 ====================
 
   useCreationCommands();
 
-  // ==================== 4. 放置输入处理 ====================
+  // ==================== 5. 放置输入处理 ====================
 
   const { isPlacementActive } = usePlacementState();
   usePlacementInput(containerRef, isPlacementActive);
 
-  // ==================== 5. UI 状态（持久化） ====================
+  // ==================== 6. UI 状态（持久化） ====================
 
   // 工具选择
   const [selectedTool, setSelectedTool] = usePersistentState<
@@ -106,6 +112,9 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
         <div ref={containerRef} className="relative flex-1">
           {/* 右上角视角控制面板 */}
           <ControlPanel />
+
+          {/* 中上方变换工具栏 */}
+          <TransformToolbar />
         </div>
       </div>
     </div>

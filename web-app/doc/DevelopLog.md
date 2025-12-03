@@ -1,6 +1,192 @@
 # 开发日志
 
-**最后更新**: 2025-12-03
+**最后更新**: 2025-12-04
+
+---
+
+## 2025-12-04
+
+### #11. 3D 视角控制实现
+
+**目标**: 实现标准的 3D 视角控制，支持旋转、平移、缩放等基本交互功能
+
+**完成内容**:
+
+#### 1. OrbitControls 集成
+
+**实现位置**: `src/core/renderer/threejs/CameraController.ts`
+
+核心功能:
+
+- ✅ 集成 Three.js OrbitControls
+- ✅ 相机控制参数配置（旋转速度、缩放范围、阻尼效果）
+- ✅ 视角预设系统（正视图、侧视图、俯视图、等轴测视图）
+- ✅ 重置视角功能
+- ✅ 键盘快捷键支持（数字键 1-7）
+
+```typescript
+export class CameraController {
+  private controls: OrbitControls;
+
+  constructor(camera: THREE.Camera, domElement: HTMLElement) {
+    this.controls = new OrbitControls(camera, domElement);
+
+    // 配置控制参数
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.screenSpacePanning = true;
+    this.controls.minDistance = 10;
+    this.controls.maxDistance = 500;
+    this.controls.maxPolarAngle = Math.PI / 2;
+  }
+
+  // 视角预设
+  setViewPreset(preset: ViewPreset): void {
+    // Front, Back, Left, Right, Top, Bottom, Isometric
+  }
+}
+```
+
+#### 2. 相机服务重构
+
+**实现位置**: `src/core/renderer/threejs/CameraService.ts`
+
+改进:
+
+- ✅ 从 CameraService 分离出 CameraController（单一职责原则）
+- ✅ CameraService 负责相机创建和管理
+- ✅ CameraController 负责用户交互控制
+- ✅ 命令系统集成（`camera:set-view-preset`, `camera:reset-view`）
+
+```typescript
+export class CameraService {
+  private controller: CameraController | null = null;
+
+  createCamera(): THREE.PerspectiveCamera {
+    const camera = new THREE.PerspectiveCamera(/* ... */);
+    camera.position.set(50, 50, 50);
+    camera.lookAt(0, 0, 0);
+    return camera;
+  }
+
+  initializeControls(camera: THREE.Camera, domElement: HTMLElement): void {
+    this.controller = new CameraController(camera, domElement);
+    // 绑定事件监听器
+  }
+}
+```
+
+#### 3. UI 集成
+
+**新增组件**: `src/features/designer/ui/ViewControlButtons.tsx`
+
+功能:
+
+- ✅ 视角切换按钮组（7个视角预设）
+- ✅ 重置视角按钮
+- ✅ 键盘快捷键提示
+- ✅ 使用 Framer Motion 动画效果
+- ✅ Material Design 风格图标
+
+```tsx
+<Box sx={{ display: 'flex', gap: 0.5 }}>
+  <IconButton onClick={() => setViewPreset('front')} title="正视图 (1)">
+    <ViewFrontIcon />
+  </IconButton>
+  {/* ... 其他视角按钮 ... */}
+  <IconButton onClick={() => resetView()} title="重置视角 (0)">
+    <RestartAltIcon />
+  </IconButton>
+</Box>
+```
+
+#### 4. 键盘快捷键系统
+
+**实现位置**: `src/features/designer/hooks/useCameraKeyboard.ts`
+
+支持的快捷键:
+
+- `1` - 正视图 (Front)
+- `2` - 后视图 (Back)
+- `3` - 左视图 (Left)
+- `4` - 右视图 (Right)
+- `5` - 俯视图 (Top)
+- `6` - 仰视图 (Bottom)
+- `7` - 等轴测视图 (Isometric)
+- `0` - 重置视角
+
+```typescript
+export function useCameraKeyboard() {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target !== document.body) return;
+
+      const keyMap: Record<string, ViewPreset | 'reset'> = {
+        '1': 'front',
+        '2': 'back',
+        '3': 'left',
+        '4': 'right',
+        '5': 'top',
+        '6': 'bottom',
+        '7': 'isometric',
+        '0': 'reset',
+      };
+
+      const action = keyMap[event.key];
+      if (action)
+        eventBus.emit(
+          `camera:${action === 'reset' ? 'reset-view' : 'set-view-preset'}`,
+          action
+        );
+    };
+    // ...
+  }, []);
+}
+```
+
+#### 5. 测试覆盖
+
+**新增测试**:
+
+- ✅ `CameraService.test.ts` - 相机创建、控制器初始化
+- ✅ `camera-and-transform.spec.ts` - E2E 视角切换测试
+
+#### 6. 文档更新
+
+**更新文档**:
+
+- ✅ `RenderingSystem.md` - 添加 CameraController 架构说明
+- ✅ `TODO.md` - 标记任务 #1 为已完成
+- ✅ `DevelopLog.md` - 本条目
+
+**技术要点**:
+
+1. **OrbitControls 配置优化**:
+   - 启用阻尼效果提升交互流畅度
+   - 限制缩放和旋转范围防止异常视角
+   - 使用 `screenSpacePanning` 改进平移行为
+
+2. **视角预设实现**:
+   - 使用 Tween 动画平滑过渡相机位置
+   - 计算合适的相机距离保持场景完整可见
+   - 等轴测视图使用标准角度 (45°, 35.264°)
+
+3. **架构设计**:
+   - CameraService: 相机生命周期管理
+   - CameraController: 用户交互控制
+   - 通过命令系统解耦 UI 和业务逻辑
+
+**遗留问题**:
+
+TransformControls 集成遇到技术障碍，暂时回退：
+
+- 问题: Three.js 模块实例化检查导致 `scene.add(transformControls)` 失败
+- 尝试: 使用 `getHelper()` 添加 TransformControlsRoot，但仍需进一步调试
+- 决策: 先合并视角控制功能，TransformControls 留待后续专门解决
+
+**PR 信息**: PR #14 - feat: implement 3D camera controls
+
+**相关 Issue**: TODO.md 任务 #1
 
 ---
 
@@ -15,6 +201,7 @@
 #### 1. Context Provider 架构验证与修复
 
 **问题发现**:
+
 - LibraryContext 重复创建 AssetService 实例，违背单例模式
 - DrawerStore 状态未持久化，用户体验欠佳
 - Library viewMode 偏好未持久化
@@ -22,6 +209,7 @@
 **修复方案**:
 
 **Issue #9** - LibraryContext 架构违规 (PR #12, 已合并):
+
 ```typescript
 // 修改前：重复创建实例
 const assetService = React.useMemo(() => new AssetService(), []);
@@ -29,17 +217,19 @@ const assetService = React.useMemo(() => new AssetService(), []);
 // 修改后：使用共享实例
 const { assetService } = useCoreServices();
 ```
+
 - 符合单例模式，确保 AssetService 全局唯一
 - LibraryContext 和 DesignerContext 共享同一 AssetService
 
 **Issue #10** - Drawer 状态持久化 (PR #13, 待合并):
+
 ```typescript
 // 添加 Zustand persist 中间件
 export const useDrawerStore = create<DrawerStore>()(
   persist(
-    (set) => ({
+    set => ({
       isOpen: true,
-      toggleDrawer: () => set((state) => ({ isOpen: !state.isOpen })),
+      toggleDrawer: () => set(state => ({ isOpen: !state.isOpen })),
       openDrawer: () => set({ isOpen: true }),
       closeDrawer: () => set({ isOpen: false }),
     }),
@@ -51,6 +241,7 @@ export const useDrawerStore = create<DrawerStore>()(
 ```
 
 **Issue #11** - Library viewMode 持久化 (PR #14, 待合并):
+
 ```typescript
 // 使用 usePersistentState Hook
 const [viewMode, setViewMode] = usePersistentState<'gallery' | 'list'>(
@@ -60,6 +251,7 @@ const [viewMode, setViewMode] = usePersistentState<'gallery' | 'list'>(
 ```
 
 **验证结果**:
+
 - ✅ 所有 UI 组件正确使用 Context
 - ✅ 无 Props Drilling 问题
 - ✅ UI 状态使用 usePersistentState
@@ -70,6 +262,7 @@ const [viewMode, setViewMode] = usePersistentState<'gallery' | 'list'>(
 **清理范围检查**:
 
 使用多种搜索策略系统性验证：
+
 ```bash
 # 搜索 @deprecated 注释
 grep -r "@deprecated" src/**/*.{ts,tsx}  # 结果：无
@@ -82,6 +275,7 @@ find src -name "*deprecated*"  # 结果：无
 ```
 
 **验证结果**:
+
 - ✅ 无 `@deprecated` 标记代码
 - ✅ 无 `Model<TMetadata>` 类型引用
 - ✅ 所有 `.deprecated.ts` 文件已清理：
@@ -94,11 +288,12 @@ find src -name "*deprecated*"  # 结果：无
 **命名规范说明**:
 
 代码中保留的 "Model" 命名是**业务服务名称**，非遗留代码：
+
 ```typescript
 // 这些是正常的业务服务命名，不是废弃的 Model<TMetadata> 类型
-- ModelCreationService   // 模型创建服务
-- ModelEditorService     // 模型编辑服务
-- ModelFactory           // 模型工厂
+-ModelCreationService - // 模型创建服务
+  ModelEditorService - // 模型编辑服务
+  ModelFactory; // 模型工厂
 ```
 
 这些服务操作的是 `SceneObject` 类型，"Model" 仅作为业务术语。
@@ -111,6 +306,7 @@ find src -name "*deprecated*"  # 结果：无
 - 代码清洁度: 无遗留代码残留
 
 **GitHub Issues & PRs**:
+
 - Issue #9: LibraryContext duplicate AssetService → PR #12 (已合并)
 - Issue #10: Drawer state persistence → PR #13 (待合并)
 - Issue #11: Library viewMode persistence → PR #14 (待合并)

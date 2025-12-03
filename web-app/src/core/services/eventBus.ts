@@ -51,12 +51,26 @@ export type DesignerCommandEvents = {
   'command:placement:cancel': void;
 
   // 相机命令
-  'command:camera:reset': void;
+  'command:camera:reset': { animated?: boolean };
   'command:camera:setPosition': Vector3;
   'command:camera:setView': {
     position: Vector3;
     target: Vector3;
   };
+  'command:camera:setPreset': {
+    preset: string; // CameraPreset enum value
+    animated?: boolean;
+  };
+  'command:camera:setViewByDirection': {
+    direction: Vector3;
+    up?: Vector3;
+    animated?: boolean;
+  };
+  'command:camera:focusObject': {
+    objectId: string;
+    padding?: number;
+  };
+  'command:camera:toggleOrbitControls': { enabled: boolean };
 
   // 模型编辑命令
   'command:model:delete': string; // modelId
@@ -78,6 +92,13 @@ export type DesignerCommandEvents = {
   // 选择命令
   'command:selection:clear': void;
   'command:selection:set': string; // modelId
+
+  // 变换命令
+  'command:transform:attach': { objectId: string };
+  'command:transform:detach': void;
+  'command:transform:setMode': { mode: 'translate' | 'rotate' | 'scale' };
+  'command:transform:setSpace': { space: 'local' | 'world' };
+  'command:transform:toggle': { enabled: boolean };
 };
 
 /**
@@ -99,6 +120,14 @@ export type DesignerStateEvents = {
   'state:renderer:ready': void;
   'state:renderer:error': Error;
 
+  // 相机状态事件
+  'camera:viewChanged': {
+    preset: string | null; // CameraPreset enum value or null
+    position: Vector3;
+    target: Vector3;
+  };
+  'camera:orbitControlsChanged': { enabled: boolean };
+
   // 放置相关事件
   'state:placement:started': { asset: AnyAsset };
   'state:placement:completed': { modelId: string };
@@ -106,6 +135,21 @@ export type DesignerStateEvents = {
 
   // UI 通知事件（业务层 → UI 层）
   'ui:selection:clear': { deletedObjectId?: string; reason?: string };
+
+  // 变换状态事件
+  'state:transform:attached': { objectId: string };
+  'state:transform:detached': { objectId: string };
+  'state:transform:modeChanged': { mode: 'translate' | 'rotate' | 'scale' };
+  'state:transform:spaceChanged': { space: 'local' | 'world' };
+  'state:transform:draggingChanged': { dragging: boolean };
+  'state:transform:completed': {
+    objectId: string;
+    transform: {
+      position: Vector3;
+      rotation: Vector3;
+      scale: Vector3;
+    };
+  };
 };
 
 /**
@@ -119,6 +163,11 @@ export type DesignerEvents = DesignerCommandEvents & DesignerStateEvents;
  * 全局设计器事件总线
  */
 export const designerEventBus: Emitter<DesignerEvents> = mitt<DesignerEvents>();
+
+/**
+ * 导出为 eventBus 别名（向后兼容）
+ */
+export const eventBus = designerEventBus;
 
 // ==================== 辅助函数 ====================
 

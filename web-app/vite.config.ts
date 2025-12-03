@@ -20,5 +20,6 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '~': path.resolve(__dirname, '.'),
     },
+    dedupe: ['three'], // 确保只有一个 Three.js 实例
   },
 });

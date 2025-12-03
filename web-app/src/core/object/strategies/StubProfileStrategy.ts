@@ -40,21 +40,52 @@ export class StubProfileStrategy implements InstanceStrategy {
     });
     const mesh = new THREE.Mesh(geometry, material);
 
-    // 应用变换
-    if (options.transform?.position) {
-      const pos = options.transform.position;
-      mesh.position.set(pos.x, pos.y, pos.z);
-    }
+    // 确保默认transform值完整且有效
+    const defaultTransform = {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, order: 'XYZ' as const },
+      scale: { x: 1, y: 1, z: 1 },
+    };
 
-    if (options.transform?.rotation) {
-      const rot = options.transform.rotation;
-      mesh.rotation.set(rot.x, rot.y, rot.z);
-    }
+    // 合并传入的transform，确保所有字段都有值
+    const finalTransform = {
+      position: {
+        x: options.transform?.position?.x ?? defaultTransform.position.x,
+        y: options.transform?.position?.y ?? defaultTransform.position.y,
+        z: options.transform?.position?.z ?? defaultTransform.position.z,
+      },
+      rotation: {
+        x: options.transform?.rotation?.x ?? defaultTransform.rotation.x,
+        y: options.transform?.rotation?.y ?? defaultTransform.rotation.y,
+        z: options.transform?.rotation?.z ?? defaultTransform.rotation.z,
+        order: (options.transform?.rotation?.order ??
+          defaultTransform.rotation.order) as 'XYZ',
+      },
+      scale: {
+        x: options.transform?.scale?.x ?? defaultTransform.scale.x,
+        y: options.transform?.scale?.y ?? defaultTransform.scale.y,
+        z: options.transform?.scale?.z ?? defaultTransform.scale.z,
+      },
+    };
 
-    if (options.transform?.scale) {
-      const scale = options.transform.scale;
-      mesh.scale.set(scale.x, scale.y, scale.z);
-    }
+    // 应用变换（确保不会有null或undefined）
+    mesh.position.set(
+      finalTransform.position.x,
+      finalTransform.position.y,
+      finalTransform.position.z
+    );
+
+    mesh.rotation.set(
+      finalTransform.rotation.x,
+      finalTransform.rotation.y,
+      finalTransform.rotation.z
+    );
+
+    mesh.scale.set(
+      finalTransform.scale.x,
+      finalTransform.scale.y,
+      finalTransform.scale.z
+    );
 
     // 添加 userData 用于识别
     mesh.userData.modelId = `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -73,14 +104,9 @@ export class StubProfileStrategy implements InstanceStrategy {
       machiningOps: options.machiningOps || [],
 
       transform: {
-        position: options.transform?.position || { x: 0, y: 0, z: 0 },
-        rotation: options.transform?.rotation || {
-          x: 0,
-          y: 0,
-          z: 0,
-          order: 'XYZ',
-        },
-        scale: options.transform?.scale || { x: 1, y: 1, z: 1 },
+        position: finalTransform.position,
+        rotation: finalTransform.rotation,
+        scale: finalTransform.scale,
       },
 
       visual: {
