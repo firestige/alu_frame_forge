@@ -4,6 +4,8 @@ import { ModelCreationService } from '../features/designer/services/ModelCreatio
 import { ModelEditorService } from '../features/designer/services/ModelEditorService';
 import { PlacementController } from '../features/designer/services/PlacementService';
 import { RenderSyncService } from '../features/designer/services/RenderSyncService';
+import { SelectionService } from '../features/designer/services/SelectionService';
+import { BoxSelectController } from '../features/designer/services/BoxSelectController';
 import { CameraService } from '@/core/renderer/services/CameraService';
 import { CameraCommandHandler } from '../features/designer/services/CameraCommandHandler';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
@@ -71,6 +73,8 @@ const DesignerPage: React.FC = () => {
     editor: ModelEditorService | null;
     placement: PlacementController | null;
     renderSync: RenderSyncService | null;
+    selection: SelectionService | null;
+    boxSelect: BoxSelectController | null;
     cameraService: CameraService | null;
     cameraCommandHandler: CameraCommandHandler | null;
   }>({
@@ -78,6 +82,8 @@ const DesignerPage: React.FC = () => {
     editor: null,
     placement: null,
     renderSync: null,
+    selection: null,
+    boxSelect: null,
     cameraService: null,
     cameraCommandHandler: null,
   });
@@ -94,7 +100,7 @@ const DesignerPage: React.FC = () => {
     return () => {
       console.log('[DesignerPage] 清理 Features 层服务');
       // 页面卸载前强制保存，防止路由切换时丢失数据
-      coreServices.autoSave.forceSave();
+      coreServices.autoSave?.forceSave();
     };
   }, [coreServices.objectManager, coreServices.autoSave]);
 
@@ -103,7 +109,7 @@ const DesignerPage: React.FC = () => {
     if (!rendererRef.current) return;
 
     console.log(
-      '[DesignerPage] 创建 RenderSyncService、PlacementController 和 CameraService'
+      '[DesignerPage] 创建 RenderSyncService、PlacementController、SelectionService、BoxSelectController 和 CameraService'
     );
 
     const renderSync = new RenderSyncService(
@@ -112,6 +118,15 @@ const DesignerPage: React.FC = () => {
     );
 
     const placement = new PlacementController(
+      rendererRef.current,
+      coreServices.objectManager
+    );
+
+    // 初始化 SelectionService
+    const selection = new SelectionService(rendererRef.current);
+
+    // 初始化 BoxSelectController
+    const boxSelect = new BoxSelectController(
       rendererRef.current,
       coreServices.objectManager
     );
@@ -132,6 +147,8 @@ const DesignerPage: React.FC = () => {
       ...prev,
       renderSync,
       placement,
+      selection,
+      boxSelect,
       cameraService,
       cameraCommandHandler,
     }));
@@ -139,6 +156,8 @@ const DesignerPage: React.FC = () => {
     return () => {
       renderSync.dispose();
       placement.dispose();
+      selection.dispose();
+      boxSelect.dispose();
       cameraCommandHandler.dispose();
     };
   }, [isRendererReady, coreServices.objectManager]);

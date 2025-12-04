@@ -360,6 +360,32 @@ export interface IRenderer {
    */
   disableOrbitControls(): void;
 
+  /**
+   * 请求禁用轨道控制器（引用计数）
+   * @param reason 禁用原因，用于调试
+   */
+  requestDisableOrbitControls(reason: string): void;
+
+  /**
+   * 释放禁用轨道控制器（引用计数）
+   * @param reason 释放原因，用于调试
+   */
+  releaseDisableOrbitControls(reason: string): void;
+
+  // ==================== 对象高亮 ====================
+
+  /**
+   * 设置对象高亮
+   * @param objectId 对象 ID
+   * @param highlighted 是否高亮
+   */
+  setObjectHighlight(objectId: string, highlighted: boolean): void;
+
+  /**
+   * 清除所有高亮
+   */
+  clearAllHighlights(): void;
+
   // ==================== 射线检测（交互） ====================
 
   /**

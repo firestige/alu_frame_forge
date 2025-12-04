@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { IRenderer } from '@/core/renderer/renderer-types';
-import { sendCommand } from '@/core/services/eventBus';
+import { sendCommand, onState, offState } from '@/core/services/eventBus';
 
 /**
  * useSceneClick - 处理 3D 场景点击事件
@@ -8,12 +8,16 @@ import { sendCommand } from '@/core/services/eventBus';
  * 职责：
  * - 监听容器的点击事件
  * - 通过 raycast 检测点击的对象
+ * - 支持单选和多选（Ctrl/Cmd+点击）
  * - 发送选择命令到 eventBus
  */
 export function useSceneClick(
   containerRef: React.RefObject<HTMLDivElement>,
   renderer: IRenderer | null
 ): void {
+  // 追踪是否刚完成框选
+  const justFinishedBoxSelectRef = useRef(false);
+
   useEffect(() => {
     if (!containerRef.current || !renderer) {
       return;
@@ -21,7 +25,24 @@ export function useSceneClick(
 
     const container = containerRef.current;
 
+    // 监听框选结束事件
+    const handleBoxSelectEnd = () => {
+      justFinishedBoxSelectRef.current = true;
+      // 100ms 后重置标志
+      setTimeout(() => {
+        justFinishedBoxSelectRef.current = false;
+      }, 100);
+    };
+
+    onState('state:boxselect:completed', handleBoxSelectEnd);
+
     const handleClick = (event: MouseEvent) => {
+      // 如果刚完成框选，忽略此次点击
+      if (justFinishedBoxSelectRef.current) {
+        console.log('[useSceneClick] Ignoring click after box selection');
+        return;
+      }
+
       // 获取容器的边界矩形
       const rect = container.getBoundingClientRect();
 
@@ -38,6 +59,9 @@ export function useSceneClick(
         }
       );
 
+      // 检测是否按下 Ctrl/Cmd 键（多选模式）
+      const isMultiSelectMode = event.ctrlKey || event.metaKey;
+
       if (hits && hits.length > 0) {
         // 点击到对象：选中第一个对象
         const hitObject = hits[0];
@@ -45,19 +69,30 @@ export function useSceneClick(
         const objectId = hitObject.handle;
 
         if (objectId) {
-          console.log('[useSceneClick] Object selected:', objectId);
-          sendCommand('command:selection:set', objectId);
+          if (isMultiSelectMode) {
+            // 多选模式：切换选中状态
+            console.log('[useSceneClick] Toggle selection:', objectId);
+            sendCommand('command:selection:toggle', objectId);
+          } else {
+            // 单选模式：设置选中
+            console.log('[useSceneClick] Object selected:', objectId);
+            sendCommand('command:selection:set', objectId);
+          }
         } else {
           // 点击到场景对象但没有 ID（可能是辅助对象）
-          console.log(
-            '[useSceneClick] Hit object without ID, clearing selection'
-          );
-          sendCommand('command:selection:clear', undefined);
+          if (!isMultiSelectMode) {
+            console.log(
+              '[useSceneClick] Hit object without ID, clearing selection'
+            );
+            sendCommand('command:selection:clear', undefined);
+          }
         }
       } else {
-        // 点击空白处：取消选择
-        console.log('[useSceneClick] No hits, clearing selection');
-        sendCommand('command:selection:clear', undefined);
+        // 点击空白处：取消选择（仅在非多选模式下）
+        if (!isMultiSelectMode) {
+          console.log('[useSceneClick] No hits, clearing selection');
+          sendCommand('command:selection:clear', undefined);
+        }
       }
     };
 
@@ -66,6 +101,7 @@ export function useSceneClick(
 
     return () => {
       container.removeEventListener('click', handleClick);
+      offState('state:boxselect:completed', handleBoxSelectEnd);
     };
   }, [containerRef, renderer]);
 }

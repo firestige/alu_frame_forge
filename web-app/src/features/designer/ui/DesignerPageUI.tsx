@@ -1,15 +1,17 @@
 import * as React from 'react';
 import ControlPanel from './camera/ControlPanel';
-import TransformToolbar from './transform/TransformToolbar';
+
 import Toolbar from './DesignerToolbar';
 import ObjectManagerSidebar from './ObjectManagerSidebar';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { use3DViewer } from '../hooks/use3DViewer';
 import { useSelectionService } from '../hooks/useSelectionService';
 import { useSceneClick } from '../hooks/useSceneClick';
+import { useBoxSelect } from '../hooks/useBoxSelect';
 import { usePlacementInput } from '../hooks/usePlacementInput';
 import { usePlacementState } from '../hooks/usePlacementState';
 import { useCreationCommands } from '../hooks/useCreationCommands';
+import { BoxSelectionOverlay } from './BoxSelectionOverlay';
 
 import type { IRenderer } from '@/core/renderer';
 
@@ -39,7 +41,20 @@ export interface DesignerPageUIProps {
  * - 不管理项目加载逻辑（父组件职责）
  */
 const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
-  // ==================== 1. 3D 容器和 Renderer ====================
+  // ==================== 1. UI 状态（持久化）- 必须最先声明 ====================
+
+  // 工具选择
+  const [selectedTool, setSelectedTool] = usePersistentState<
+    'select' | 'move' | 'rotate'
+  >('designer.tool', 'select');
+
+  // 侧边栏折叠状态（预留）
+  const [sidebarCollapsed] = usePersistentState(
+    'designer.sidebarCollapsed',
+    false
+  );
+
+  // ==================== 2. 3D 容器和 Renderer ====================
 
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -64,35 +79,32 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
     }
   }, [renderer, onRendererReady]);
 
-  // ==================== 2. 选择服务（UI 层状态）====================
+  // ==================== 3. 选择服务（UI 层状态）====================
 
   useSelectionService(renderer);
 
-  // ==================== 3. 场景点击事件处理 ====================
+  // ==================== 4. 场景点击事件处理 ====================
 
-  useSceneClick(containerRef, renderer);
+  useSceneClick(containerRef as React.RefObject<HTMLDivElement>, renderer);
 
-  // ==================== 4. 创建命令处理 ====================
+  // ==================== 5. 框选事件处理 ====================
+
+  // 只在"选择模式"且按住 Shift 时启用框选
+  const enableBoxSelect = selectedTool === 'select';
+  useBoxSelect(
+    containerRef as React.RefObject<HTMLDivElement>,
+    renderer,
+    enableBoxSelect
+  );
+
+  // ==================== 6. 创建命令处理 ====================
 
   useCreationCommands();
 
-  // ==================== 5. 放置输入处理 ====================
+  // ==================== 7. 放置输入处理 ====================
 
   const { isPlacementActive } = usePlacementState();
   usePlacementInput(containerRef, isPlacementActive);
-
-  // ==================== 6. UI 状态（持久化） ====================
-
-  // 工具选择
-  const [selectedTool, setSelectedTool] = usePersistentState<
-    'select' | 'move' | 'rotate'
-  >('designer.tool', 'select');
-
-  // 侧边栏折叠状态（预留）
-  const [sidebarCollapsed] = usePersistentState(
-    'designer.sidebarCollapsed',
-    false
-  );
 
   // ==================== 渲染 ====================
 
@@ -113,8 +125,8 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
           {/* 右上角视角控制面板 */}
           <ControlPanel />
 
-          {/* 中上方变换工具栏 */}
-          <TransformToolbar />
+          {/* 框选矩形覆盖层 */}
+          <BoxSelectionOverlay />
         </div>
       </div>
     </div>

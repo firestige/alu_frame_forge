@@ -92,6 +92,16 @@ export type DesignerCommandEvents = {
   // 选择命令
   'command:selection:clear': void;
   'command:selection:set': string; // modelId
+  'command:selection:toggle': string; // 切换选中状态（Ctrl+点击）
+  'command:selection:add': string; // 添加到选中
+  'command:selection:remove': string; // 从选中移除
+  'command:selection:selectAll': void; // 全选
+
+  // 框选命令
+  'command:boxselect:start': { x: number; y: number }; // 开始框选
+  'command:boxselect:update': { x: number; y: number }; // 更新框选区域
+  'command:boxselect:end': void; // 结束框选
+  'command:boxselect:cancel': void; // 取消框选
 
   // 变换命令
   'command:transform:attach': { objectId: string };
@@ -135,6 +145,25 @@ export type DesignerStateEvents = {
 
   // UI 通知事件（业务层 → UI 层）
   'ui:selection:clear': { deletedObjectId?: string; reason?: string };
+
+  // 选择状态事件
+  'state:selection:changed': {
+    selectedIds: string[];
+    addedIds: string[];
+    removedIds: string[];
+  };
+  'state:selection:cleared': void;
+
+  // 框选状态事件
+  'state:boxselect:started': void;
+  'state:boxselect:active': {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+  };
+  'state:boxselect:completed': { selectedIds: string[] };
+  'state:boxselect:cancelled': void;
 
   // 变换状态事件
   'state:transform:attached': { objectId: string };

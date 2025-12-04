@@ -19,6 +19,7 @@ export class CameraController {
   private initialLookAt: THREE.Vector3;
   private animationFrameId: number | null = null;
   private scene: THREE.Scene | null = null; // 用于获取对象包围盒
+  private disableRefCount = 0; // OrbitControls 禁用引用计数
 
   constructor(container: HTMLElement, config?: CameraConfig) {
     // 创建透视相机
@@ -128,6 +129,39 @@ export class CameraController {
     if (this.controls) {
       this.controls.dispose();
       this.controls = null;
+    }
+    this.disableRefCount = 0; // 重置引用计数
+  }
+
+  /**
+   * 请求禁用轨道控制器（引用计数机制）
+   * @param reason 禁用原因，用于调试
+   */
+  requestDisableOrbitControls(reason: string): void {
+    this.disableRefCount++;
+    console.log(
+      `[CameraController] OrbitControls disable requested: ${reason}, refCount: ${this.disableRefCount}`
+    );
+
+    if (this.disableRefCount === 1 && this.controls) {
+      this.controls.enabled = false;
+      console.log('[CameraController] OrbitControls disabled');
+    }
+  }
+
+  /**
+   * 释放禁用轨道控制器（引用计数机制）
+   * @param reason 释放原因，用于调试
+   */
+  releaseDisableOrbitControls(reason: string): void {
+    this.disableRefCount = Math.max(0, this.disableRefCount - 1);
+    console.log(
+      `[CameraController] OrbitControls disable released: ${reason}, refCount: ${this.disableRefCount}`
+    );
+
+    if (this.disableRefCount === 0 && this.controls) {
+      this.controls.enabled = true;
+      console.log('[CameraController] OrbitControls enabled');
     }
   }
 

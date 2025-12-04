@@ -1148,3 +1148,301 @@ class TransformService {
 - [核心架构设计](./CoreArchitecture.md) - ObjectManager、事件驱动
 - [存储与持久化系统](./StorageSystem.md) - SceneIO、序列化
 - [UI 设计系统](./UIDesign.md) - DesignerPage 布局
+
+---
+
+## 11. 选择与高亮系统
+
+**实现日期**: 2025-12-04
+
+### 11.1 系统概述
+
+选择与高亮系统为用户提供交互式对象选择功能，包括单击选中、多选、框选，以及视觉高亮反馈。
+
+**核心功能**：
+- **单击选中**：点击 3D 对象进行选中
+- **多选模式**：Ctrl/Cmd + 点击切换选中状态
+- **框选功能**：Shift + 拖拽矩形框选多个对象
+- **视觉高亮**：选中对象显示绿色轮廓边框
+- **相机协调**：框选时自动禁用相机控制
+
+### 11.2 技术架构
+
+#### 选择检测
+
+**单击选中 (useSceneClick)**
+```typescript
+// src/features/designer/hooks/useSceneClick.ts
+export function useSceneClick(
+  containerRef: React.RefObject<HTMLDivElement>,
+  renderer: IRenderer | null
+): void {
+  const handleClick = (event: MouseEvent) => {
+    // 1. 计算 NDC 坐标
+    const rect = container.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // 2. 射线检测
+    const hits = renderer.raycastFromNDC({ x, y }, options);
+
+    // 3. 发送选择命令
+    if (hits && hits.length > 0) {
+      const objectId = hits[0].handle;
+      if (event.ctrlKey || event.metaKey) {
+        sendCommand('command:selection:toggle', objectId);
+      } else {
+        sendCommand('command:selection:set', objectId);
+      }
+    } else {
+      sendCommand('command:selection:clear', undefined);
+    }
+  };
+}
+```
+
+**框选 (useBoxSelect + BoxSelectController)**
+```typescript
+// 框选手势检测
+export function useBoxSelect(
+  containerRef: React.RefObject<HTMLDivElement>,
+  renderer: IRenderer | null,
+  enabled: boolean
+): void {
+  const handleMouseDown = (event: MouseEvent) => {
+    // 只在按住 Shift 时启动框选
+    if (!event.shiftKey) return;
+    
+    isDraggingRef.current = true;
+    startPointRef.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const handleMouseMove = (event: MouseEvent) => {
+    if (!isDraggingRef.current) return;
+
+    const distance = Math.sqrt(
+      Math.pow(event.clientX - startPointRef.current.x, 2) +
+      Math.pow(event.clientY - startPointRef.current.y, 2)
+    );
+
+    // 超过 5px 才启动框选
+    if (distance >= MIN_DRAG_DISTANCE && !hasStartedBoxSelectRef.current) {
+      sendCommand('command:boxselect:start', { x, y });
+      renderer.requestDisableOrbitControls('box-selection');
+    }
+  };
+}
+
+// 框选对象检测
+class BoxSelectController {
+  private isObjectInBox(
+    mesh: THREE.Object3D,
+    region: BoxSelectRegion,
+    canvasRect: DOMRect
+  ): boolean {
+    // 1. 获取对象世界坐标
+    const worldPosition = new THREE.Vector3();
+    mesh.getWorldPosition(worldPosition);
+
+    // 2. 投影到屏幕坐标（NDC → Pixel）
+    const screenPosition = worldPosition.clone().project(camera);
+    const screenX = canvasRect.left + ((screenPosition.x + 1) / 2) * canvasRect.width;
+    const screenY = canvasRect.top + ((-screenPosition.y + 1) / 2) * canvasRect.height;
+
+    // 3. 检测是否在矩形内
+    return (
+      screenX >= region.startX && screenX <= region.endX &&
+      screenY >= region.startY && screenY <= region.endY
+    );
+  }
+}
+```
+
+#### 高亮渲染
+
+**OutlineEffect (OutlinePass + OutputPass)**
+```typescript
+// src/core/renderer/threejs/effects/OutlineEffect.ts
+export class OutlineEffect {
+  private composer: EffectComposer;
+  private outlinePass: OutlinePass;
+  private highlightedObjects = new Map<string, THREE.Object3D>();
+
+  constructor(
+    renderer: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    camera: THREE.Camera
+  ) {
+    // 1. 创建 EffectComposer
+    this.composer = new EffectComposer(renderer);
+
+    // 2. 渲染场景（基础 pass）
+    const renderPass = new RenderPass(scene, camera);
+    this.composer.addPass(renderPass);
+
+    // 3. 轮廓高亮 pass
+    this.outlinePass = new OutlinePass(
+      new THREE.Vector2(width, height),
+      scene,
+      camera
+    );
+    this.outlinePass.edgeStrength = 3.0;
+    this.outlinePass.edgeGlow = 0.0;
+    this.outlinePass.visibleEdgeColor.set('#00ff00'); // 绿色
+    this.composer.addPass(this.outlinePass);
+
+    // 4. FXAA 抗锯齿
+    const fxaaPass = new ShaderPass(FXAAShader);
+    this.composer.addPass(fxaaPass);
+
+    // 5. 输出 pass（色调映射）
+    const outputPass = new OutputPass();
+    this.composer.addPass(outputPass);
+  }
+
+  setObjectOutline(objectId: string, enabled: boolean): void {
+    if (enabled) {
+      const obj = scene.getObjectByProperty('userData.modelId', objectId);
+      if (obj) {
+        this.highlightedObjects.set(objectId, obj);
+      }
+    } else {
+      this.highlightedObjects.delete(objectId);
+    }
+    this.updateOutlinePass();
+  }
+
+  private updateOutlinePass(): void {
+    this.outlinePass.selectedObjects = Array.from(
+      this.highlightedObjects.values()
+    );
+  }
+
+  render(): void {
+    this.composer.render();
+  }
+}
+```
+
+#### 关键修复点
+
+**1. 场景对象查找**
+- **问题**：`scene.getObjectByProperty()` 只搜索直接子节点
+- **解决**：使用 `scene.traverse()` 递归搜索整个场景树
+
+**2. 渲染管线**
+- **问题**：`startRenderLoop()` 直接调用 `RendererCore.render()`，绕过了 OutlineEffect
+- **解决**：修改为调用 `ThreeRenderer.render()` 使用 EffectComposer 渲染
+
+**3. 色调映射**
+- **问题**：添加 EffectComposer 后场景变得非常暗
+- **解决**：在后处理链末尾添加 `OutputPass` 处理色调映射和伽马校正
+
+**4. 事件冲突**
+- **问题**：框选完成后 `mouseup → click` 事件触发 `useSceneClick`，立即清除选中
+- **解决**：`useSceneClick` 监听 `state:boxselect:completed`，100ms 内忽略 click 事件
+
+### 11.3 组件协作
+
+```
+用户交互
+    ↓
+┌─────────────────┐
+│  useSceneClick  │ (单击) → command:selection:set
+│  useBoxSelect   │ (框选) → command:boxselect:start/update/end
+└─────────────────┘
+    ↓
+┌─────────────────┐
+│ SelectionService│ 管理选中状态
+│BoxSelectCtrl    │ 框选对象检测
+└─────────────────┘
+    ↓
+┌─────────────────┐
+│ HighlightService│ 更新高亮显示
+│ OutlineEffect   │ 后处理渲染
+└─────────────────┘
+    ↓
+视觉反馈（绿色轮廓）
+```
+
+### 11.4 事件流
+
+#### 单击选中流程
+```
+1. MouseDown → MouseUp → Click
+2. useSceneClick.handleClick()
+3. renderer.raycastFromNDC() → 射线检测
+4. sendCommand('command:selection:set', objectId)
+5. SelectionService 更新选中状态
+6. HighlightService 监听状态变化
+7. OutlineEffect.setObjectOutline() → 添加到高亮列表
+8. ThreeRenderer.render() → 使用 EffectComposer 渲染
+```
+
+#### 框选流程
+```
+1. Shift + MouseDown → useBoxSelect 开始监听
+2. MouseMove (distance > 5px) → command:boxselect:start
+3. BoxSelectController 禁用 OrbitControls
+4. BoxSelectionOverlay 显示蓝色矩形
+5. MouseMove → command:boxselect:update → 更新矩形大小
+6. MouseUp → command:boxselect:end
+7. BoxSelectController.getObjectsInBox() → 投影检测
+8. SelectionService 更新选中状态（ADD/TOGGLE 模式）
+9. 发布 state:boxselect:completed
+10. useSceneClick 设置标志位，100ms 内忽略 click
+11. OrbitControls 恢复，蓝色矩形消失
+```
+
+### 11.5 配置参数
+
+```typescript
+// 高亮效果配置
+const OUTLINE_CONFIG = {
+  edgeStrength: 3.0,        // 边缘强度
+  edgeGlow: 0.0,            // 边缘发光
+  edgeThickness: 1.0,       // 边缘厚度
+  visibleEdgeColor: '#00ff00', // 可见边缘颜色（绿色）
+  hiddenEdgeColor: '#190a05',  // 隐藏边缘颜色
+};
+
+// 框选配置
+const BOX_SELECT_CONFIG = {
+  minDragDistance: 5,       // 最小拖拽距离（px）
+  clickIgnoreDelay: 100,    // 框选后忽略点击的延迟（ms）
+  boxColor: '#3b82f6',      // 选框颜色（蓝色）
+  boxOpacity: 0.2,          // 选框不透明度
+};
+```
+
+### 11.6 性能优化
+
+1. **射线检测优化**
+   - 使用 `raycaster.layers` 过滤辅助对象
+   - 仅检测可见对象（`visible: true`）
+
+2. **框选优化**
+   - 投影算法使用对象中心点（简化版）
+   - 未来可升级为边界框 8 个角点检测
+
+3. **渲染优化**
+   - OutlinePass 只在有选中对象时生效
+   - 使用 EffectComposer 统一管理后处理
+
+### 11.7 未来扩展
+
+- [ ] **边界框高亮**：除轮廓外，显示 3D 包围盒辅助线
+- [ ] **选择提示**：鼠标悬停时预览高亮（半透明）
+- [ ] **框选优化**：使用边界框角点或 Frustum 检测提高准确率
+- [ ] **自定义高亮颜色**：支持不同选择模式使用不同颜色
+- [ ] **多对象轮廓融合**：多个对象选中时显示统一外轮廓
+
+---
+
+**相关实现文件**：
+- `src/features/designer/hooks/useSceneClick.ts`
+- `src/features/designer/hooks/useBoxSelect.ts`
+- `src/features/designer/services/BoxSelectController.ts`
+- `src/features/designer/ui/BoxSelectionOverlay.tsx`
+- `src/core/renderer/threejs/effects/OutlineEffect.ts`
+- `src/core/renderer/threejs/HighlightService.ts`
