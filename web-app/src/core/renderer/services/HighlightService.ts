@@ -30,13 +30,32 @@ export class HighlightService {
     // 只有 ThreeRenderer 支持 OutlineEffect
     if (this.renderer instanceof ThreeRenderer) {
       try {
-        // TODO: 获取 scene 和 camera 的内部引用
-        // 目前暂时通过 TODO 标记，后续需要扩展 ThreeRenderer API
+        const threeRenderer = this.renderer as ThreeRenderer;
+        const scene = threeRenderer.getInternalScene();
+        const camera = threeRenderer.getInternalCamera();
+        const webglRenderer = threeRenderer.getInternalRenderer();
+
+        if (!scene || !camera || !webglRenderer) {
+          console.warn(
+            '[HighlightService] Cannot initialize OutlineEffect: missing scene/camera/renderer'
+          );
+          return;
+        }
+
+        this.outlineEffect = new OutlineEffect(webglRenderer, scene, camera, {
+          edgeStrength: 3.0,
+          edgeGlow: 0.0,
+          edgeThickness: 1.0,
+          visibleEdgeColor: '#00ff00', // 绿色高亮
+          hiddenEdgeColor: '#ff0000',
+        });
+
+        // 将 OutlineEffect 设置回 ThreeRenderer
+        threeRenderer.setOutlineEffect(this.outlineEffect);
+
         console.log(
-          '[HighlightService] OutlineEffect initialization deferred (需要扩展 ThreeRenderer API)'
+          '[HighlightService] OutlineEffect initialized successfully'
         );
-        // const threeRenderer = this.renderer as ThreeRenderer;
-        // this.outlineEffect = new OutlineEffect(renderer, scene, camera);
       } catch (error) {
         console.error(
           '[HighlightService] Failed to initialize OutlineEffect:',
@@ -52,12 +71,8 @@ export class HighlightService {
    * @param highlighted 是否高亮
    */
   setHighlight(objectId: string, highlighted: boolean): void {
-    if (this.outlineEffect) {
-      this.outlineEffect.setObjectOutline(objectId, highlighted);
-    } else {
-      // 降级方案：使用 IRenderer 接口
-      this.renderer.setObjectHighlight(objectId, highlighted);
-    }
+    // 统一使用 IRenderer 接口（ThreeRenderer 会使用 OutlineEffect）
+    this.renderer.setObjectHighlight(objectId, highlighted);
   }
 
   /**
@@ -73,11 +88,7 @@ export class HighlightService {
    * 清除所有高亮
    */
   clearAll(): void {
-    if (this.outlineEffect) {
-      this.outlineEffect.clearAllOutlines();
-    } else {
-      this.renderer.clearAllHighlights();
-    }
+    this.renderer.clearAllHighlights();
   }
 
   /**

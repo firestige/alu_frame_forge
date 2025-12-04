@@ -7,7 +7,9 @@ describe('BaseButton', () => {
   describe('渲染', () => {
     it('应该渲染按钮文本', () => {
       render(<BaseButton>点击我</BaseButton>);
-      expect(screen.getByRole('button', { name: '点击我' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: '点击我' })
+      ).toBeInTheDocument();
     });
 
     it('应该应用自定义类名', () => {

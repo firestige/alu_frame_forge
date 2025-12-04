@@ -36,7 +36,6 @@ export class OutlineEffect {
   private outlinePass: OutlinePass;
   private fxaaPass: ShaderPass;
   private highlightedObjects = new Map<string, THREE.Object3D>();
-  private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
 
   constructor(
@@ -46,7 +45,6 @@ export class OutlineEffect {
     config?: OutlineConfig
   ) {
     this.renderer = renderer;
-    this.scene = scene;
 
     // 初始化 EffectComposer
     this.composer = new EffectComposer(renderer);
@@ -81,15 +79,11 @@ export class OutlineEffect {
 
   /**
    * 设置对象轮廓高亮
-   * @param objectId 对象 ID
+   * @param object 场景对象
    * @param enabled 是否启用高亮
    */
-  setObjectOutline(objectId: string, enabled: boolean): void {
-    const object = this.findObjectById(objectId);
-    if (!object) {
-      console.warn(`[OutlineEffect] Object not found: ${objectId}`);
-      return;
-    }
+  setObjectOutline(object: THREE.Object3D, enabled: boolean): void {
+    const objectId = object.userData.modelId || object.uuid;
 
     if (enabled) {
       this.highlightedObjects.set(objectId, object);
@@ -118,18 +112,10 @@ export class OutlineEffect {
   }
 
   /**
-   * 根据对象 ID 查找场景对象
+   * 检查是否已初始化
    */
-  private findObjectById(objectId: string): THREE.Object3D | null {
-    let foundObject: THREE.Object3D | null = null;
-
-    this.scene.traverse((obj: THREE.Object3D) => {
-      if (obj.userData.modelId === objectId || obj.uuid === objectId) {
-        foundObject = obj;
-      }
-    });
-
-    return foundObject;
+  isInitialized(): boolean {
+    return !!this.composer && !!this.outlinePass;
   }
 
   /**

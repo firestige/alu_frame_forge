@@ -23,6 +23,7 @@ import { CameraController } from './CameraController';
 import { RaycasterService } from './RaycasterService';
 import { PreviewManager } from './PreviewManager';
 import { RendererCore } from './RendererCore';
+import type { OutlineEffect } from './OutlineEffect';
 
 /**
  * Three.js 渲染器实现
@@ -34,6 +35,7 @@ export class ThreeRenderer implements IRenderer {
   private raycasterService: RaycasterService;
   private previewManager: PreviewManager | null = null;
   private rendererCore: RendererCore;
+  private outlineEffect: OutlineEffect | null = null;
 
   private initialized = false;
 
@@ -341,6 +343,38 @@ export class ThreeRenderer implements IRenderer {
     return 'main-camera' as CameraHandle;
   }
 
+  /**
+   * 获取内部 Three.js Camera 实例（用于高级功能）
+   * @internal 仅供内部高级功能使用
+   */
+  getInternalCamera(): THREE.Camera | null {
+    return this.cameraController?.getCamera() ?? null;
+  }
+
+  /**
+   * 获取内部 Three.js Scene 实例（用于高级功能）
+   * @internal 仅供内部高级功能使用
+   */
+  getInternalScene(): THREE.Scene {
+    return this.sceneManager.getScene();
+  }
+
+  /**
+   * 获取内部 Three.js WebGLRenderer 实例（用于高级功能）
+   * @internal 仅供内部高级功能使用
+   */
+  getInternalRenderer(): THREE.WebGLRenderer {
+    return this.rendererCore.getRenderer();
+  }
+
+  /**
+   * 设置 OutlineEffect（由 HighlightService 调用）
+   * @internal
+   */
+  setOutlineEffect(effect: OutlineEffect): void {
+    this.outlineEffect = effect;
+  }
+
   setCameraPosition(position: Vector3): void {
     this.cameraController?.setPosition(position);
   }
@@ -380,15 +414,33 @@ export class ThreeRenderer implements IRenderer {
   // ==================== 对象高亮 ====================
 
   setObjectHighlight(objectId: string, highlighted: boolean): void {
-    // TODO: 实现高亮效果（Phase 1 后续步骤）
-    console.log(
-      `[ThreeRenderer] setObjectHighlight: ${objectId}, highlighted: ${highlighted}`
-    );
+    if (!this.outlineEffect) {
+      console.warn(
+        '[ThreeRenderer] OutlineEffect not set, cannot highlight object'
+      );
+      return;
+    }
+
+    const scene = this.sceneManager.getScene();
+    const object = scene.getObjectByProperty('userData.modelId', objectId);
+
+    if (!object) {
+      console.warn(`[ThreeRenderer] Object ${objectId} not found in scene`);
+      return;
+    }
+
+    this.outlineEffect.setObjectOutline(object, highlighted);
   }
 
   clearAllHighlights(): void {
-    // TODO: 实现清除所有高亮（Phase 1 后续步骤）
-    console.log('[ThreeRenderer] clearAllHighlights');
+    if (!this.outlineEffect) {
+      console.warn(
+        '[ThreeRenderer] OutlineEffect not set, cannot clear highlights'
+      );
+      return;
+    }
+
+    this.outlineEffect.clearAllOutlines();
   }
 
   // ==================== 射线检测 ====================
@@ -553,7 +605,14 @@ export class ThreeRenderer implements IRenderer {
 
     const scene = this.sceneManager.getScene();
     const camera = this.cameraController.getCamera();
-    this.rendererCore.render(scene, camera);
+
+    // 如果有 OutlineEffect 并且已初始化，使用 EffectComposer 渲染
+    if (this.outlineEffect && this.outlineEffect.isInitialized()) {
+      this.outlineEffect.render();
+    } else {
+      // 否则使用普通渲染
+      this.rendererCore.render(scene, camera);
+    }
   }
 
   // ==================== 原生对象访问 ====================

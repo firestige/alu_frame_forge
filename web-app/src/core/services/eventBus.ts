@@ -156,7 +156,10 @@ export type DesignerStateEvents = {
 
   // 框选状态事件
   'state:boxselect:started': void;
-  'state:boxselect:active': { startPoint: { x: number; y: number }; currentPoint: { x: number; y: number } };
+  'state:boxselect:active': {
+    startPoint: { x: number; y: number };
+    currentPoint: { x: number; y: number };
+  };
   'state:boxselect:completed': { selectedIds: string[] };
   'state:boxselect:cancelled': void;
 
