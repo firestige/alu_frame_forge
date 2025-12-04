@@ -4,6 +4,7 @@ import { ModelCreationService } from '../features/designer/services/ModelCreatio
 import { ModelEditorService } from '../features/designer/services/ModelEditorService';
 import { PlacementController } from '../features/designer/services/PlacementService';
 import { RenderSyncService } from '../features/designer/services/RenderSyncService';
+import { SelectionService } from '../features/designer/services/SelectionService';
 import { CameraService } from '@/core/renderer/services/CameraService';
 import { CameraCommandHandler } from '../features/designer/services/CameraCommandHandler';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
@@ -71,6 +72,7 @@ const DesignerPage: React.FC = () => {
     editor: ModelEditorService | null;
     placement: PlacementController | null;
     renderSync: RenderSyncService | null;
+    selection: SelectionService | null;
     cameraService: CameraService | null;
     cameraCommandHandler: CameraCommandHandler | null;
   }>({
@@ -78,6 +80,7 @@ const DesignerPage: React.FC = () => {
     editor: null,
     placement: null,
     renderSync: null,
+    selection: null,
     cameraService: null,
     cameraCommandHandler: null,
   });
@@ -94,7 +97,7 @@ const DesignerPage: React.FC = () => {
     return () => {
       console.log('[DesignerPage] 清理 Features 层服务');
       // 页面卸载前强制保存，防止路由切换时丢失数据
-      coreServices.autoSave.forceSave();
+      coreServices.autoSave?.forceSave();
     };
   }, [coreServices.objectManager, coreServices.autoSave]);
 
@@ -103,7 +106,7 @@ const DesignerPage: React.FC = () => {
     if (!rendererRef.current) return;
 
     console.log(
-      '[DesignerPage] 创建 RenderSyncService、PlacementController 和 CameraService'
+      '[DesignerPage] 创建 RenderSyncService、PlacementController、SelectionService 和 CameraService'
     );
 
     const renderSync = new RenderSyncService(
@@ -115,6 +118,9 @@ const DesignerPage: React.FC = () => {
       rendererRef.current,
       coreServices.objectManager
     );
+
+    // 初始化 SelectionService
+    const selection = new SelectionService(rendererRef.current);
 
     // 初始化 CameraService 和 CameraCommandHandler
     const cameraController = (rendererRef.current as any).cameraController;
@@ -132,6 +138,7 @@ const DesignerPage: React.FC = () => {
       ...prev,
       renderSync,
       placement,
+      selection,
       cameraService,
       cameraCommandHandler,
     }));
@@ -139,6 +146,7 @@ const DesignerPage: React.FC = () => {
     return () => {
       renderSync.dispose();
       placement.dispose();
+      selection.dispose();
       cameraCommandHandler.dispose();
     };
   }, [isRendererReady, coreServices.objectManager]);

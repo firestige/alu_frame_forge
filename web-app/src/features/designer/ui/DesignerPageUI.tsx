@@ -1,6 +1,6 @@
 import * as React from 'react';
 import ControlPanel from './camera/ControlPanel';
-import TransformToolbar from './transform/TransformToolbar';
+
 import Toolbar from './DesignerToolbar';
 import ObjectManagerSidebar from './ObjectManagerSidebar';
 import { usePersistentState } from '../hooks/usePersistentState';
@@ -70,7 +70,7 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   // ==================== 3. 场景点击事件处理 ====================
 
-  useSceneClick(containerRef, renderer);
+  useSceneClick(containerRef as React.RefObject<HTMLDivElement>, renderer);
 
   // ==================== 4. 创建命令处理 ====================
 
@@ -112,9 +112,6 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
         <div ref={containerRef} className="relative flex-1">
           {/* 右上角视角控制面板 */}
           <ControlPanel />
-
-          {/* 中上方变换工具栏 */}
-          <TransformToolbar />
         </div>
       </div>
     </div>

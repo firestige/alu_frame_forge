@@ -8,6 +8,7 @@ import { sendCommand } from '@/core/services/eventBus';
  * 职责：
  * - 监听容器的点击事件
  * - 通过 raycast 检测点击的对象
+ * - 支持单选和多选（Ctrl/Cmd+点击）
  * - 发送选择命令到 eventBus
  */
 export function useSceneClick(
@@ -38,6 +39,9 @@ export function useSceneClick(
         }
       );
 
+      // 检测是否按下 Ctrl/Cmd 键（多选模式）
+      const isMultiSelectMode = event.ctrlKey || event.metaKey;
+
       if (hits && hits.length > 0) {
         // 点击到对象：选中第一个对象
         const hitObject = hits[0];
@@ -45,19 +49,30 @@ export function useSceneClick(
         const objectId = hitObject.handle;
 
         if (objectId) {
-          console.log('[useSceneClick] Object selected:', objectId);
-          sendCommand('command:selection:set', objectId);
+          if (isMultiSelectMode) {
+            // 多选模式：切换选中状态
+            console.log('[useSceneClick] Toggle selection:', objectId);
+            sendCommand('command:selection:toggle', objectId);
+          } else {
+            // 单选模式：设置选中
+            console.log('[useSceneClick] Object selected:', objectId);
+            sendCommand('command:selection:set', objectId);
+          }
         } else {
           // 点击到场景对象但没有 ID（可能是辅助对象）
-          console.log(
-            '[useSceneClick] Hit object without ID, clearing selection'
-          );
-          sendCommand('command:selection:clear', undefined);
+          if (!isMultiSelectMode) {
+            console.log(
+              '[useSceneClick] Hit object without ID, clearing selection'
+            );
+            sendCommand('command:selection:clear', undefined);
+          }
         }
       } else {
-        // 点击空白处：取消选择
-        console.log('[useSceneClick] No hits, clearing selection');
-        sendCommand('command:selection:clear', undefined);
+        // 点击空白处：取消选择（仅在非多选模式下）
+        if (!isMultiSelectMode) {
+          console.log('[useSceneClick] No hits, clearing selection');
+          sendCommand('command:selection:clear', undefined);
+        }
       }
     };
 

@@ -369,6 +369,28 @@ export class ThreeRenderer implements IRenderer {
     this.cameraController?.disableOrbitControls();
   }
 
+  requestDisableOrbitControls(reason: string): void {
+    this.cameraController?.requestDisableOrbitControls(reason);
+  }
+
+  releaseDisableOrbitControls(reason: string): void {
+    this.cameraController?.releaseDisableOrbitControls(reason);
+  }
+
+  // ==================== 对象高亮 ====================
+
+  setObjectHighlight(objectId: string, highlighted: boolean): void {
+    // TODO: 实现高亮效果（Phase 1 后续步骤）
+    console.log(
+      `[ThreeRenderer] setObjectHighlight: ${objectId}, highlighted: ${highlighted}`
+    );
+  }
+
+  clearAllHighlights(): void {
+    // TODO: 实现清除所有高亮（Phase 1 后续步骤）
+    console.log('[ThreeRenderer] clearAllHighlights');
+  }
+
   // ==================== 射线检测 ====================
 
   raycastFromNDC(
