@@ -54,7 +54,11 @@ export class HighlightService {
         threeRenderer.setOutlineEffect(this.outlineEffect);
 
         console.log(
-          '[HighlightService] OutlineEffect initialized successfully'
+          '[HighlightService] ✅ OutlineEffect initialized successfully',
+          {
+            isInitialized: this.outlineEffect.isInitialized(),
+            hasComposer: !!this.outlineEffect.getComposer(),
+          }
         );
       } catch (error) {
         console.error(

@@ -11,6 +11,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 /**
  * 高亮配置
@@ -35,6 +36,7 @@ export class OutlineEffect {
   private composer: EffectComposer;
   private outlinePass: OutlinePass;
   private fxaaPass: ShaderPass;
+  private outputPass: OutputPass;
   private highlightedObjects = new Map<string, THREE.Object3D>();
   private renderer: THREE.WebGLRenderer;
 
@@ -75,6 +77,14 @@ export class OutlineEffect {
     this.fxaaPass = new ShaderPass(FXAAShader);
     this.updateFXAAResolution();
     this.composer.addPass(this.fxaaPass);
+
+    // ⭐ 添加 OutputPass（处理色调映射和伽马校正）
+    this.outputPass = new OutputPass();
+    this.composer.addPass(this.outputPass);
+
+    console.log(
+      '[OutlineEffect] Initialized with OutputPass for proper tone mapping'
+    );
   }
 
   /**
@@ -85,6 +95,13 @@ export class OutlineEffect {
   setObjectOutline(object: THREE.Object3D, enabled: boolean): void {
     const objectId = object.userData.modelId || object.uuid;
 
+    console.log('[OutlineEffect] setObjectOutline called:', {
+      objectId,
+      enabled,
+      objectType: object.type,
+      objectName: object.name,
+    });
+
     if (enabled) {
       this.highlightedObjects.set(objectId, object);
     } else {
@@ -92,6 +109,12 @@ export class OutlineEffect {
     }
 
     this.updateOutlinePass();
+
+    console.log('[OutlineEffect] Current highlighted objects:', {
+      count: this.highlightedObjects.size,
+      ids: Array.from(this.highlightedObjects.keys()),
+      selectedObjects: this.outlinePass.selectedObjects.length,
+    });
   }
 
   /**

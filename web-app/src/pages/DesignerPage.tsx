@@ -5,6 +5,7 @@ import { ModelEditorService } from '../features/designer/services/ModelEditorSer
 import { PlacementController } from '../features/designer/services/PlacementService';
 import { RenderSyncService } from '../features/designer/services/RenderSyncService';
 import { SelectionService } from '../features/designer/services/SelectionService';
+import { BoxSelectController } from '../features/designer/services/BoxSelectController';
 import { CameraService } from '@/core/renderer/services/CameraService';
 import { CameraCommandHandler } from '../features/designer/services/CameraCommandHandler';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
@@ -73,6 +74,7 @@ const DesignerPage: React.FC = () => {
     placement: PlacementController | null;
     renderSync: RenderSyncService | null;
     selection: SelectionService | null;
+    boxSelect: BoxSelectController | null;
     cameraService: CameraService | null;
     cameraCommandHandler: CameraCommandHandler | null;
   }>({
@@ -81,6 +83,7 @@ const DesignerPage: React.FC = () => {
     placement: null,
     renderSync: null,
     selection: null,
+    boxSelect: null,
     cameraService: null,
     cameraCommandHandler: null,
   });
@@ -106,7 +109,7 @@ const DesignerPage: React.FC = () => {
     if (!rendererRef.current) return;
 
     console.log(
-      '[DesignerPage] 创建 RenderSyncService、PlacementController、SelectionService 和 CameraService'
+      '[DesignerPage] 创建 RenderSyncService、PlacementController、SelectionService、BoxSelectController 和 CameraService'
     );
 
     const renderSync = new RenderSyncService(
@@ -121,6 +124,12 @@ const DesignerPage: React.FC = () => {
 
     // 初始化 SelectionService
     const selection = new SelectionService(rendererRef.current);
+
+    // 初始化 BoxSelectController
+    const boxSelect = new BoxSelectController(
+      rendererRef.current,
+      coreServices.objectManager
+    );
 
     // 初始化 CameraService 和 CameraCommandHandler
     const cameraController = (rendererRef.current as any).cameraController;
@@ -139,6 +148,7 @@ const DesignerPage: React.FC = () => {
       renderSync,
       placement,
       selection,
+      boxSelect,
       cameraService,
       cameraCommandHandler,
     }));
@@ -147,6 +157,7 @@ const DesignerPage: React.FC = () => {
       renderSync.dispose();
       placement.dispose();
       selection.dispose();
+      boxSelect.dispose();
       cameraCommandHandler.dispose();
     };
   }, [isRendererReady, coreServices.objectManager]);

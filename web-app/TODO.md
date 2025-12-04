@@ -42,24 +42,40 @@ _当前无 P0 任务_
 
 ---
 
-### 2. 实现对象选中功能
+### ~~2. 实现对象选中功能~~ ✅ 已完成
 
-**状态**: ⏳ 待执行
+**状态**: ✅ 已完成 (2025-12-04, PR #待创建)
 
 **描述**: 实现 3D 场景中对象的选中和高亮显示。
 
-**技术方案**: 射线检测 + 轮廓高亮
+**技术方案**: 射线检测 + OutlinePass 高亮 + 框选
 
 **任务列表**:
 
-- [ ] 实现鼠标点击选中（使用 RaycasterService）
-- [ ] 实现选中对象高亮（OutlinePass 或材质替换）
-- [ ] 实现多选（Ctrl + 点击）
-- [ ] 实现框选（拖拽矩形选择）
-- [ ] 同步选中状态到 Store
-- [ ] 在对象列表中显示选中状态
+- [x] 实现鼠标点击选中（使用 RaycasterService）
+- [x] 实现选中对象高亮（OutlinePass + OutputPass）
+- [x] 实现多选（Ctrl + 点击切换）
+- [x] 实现框选（Shift + 拖拽矩形选择）
+- [x] 同步选中状态到 SelectionService
+- [x] 在对象列表中显示选中状态
+
+**实现细节**:
+
+- **Phase 2**: 单击选中 + 绿色轮廓高亮
+  - OutlineEffect (OutlinePass + OutputPass) 实现后处理高亮
+  - 修复场景对象查找（traverse 递归搜索）
+  - 修复渲染管线（ThreeRenderer.render 调用）
+  - 修复色调映射（添加 OutputPass）
+- **Phase 3**: 框选功能
+  - BoxSelectController: 投影算法检测对象
+  - useBoxSelect Hook: Shift + 拖拽激活框选
+  - BoxSelectionOverlay: 蓝色动画选框
+  - 事件协调: 防止框选后立即清除选中
+  - OrbitControls 协调: 框选时禁用相机控制
 
 **参考文档**: [RenderingSystem.md](./doc/design/RenderingSystem.md)、[StateManagement.md](./doc/design/StateManagement.md)
+
+**详细记录**: 见 [开发日志 #待添加](./doc/DevelopLog.md)
 
 ---
 

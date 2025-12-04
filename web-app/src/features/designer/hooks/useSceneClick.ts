@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { IRenderer } from '@/core/renderer/renderer-types';
-import { sendCommand } from '@/core/services/eventBus';
+import { sendCommand, onState, offState } from '@/core/services/eventBus';
 
 /**
  * useSceneClick - 处理 3D 场景点击事件
@@ -15,6 +15,9 @@ export function useSceneClick(
   containerRef: React.RefObject<HTMLDivElement>,
   renderer: IRenderer | null
 ): void {
+  // 追踪是否刚完成框选
+  const justFinishedBoxSelectRef = useRef(false);
+
   useEffect(() => {
     if (!containerRef.current || !renderer) {
       return;
@@ -22,7 +25,24 @@ export function useSceneClick(
 
     const container = containerRef.current;
 
+    // 监听框选结束事件
+    const handleBoxSelectEnd = () => {
+      justFinishedBoxSelectRef.current = true;
+      // 100ms 后重置标志
+      setTimeout(() => {
+        justFinishedBoxSelectRef.current = false;
+      }, 100);
+    };
+
+    onState('state:boxselect:completed', handleBoxSelectEnd);
+
     const handleClick = (event: MouseEvent) => {
+      // 如果刚完成框选，忽略此次点击
+      if (justFinishedBoxSelectRef.current) {
+        console.log('[useSceneClick] Ignoring click after box selection');
+        return;
+      }
+
       // 获取容器的边界矩形
       const rect = container.getBoundingClientRect();
 
@@ -81,6 +101,7 @@ export function useSceneClick(
 
     return () => {
       container.removeEventListener('click', handleClick);
+      offState('state:boxselect:completed', handleBoxSelectEnd);
     };
   }, [containerRef, renderer]);
 }

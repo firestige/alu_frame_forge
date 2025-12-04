@@ -422,10 +422,27 @@ export class ThreeRenderer implements IRenderer {
     }
 
     const scene = this.sceneManager.getScene();
-    const object = scene.getObjectByProperty('userData.modelId', objectId);
+
+    // 🔧 使用 traverse 递归查找对象（getObjectByProperty 不递归）
+    let object: THREE.Object3D | null = null;
+    scene.traverse(obj => {
+      if (obj.userData.modelId === objectId) {
+        object = obj;
+      }
+    });
 
     if (!object) {
       console.warn(`[ThreeRenderer] Object ${objectId} not found in scene`);
+      console.warn(
+        'Available modelIds:',
+        (() => {
+          const ids: string[] = [];
+          scene.traverse(obj => {
+            if (obj.userData.modelId) ids.push(obj.userData.modelId);
+          });
+          return ids;
+        })()
+      );
       return;
     }
 
@@ -585,19 +602,37 @@ export class ThreeRenderer implements IRenderer {
     const scene = this.sceneManager.getScene();
     const camera = this.cameraController.getCamera();
 
-    this.rendererCore.startRenderLoop(
-      scene,
-      camera,
-      () => {
-        // 更新相机控制器
-        this.cameraController?.updateControls();
-      },
-      callback
-    );
+    // 不再使用 RendererCore 的渲染循环，因为它会直接渲染而不走 ThreeRenderer.render()
+    // 改为自己管理动画循环
+    let animationFrameId: number;
+
+    const animate = (): void => {
+      animationFrameId = requestAnimationFrame(animate);
+
+      // 更新相机控制器
+      this.cameraController?.updateControls();
+
+      // 调用外部回调
+      if (callback) {
+        callback();
+      }
+
+      // 使用 ThreeRenderer.render()（会自动选择 OutlineEffect 或普通渲染）
+      this.render();
+    };
+
+    animate();
+
+    // 保存 animationFrameId 用于停止
+    (this as any)._animationFrameId = animationFrameId;
   }
 
   stopRenderLoop(): void {
-    this.rendererCore.stopRenderLoop();
+    const animationFrameId = (this as any)._animationFrameId;
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      (this as any)._animationFrameId = null;
+    }
   }
 
   render(): void {
@@ -608,6 +643,10 @@ export class ThreeRenderer implements IRenderer {
 
     // 如果有 OutlineEffect 并且已初始化，使用 EffectComposer 渲染
     if (this.outlineEffect && this.outlineEffect.isInitialized()) {
+      // 只在有高亮对象时打印（避免刷屏）
+      if (this.outlineEffect.hasHighlightedObjects()) {
+        console.log('[ThreeRenderer] Rendering with OutlineEffect');
+      }
       this.outlineEffect.render();
     } else {
       // 否则使用普通渲染
