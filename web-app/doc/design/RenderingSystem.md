@@ -1072,14 +1072,21 @@ ControlPanel (UI)
 **架构**：
 
 ```
-TransformToolbar (UI)
+DesignerToolbar (UI)
   → command:transform:setMode (EventBus)
     → TransformCommandHandler
       → TransformService.setMode()
-        → TransformController (Three.js TransformControls)
-          → state:transform:completed (EventBus)
-            → ObjectManager.updateTransform()
+        → ThreeTransformController (Implementation 层)
+          → 通过回调向上报告 → TransformService
+            → state:transform:completed (EventBus)
+              → ObjectManager.updateTransform()
 ```
+
+**设计原则**：
+
+- **按需附着**: 选中对象后不自动显示 Gizmo，需点击"移动/旋转/缩放"按钮主动激活
+- **集成工具栏**: 所有变换按钮集成在顶部 DesignerToolbar，无浮动工具栏
+- **回调通信**: Implementation 层通过回调函数向上报告状态，不直接使用 EventBus
 
 **API**：
 

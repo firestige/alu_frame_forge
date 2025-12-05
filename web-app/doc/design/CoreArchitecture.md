@@ -1,6 +1,6 @@
 # 核心架构设计
 
-**最后更新**: 2025-11-21
+**最后更新**: 2025-12-05
 
 本文档详细说明铝型材框架设计器的核心架构设计，包括分层架构、服务容器、事件驱动模式和依赖规则。
 
@@ -225,6 +225,106 @@ useEffect(() => {
   };
 }, []);
 ```
+
+### 3.4 通信原则与分层规则 ⭐
+
+**核心原则**：不同层级使用不同的通信方式
+
+```
+┌─────────────────────────────────────────────────────┐
+│  UI Layer ↔ Feature/Core Layer                      │
+│  通信方式: EventBus (mitt)                          │
+│  - UI 发送命令事件 (command:*)                      │
+│  - Core/Feature 发布状态事件 (state:*)              │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│  Core Interface ↔ Implementation Layer              │
+│  通信方式: 直接调用 + 回调函数                      │
+│  - Feature 调用 Interface 方法                      │
+│  - Implementation 通过回调向上报告                  │
+└─────────────────────────────────────────────────────┘
+```
+
+**案例：TransformController 架构重构（2025-12-05）**
+
+**问题**：Implementation 层（`ThreeTransformController`）直接使用 EventBus 发布事件
+
+```typescript
+// ❌ 错误：Implementation 层依赖 EventBus
+import { publishState } from '@/core/services/eventBus';
+
+private onDraggingChanged = (event): void => {
+  publishState('state:transform:draggingChanged', { dragging: true });
+};
+```
+
+**为什么错误？**
+
+1. 违反分层原则：Implementation 层不应知道业务层的事件系统
+2. 不利于替换：切换到 Babylon.js 也要依赖同样的 EventBus
+3. 职责混乱：技术实现层不应发布业务状态
+
+**正确方案**：使用回调模式
+
+```typescript
+// ✅ 接口层定义回调
+export interface ITransformController {
+  onDraggingChanged?: (dragging: boolean) => void;
+  onTransformCompleted?: (data: TransformData) => void;
+  // ... 其他方法
+}
+
+// ✅ Implementation 层通过回调报告
+class ThreeTransformController implements ITransformController {
+  public onDraggingChanged?: (dragging: boolean) => void;
+  public onTransformCompleted?: (data: TransformData) => void;
+  
+  private handleDraggingChanged = (event): void => {
+    // 通过回调向上报告，不直接用 EventBus
+    this.onDraggingChanged?.(dragging);
+  };
+}
+
+// ✅ Feature 层设置回调并发布 EventBus 事件
+class TransformService {
+  private setupControllerCallbacks(): void {
+    const controller = this.renderer.getTransformController();
+    
+    // 在这里连接回调和 EventBus
+    controller.onDraggingChanged = (dragging) => {
+      publishState('state:transform:draggingChanged', { dragging });
+    };
+  }
+}
+```
+
+**通信流程**：
+
+```
+Implementation Layer (ThreeTransformController)
+  ↓ 回调函数 (this.onDraggingChanged?.())
+Feature Layer (TransformService)
+  ↓ publishState('state:transform:...')
+EventBus
+  ↓ onState('state:transform:...')
+UI Layer (Toolbar, StatusBar)
+```
+
+**设计收益**：
+
+1. ✅ **分层清晰**：每层使用适合的通信方式
+2. ✅ **易于替换**：Implementation 层不依赖具体的 EventBus 实现
+3. ✅ **职责单一**：技术实现只关注技术细节，业务层负责事件发布
+4. ✅ **可测试性**：可以 mock 回调函数进行单元测试
+
+**其他符合此原则的模块**：
+
+- ✅ `SelectionService` - 通过回调报告选中状态变化
+- ✅ `CameraController` - 通过回调报告视角变化
+- ✅ `HighlightService` - 直接调用渲染器方法，不使用 EventBus
+
+详细实施记录见：`doc/design/Task3-Refactoring-2025-12-05.md`
 
 ---
 

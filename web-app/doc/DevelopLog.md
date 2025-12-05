@@ -1,6 +1,291 @@
 # 开发日志
 
-**最后更新**: 2025-12-04
+**最后更新**: 2025-12-05
+
+---
+
+## 2025-12-05
+
+### Task #3 架构重构 - 回调模式替代 EventBus
+
+**目标**: 修正 ThreeTransformController 直接使用 EventBus 的架构违规问题，保持架构的一致性和纯粹性。
+
+**问题发现**:
+
+在 Task #3 实现过程中，发现 `ThreeTransformController`（Implementation 层）直接使用了 `EventBus` 发布状态事件，违反了我们的分层通信原则。
+
+```typescript
+// ❌ 问题：Implementation 层直接依赖 EventBus
+import { publishState } from '@/core/services/eventBus';
+
+private onDraggingChanged = (event): void => {
+  publishState('state:transform:draggingChanged', { dragging: true });
+}
+```
+
+**架构原则违背**:
+
+根据架构文档，我们的通信原则是：
+1. **UI ↔ Feature/Core**：通过 **EventBus** 双向通信
+2. **Core Interface ↔ Implementation**：通过 **直接调用 + 回调函数**
+
+Implementation 层不应该：
+- ❌ 直接导入 `eventBus`
+- ❌ 直接发布状态事件
+- ❌ 知道业务层的事件系统
+
+**重构方案**:
+
+使用回调函数，而不是直接用 EventBus。
+
+**实施细节**:
+
+1. **接口层：定义回调**
+
+```typescript
+// src/core/renderer/renderer-types.ts
+export interface TransformData {
+  objectId: string;
+  transform: {
+    position: { x: number; y: number; z: number };
+    rotation: { x: number; y: number; z: number };
+    scale: { x: number; y: number; z: number };
+  };
+}
+
+export interface ITransformController {
+  // ✅ 回调函数（向上报告状态）
+  onDraggingChanged?: (dragging: boolean) => void;
+  onTransformCompleted?: (data: TransformData) => void;
+  // ... 其他方法
+}
+```
+
+2. **Implementation 层：通过回调报告**
+
+```typescript
+// src/core/renderer/threejs/ThreeTransformController.ts
+export class ThreeTransformController implements ITransformController {
+  // ✅ 实现回调接口
+  public onDraggingChanged?: (dragging: boolean) => void;
+  public onTransformCompleted?: (data: TransformData) => void;
+  
+  private handleDraggingChanged = (event): void => {
+    const dragging = Boolean(event.value);
+    
+    // ✅ 通过 IRenderer 接口协调 OrbitControls
+    if (dragging) {
+      this.renderer.requestDisableOrbitControls('TransformController');
+    } else {
+      this.renderer.releaseDisableOrbitControls('TransformController');
+    }
+    
+    // ✅ 通过回调向上层报告（不直接用 EventBus）
+    this.onDraggingChanged?.(dragging);
+  };
+  
+  private handleMouseUp = (): void => {
+    // ✅ 通过回调报告变换完成
+    this.onTransformCompleted?.({
+      objectId: this.currentObjectId,
+      transform: { /* ... */ }
+    });
+  };
+}
+```
+
+3. **Feature 层：设置回调并发布事件**
+
+```typescript
+// src/features/designer/services/TransformService.ts
+export class TransformService {
+  constructor(renderer: IRenderer, renderSync: RenderSyncService) {
+    this.renderer = renderer;
+    this.renderSync = renderSync;
+    
+    // ✅ 设置回调函数，接收 Implementation 层的报告
+    this.setupControllerCallbacks();
+  }
+  
+  private setupControllerCallbacks(): void {
+    const controller = this.renderer.getTransformController();
+    
+    // ✅ 在 Feature 层设置回调，这里发布 EventBus 事件
+    controller.onDraggingChanged = (dragging: boolean) => {
+      publishState('state:transform:draggingChanged', { dragging });
+    };
+    
+    controller.onTransformCompleted = data => {
+      publishState('state:transform:completed', data);
+    };
+  }
+}
+```
+
+**架构收益**:
+
+1. **分层清晰**: Implementation 层不依赖 EventBus，保持技术实现的纯粹性
+2. **可替换性**: 未来替换为 Babylon.js 时，使用相同的回调接口
+3. **职责单一**: 
+   - Implementation 层：技术实现，通过回调报告状态
+   - Feature 层：业务逻辑，设置回调并发布 EventBus 事件
+   - UI 层：订阅 EventBus，响应状态变化
+
+**关键设计决策**:
+
+OrbitControls 协调 (`requestDisableOrbitControls()`) 不是特殊情况，它是 **IRenderer 接口的一部分**，这是我们定义的业务需求：某些操作需要临时禁用相机控制。这是通用的 3D 编辑器需求，不是 Three.js 的细节泄漏。
+
+**修改文件清单**:
+
+- `src/core/renderer/renderer-types.ts` - 新增 TransformData 和回调定义
+- `src/core/renderer/threejs/ThreeTransformController.ts` - 移除 EventBus，使用回调
+- `src/features/designer/services/TransformService.ts` - 设置回调并发布事件
+
+**验证结果**:
+
+- ✅ 构建成功，无编译错误
+- ✅ 功能正常，Gizmo 正确显示和交互
+- ✅ 架构一致性得到保证
+
+**相关文档**: 详细实施记录见 `doc/design/Task3-Refactoring-2025-12-05.md`
+
+### Task #3 设计决策与实施调整
+
+**日期**: 2025-12-05  
+**目标**: 记录 Task #3 在实施过程中的关键设计决策和调整
+
+#### 核心特性调整
+
+**✅ 保留缩放模式**
+- 实现三种模式：移动、旋转、**缩放**
+- 理由：缩放是 3D 编辑器的标准功能，实现成本低
+
+**❌ 移除浮动 TransformToolbar**
+- 所有变换按钮集成在顶部 DesignerToolbar
+- 理由：避免遮挡视口，符合 CAD 软件习惯
+- 影响：删除 `src/features/designer/ui/TransformToolbar.tsx`（不再需要）
+
+**⚠️ 按需附着 Gizmo**
+- **不自动附着**：选中对象后不自动显示 Gizmo
+- **主动激活**：点击"移动/旋转/缩放"按钮时才附着
+- 理由：参考 Inventor 交互模式，给用户明确控制权
+
+**🔄 通过工具栏退出模式**
+- 点击顶部"选择"按钮退出变换模式
+- 不再使用 Q/Esc 键取消选择
+- 理由：符合主流 CAD 软件习惯
+
+#### 交互流程变更
+
+**新流程**:
+```
+1. 用户选中对象
+2. 点击顶部"移动"按钮
+3. Gizmo 显示在对象上
+4. 拖拽 Gizmo 变换对象
+5. 点击"旋转"/"缩放"切换模式
+6. 点击"选择"退出变换模式
+```
+
+**快捷键支持**:
+- `W` - 切换到移动模式（需要已选中对象）
+- `E` - 切换到旋转模式（需要已选中对象）
+- `R` - 切换到缩放模式（需要已选中对象）
+
+#### 接口设计完善
+
+**ITransformController 接口抽象**:
+
+```typescript
+/**
+ * 变换控制器接口（渲染器抽象）
+ * 
+ * 设计说明：
+ * - 变换控制是所有 3D 编辑器的通用需求
+ * - Three.js 使用 TransformControls
+ * - Babylon.js 使用 Gizmo 系统
+ */
+export interface ITransformController {
+  /**
+   * 附着到对象
+   * @param objectId 对象 ID
+   * @param nativeObject 原生渲染对象（从 RenderSyncService 获取）
+   */
+  attachToObject(objectId: string, nativeObject: unknown): void;
+  detach(): void;
+  setMode(mode: 'translate' | 'rotate' | 'scale'): void;
+  getMode(): 'translate' | 'rotate' | 'scale' | null;
+  setSpace(space: 'local' | 'world'): void;
+  getAttachedObjectId(): string | null;
+  setEnabled(enabled: boolean): void;
+  dispose(): void;
+}
+```
+
+**关键设计原则**:
+1. **接口使用 `unknown` 类型** - 保持渲染器抽象，不暴露 Three.js 类型
+2. **通过 RenderSyncService 获取对象** - TransformService 从 RenderSyncService 获取原生对象，传递给 ITransformController
+3. **Three.js 实现内部转换** - ThreeTransformController 内部将 `unknown` 转换为 `THREE.Object3D`
+
+#### 文件变更清单
+
+**新建文件**:
+- `src/core/renderer/threejs/ThreeTransformController.ts`
+- `src/features/designer/services/TransformService.ts`
+- `src/features/designer/services/TransformCommandHandler.ts`
+
+**修改文件**:
+- `src/core/renderer/renderer-types.ts` - 新增 ITransformController 接口
+- `src/core/renderer/threejs/ThreeRenderer.ts` - 实现 getTransformController()
+- `src/features/designer/ui/DesignerToolbar.tsx` - 添加变换按钮
+- `src/pages/DesignerPage.tsx` - 集成服务和快捷键
+- `src/core/services/eventBus.ts` - 新增事件类型
+
+**删除文件**:
+- ~~`src/features/designer/ui/TransformToolbar.tsx`~~ - 不再需要（决策不实现）
+
+#### 设计决策记录
+
+| 决策 | 内容 | 理由 |
+|------|------|------|
+| **D1** | 变换模式包含缩放 | 缩放是标准功能，成本低，符合用户预期 |
+| **D2** | 不实现浮动 TransformToolbar | 避免遮挡视口，工具栏位置统一 |
+| **D3** | 不自动附着 Gizmo | 参考 Inventor，给用户明确控制权 |
+| **D4** | 通过顶部工具栏退出变换模式 | 符合主流 CAD 软件习惯 |
+| **D5** | Local/World 空间切换 | 第一版默认 Local 空间，不提供 UI 切换 |
+
+#### 待办事项（审查发现）
+
+**P0: IRenderer 接口完善** ✅
+- 在 `renderer-types.ts` 中定义 `ITransformController` 接口（已完成）
+- 在 `IRenderer` 中添加 `getTransformController()` 方法（已完成）
+
+**P1: 清理重复的高亮方法** ⏳
+- 问题：`IRenderer` 接口中存在重复的高亮方法
+- 行动：在后续重构中删除旧方法
+
+**P2: 相机控制器接口提取（可选）** ⏸️
+- 问题：相机控制方法分散在 `IRenderer` 中
+- 行动：可选优化，不影响当前功能，暂时保持现状
+
+#### 验收标准
+
+**功能验收**:
+- ✅ 选中对象后，点击顶部"移动"按钮，显示移动 Gizmo（三个箭头）
+- ✅ 点击"旋转"按钮，显示旋转 Gizmo（三个圆环）
+- ✅ 点击"缩放"按钮，显示缩放 Gizmo（三个方块）
+- ✅ 点击"选择"按钮，Gizmo 消失，退出变换模式
+- ✅ 拖拽 Gizmo 可实时调整对象变换
+- ✅ 拖拽时 OrbitControls 自动禁用
+- ✅ 释放鼠标后 OrbitControls 恢复
+- ✅ 变换完成后数据同步到 ObjectManager
+- ✅ 按 W/E/R 键切换模式（有选中对象时）
+- ✅ 当前激活的模式按钮高亮显示
+
+**架构验收**:
+- ✅ Implementation 层不直接使用 EventBus（通过回调）
+- ✅ ITransformController 接口使用 `unknown` 类型保持抽象
+- ✅ TransformService 通过 RenderSyncService 获取渲染对象
 
 ---
 

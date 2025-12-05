@@ -1,6 +1,6 @@
 # 状态管理策略
 
-**最后更新**: 2025-11-21
+**最后更新**: 2025-12-05
 
 本文档详细说明铝型材框架设计器的状态管理策略，包括 Context Provider、Zustand、持久化 Hook 和状态划分原则。
 
@@ -47,6 +47,62 @@
 | **业务服务实例** | Features Context     | 页面级       | CreationService, EditorService |
 | **UI 交互状态**  | React State          | 组件级       | 工具选择、面板展开             |
 | **持久化偏好**   | usePersistentState   | localStorage | 侧边栏折叠、工具选择           |
+
+### 1.3 Implementation 层通信原则 ⭐
+
+**关键原则**：Implementation 层（Three.js 实现）**不应使用 EventBus**
+
+**通信方式**：
+
+```
+UI Layer ↔ Feature/Core Layer: EventBus (双向)
+Core Interface ↔ Implementation: 直接调用 + 回调函数
+```
+
+**错误示例**：
+
+```typescript
+// ❌ Implementation 层直接使用 EventBus
+class ThreeTransformController {
+  private handleDragStart = () => {
+    publishState('state:transform:draggingChanged', { dragging: true });
+  };
+}
+```
+
+**正确示例**：
+
+```typescript
+// ✅ Implementation 层通过回调报告
+class ThreeTransformController {
+  public onDraggingChanged?: (dragging: boolean) => void;
+  
+  private handleDragStart = () => {
+    this.onDraggingChanged?.(true); // 通过回调向上报告
+  };
+}
+
+// ✅ Feature 层设置回调并发布 EventBus
+class TransformService {
+  constructor(renderer: IRenderer) {
+    const controller = renderer.getTransformController();
+    
+    // 在 Feature 层连接回调和 EventBus
+    controller.onDraggingChanged = (dragging) => {
+      publishState('state:transform:draggingChanged', { dragging });
+    };
+  }
+}
+```
+
+**为什么这样设计？**
+
+1. **解耦技术实现**：Implementation 层不应知道业务层的事件系统
+2. **易于替换**：切换到 Babylon.js 时，使用相同的回调接口
+3. **职责清晰**：技术层负责实现，业务层负责状态发布
+4. **可测试性**：可以 mock 回调函数进行单元测试
+
+详见：[核心架构设计 - 通信原则](./CoreArchitecture.md#34-通信原则与分层规则-)
 
 ---
 
