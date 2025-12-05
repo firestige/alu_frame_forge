@@ -6,18 +6,42 @@
  * - 监听选择状态变化
  * - 自动附着/分离 TransformController
  * - 监听键盘快捷键（Q/W/E/R）
+ * - 处理 command:tool:change 命令并发布 state:tool:changed 状态
  */
 
 import * as React from 'react';
-import { sendCommand, onState, offState } from '@/core/services/eventBus';
+import {
+  sendCommand,
+  onCommand,
+  offCommand,
+  onState,
+  offState,
+  publishState,
+} from '@/core/services/eventBus';
 
-export function useTransformTool(
-  selectedTool: 'select' | 'translate' | 'rotate' | 'scale',
-  onToolChange: (tool: 'select' | 'translate' | 'rotate' | 'scale') => void
-): void {
+export function useTransformTool(): void {
+  const [selectedTool, setSelectedTool] = React.useState<
+    'select' | 'translate' | 'rotate' | 'scale'
+  >('select');
   const [selectedObjectIds, setSelectedObjectIds] = React.useState<string[]>(
-    []
+    [],
   );
+
+  // 监听工具切换命令
+  React.useEffect(() => {
+    const handleToolChange = (
+      tool: 'select' | 'translate' | 'rotate' | 'scale',
+    ): void => {
+      setSelectedTool(tool);
+      publishState('state:tool:changed', tool);
+    };
+
+    onCommand('command:tool:change', handleToolChange);
+
+    return () => {
+      offCommand('command:tool:change', handleToolChange);
+    };
+  }, []);
 
   // 监听选择状态变化
   React.useEffect(() => {
@@ -64,16 +88,16 @@ export function useTransformTool(
 
       switch (event.key.toLowerCase()) {
         case 'q':
-          onToolChange('select');
+          sendCommand('command:tool:change', 'select');
           break;
         case 'w':
-          onToolChange('translate');
+          sendCommand('command:tool:change', 'translate');
           break;
         case 'e':
-          onToolChange('rotate');
+          sendCommand('command:tool:change', 'rotate');
           break;
         case 'r':
-          onToolChange('scale');
+          sendCommand('command:tool:change', 'scale');
           break;
         default:
           break;
@@ -85,5 +109,5 @@ export function useTransformTool(
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onToolChange]);
+  }, []);
 }

@@ -8,6 +8,8 @@ export interface ContextMenuState {
   y: number;
   type: ContextMenuType | null;
   targetId?: string; // 对象 ID（如果是对象菜单）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  metadata?: Record<string, any>; // 额外的上下文数据
 }
 
 /**
@@ -31,16 +33,21 @@ export const useContextMenu = () => {
   });
 
   const openContextMenu = React.useCallback(
-    (event: React.MouseEvent, type: ContextMenuType, targetId?: string) => {
-      event.preventDefault();
-      event.stopPropagation();
-
+    (
+      x: number,
+      y: number,
+      type: ContextMenuType,
+      targetId?: string,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      metadata?: Record<string, any>
+    ) => {
       setContextMenu({
         open: true,
-        x: event.clientX,
-        y: event.clientY,
+        x,
+        y,
         type,
         targetId,
+        metadata,
       });
     },
     []
