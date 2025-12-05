@@ -60,24 +60,38 @@ export class RaycasterService {
 
     const intersects = this.raycaster.intersectObjects(objects, true);
 
-    return intersects.map(hit => ({
-      handle: hit.object.userData.modelId || hit.object.uuid,
-      point: {
-        x: hit.point.x,
-        y: hit.point.y,
-        z: hit.point.z,
-      },
-      normal: hit.face
-        ? {
-            x: hit.face.normal.x,
-            y: hit.face.normal.y,
-            z: hit.face.normal.z,
-          }
-        : undefined,
-      distance: hit.distance,
-      isWorkPlane: false,
-      userData: hit.object.userData,
-    }));
+    return intersects.map(hit => {
+      // 向上查找 modelId（可能在父级 Group 上）
+      let currentObj: THREE.Object3D | null = hit.object;
+      let modelId: string | undefined;
+
+      while (currentObj) {
+        if (currentObj.userData.modelId) {
+          modelId = currentObj.userData.modelId;
+          break;
+        }
+        currentObj = currentObj.parent;
+      }
+
+      return {
+        handle: modelId || hit.object.uuid,
+        point: {
+          x: hit.point.x,
+          y: hit.point.y,
+          z: hit.point.z,
+        },
+        normal: hit.face
+          ? {
+              x: hit.face.normal.x,
+              y: hit.face.normal.y,
+              z: hit.face.normal.z,
+            }
+          : undefined,
+        distance: hit.distance,
+        isWorkPlane: false,
+        userData: currentObj?.userData || hit.object.userData,
+      };
+    });
   }
 
   /**

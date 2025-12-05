@@ -74,9 +74,13 @@ export type DesignerCommandEvents = {
 
   // 模型编辑命令
   'command:model:delete': string; // modelId
+  'command:model:duplicate': string; // modelId - 复制对象
   'command:model:toggleVisibility': string;
   'command:model:showProperties': string;
   'command:model:edit': string;
+
+  // 工具切换命令
+  'command:tool:change': 'select' | 'translate' | 'rotate' | 'scale';
   'command:model:update': {
     // 更新模型属性
     id: string;
@@ -164,6 +168,9 @@ export type DesignerStateEvents = {
   };
   'state:boxselect:completed': { selectedIds: string[] };
   'state:boxselect:cancelled': void;
+
+  // 工具状态事件
+  'state:tool:changed': 'select' | 'translate' | 'rotate' | 'scale';
 
   // 变换状态事件
   'state:transform:attached': { objectId: string };

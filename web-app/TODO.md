@@ -79,23 +79,27 @@ _当前无 P0 任务_
 
 ---
 
-### 3. 实现对象移动和旋转
 
-**状态**: ⏳ 待执行
+### ~~3. 实现对象移动和旋转~~ ✅ 已完成
 
-**描述**: 实现 3D 场景中对象的交互式移动和旋转。
+**状态**: ✅ 已完成 (2025-12-05, PR #17)
+
+**描述**: 实现 3D 场景中对象的交互式移动、旋转和缩放。
 
 **技术方案**: TransformControls
 
 **任务列表**:
 
-- [ ] 集成 TransformControls 到场景
-- [ ] 实现移动模式（translate）
-- [ ] 实现旋转模式（rotate）
-- [ ] 实现缩放模式（scale，可选）
-- [ ] 添加工具栏切换按钮（移动/旋转/选择）
-- [ ] 变换完成后同步到 ObjectManager
-- [ ] 支持键盘快捷键（W/E/R 切换模式）
+- [x] 集成 TransformControls 到场景
+- [x] 实现移动模式（translate）
+- [x] 实现旋转模式（rotate）
+- [x] 实现缩放模式（scale）
+- [x] 添加工具栏切换按钮（移动/旋转/选择）
+- [x] 变换完成后同步到 ObjectManager
+- [x] 支持键盘快捷键（W/E/R 切换模式）
+
+**设计决策说明**:
+- TransformToolbar 功能已决策不做，相关交互已集成到 DesignerToolbar，详细见开发日志 2025-12-05。
 
 **参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)、[RenderingSystem.md](./doc/design/RenderingSystem.md)
 

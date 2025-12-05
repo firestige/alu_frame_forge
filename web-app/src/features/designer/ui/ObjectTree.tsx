@@ -1,6 +1,9 @@
 import * as React from 'react';
 import type { SceneObject } from '@/core/object';
 import { AssetType } from '@/core/asset';
+import { useContextMenu } from '../hooks/useContextMenu';
+import { CommandContextMenu } from '@/components/ContextMenu';
+import { OBJECT_CONTEXT_MENU } from '../config/contextMenuConfig';
 
 interface ObjectTreeProps {
   objects: SceneObject[];
@@ -17,6 +20,18 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
   onToggleVisibility,
   onDelete,
 }) => {
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+
+  const handleContextMenu = (
+    e: React.MouseEvent,
+    objectId: string,
+    isVisible: boolean,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openContextMenu(e.clientX, e.clientY, 'object', objectId, { isVisible });
+  };
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="p-2">
@@ -33,6 +48,9 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
               <div
                 key={object.id}
                 onClick={() => onSelectObject(object.id)}
+                onContextMenu={e =>
+                  handleContextMenu(e, object.id, object.visual?.isVisible ?? true)
+                }
                 className={`
                   group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer
                   transition-colors text-xs
@@ -88,6 +106,20 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
           </div>
         )}
       </div>
+
+      {/* 右键菜单 */}
+      {contextMenu && contextMenu.open && (
+        <CommandContextMenu
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          open={contextMenu.open}
+          actions={OBJECT_CONTEXT_MENU}
+          context={{
+            objectId: contextMenu.targetId,
+            isVisible: contextMenu.metadata?.isVisible ?? true,
+          }}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   );
 };

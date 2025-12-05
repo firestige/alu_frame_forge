@@ -12,7 +12,12 @@ import { usePlacementInput } from '../hooks/usePlacementInput';
 import { usePlacementState } from '../hooks/usePlacementState';
 import { useCreationCommands } from '../hooks/useCreationCommands';
 import { useTransformTool } from '../hooks/useTransformTool';
+import { useSceneContextMenu } from '../hooks/useSceneContextMenu';
 import { BoxSelectionOverlay } from './BoxSelectionOverlay';
+import { CommandContextMenu } from '@/components/ContextMenu';
+import { OBJECT_CONTEXT_MENU } from '../config/contextMenuConfig';
+import { SCENE_CONTEXT_MENU } from '../config/sceneContextMenuConfig';
+import { onState } from '@/core/services/eventBus';
 
 import type { IRenderer } from '@/core/renderer';
 
@@ -43,11 +48,6 @@ export interface DesignerPageUIProps {
  */
 const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
   // ==================== 1. UI 状态（持久化）- 必须最先声明 ====================
-
-  // 工具选择
-  const [selectedTool, setSelectedTool] = usePersistentState<
-    'select' | 'translate' | 'rotate' | 'scale'
-  >('designer.tool', 'select');
 
   // 侧边栏折叠状态（预留）
   const [sidebarCollapsed] = usePersistentState(
@@ -90,8 +90,20 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   // ==================== 5. 框选事件处理 ====================
 
+  // 框选功能：通过监听 state:tool:changed 来决定是否启用
   // 只在"选择模式"且按住 Shift 时启用框选
-  const enableBoxSelect = selectedTool === 'select';
+  const [enableBoxSelect, setEnableBoxSelect] = React.useState(true);
+
+  React.useEffect(() => {
+    const unsubscribe = onState(
+      'state:tool:changed',
+      (tool: string) => {
+        setEnableBoxSelect(tool === 'select');
+      },
+    );
+    return unsubscribe;
+  }, []);
+
   useBoxSelect(
     containerRef as React.RefObject<HTMLDivElement>,
     renderer,
@@ -109,7 +121,14 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   // ==================== 8. 变换工具处理 ====================
 
-  useTransformTool(selectedTool, setSelectedTool);
+  useTransformTool();
+
+  // ==================== 9. 场景右键菜单 ====================
+
+  const { contextMenu, closeContextMenu } = useSceneContextMenu(
+    containerRef as React.RefObject<HTMLDivElement>,
+    renderer
+  );
 
   // ==================== 渲染 ====================
 
@@ -117,7 +136,7 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
     <div className="w-full h-full flex flex-col">
       {/* 顶部工具栏 */}
       <div className="relative shrink w-full">
-        <Toolbar selectedTool={selectedTool} onToolChange={setSelectedTool} />
+        <Toolbar />
       </div>
 
       {/* 主内容区域 */}
@@ -132,6 +151,24 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
           {/* 框选矩形覆盖层 */}
           <BoxSelectionOverlay />
+
+          {/* 场景右键菜单 */}
+          {contextMenu.open && (
+            <CommandContextMenu
+              position={{ x: contextMenu.x, y: contextMenu.y }}
+              open={contextMenu.open}
+              actions={
+                contextMenu.type === 'object'
+                  ? OBJECT_CONTEXT_MENU
+                  : SCENE_CONTEXT_MENU
+              }
+              context={{
+                objectId: contextMenu.targetId,
+                ...contextMenu.metadata,
+              }}
+              onClose={closeContextMenu}
+            />
+          )}
         </div>
       </div>
     </div>

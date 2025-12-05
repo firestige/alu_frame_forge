@@ -4,6 +4,9 @@ import { useDesignerContext } from '../hooks/useDesignerContext';
 import type { ProfileAsset } from '@/core/asset';
 import ProfileDropdownPanel from './components/ProfileDropdownPanel';
 import { Popover } from '@/components/Popover';
+import { CommandToolbar } from '@/components/Toolbar';
+import { TRANSFORM_TOOLBAR_CONFIG } from '../config/toolbarConfig';
+import { useCommandState } from '../hooks/useCommandState';
 
 // 按钮组件
 interface ToolButtonProps {
@@ -152,15 +155,23 @@ const ButtonGroup: React.FC<ButtonGroupProps> = ({ title, children }) => {
 
 // Toolbar 主组件
 export interface ToolbarProps {
-  // 当前选中的工具（UI 状态）
-  selectedTool: 'select' | 'translate' | 'rotate' | 'scale';
-  onToolChange: (tool: 'select' | 'translate' | 'rotate' | 'scale') => void;
+  // 当前选中的工具（UI 状态） - 已废弃，改用 EventBus 状态
+  selectedTool?: 'select' | 'translate' | 'rotate' | 'scale';
+  onToolChange?: (tool: 'select' | 'translate' | 'rotate' | 'scale') => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
+const Toolbar: React.FC<ToolbarProps> = () => {
   // 获取 AssetService
   const { services } = useDesignerContext();
   const assetService = services.objectManager.getAssetService();
+
+  // 订阅当前工具状态
+  const currentTool =
+    (useCommandState('state:tool:changed', 'select' as const) as
+      | 'select'
+      | 'translate'
+      | 'rotate'
+      | 'scale') ?? 'select';
 
   // 型材相关状态
   const [activeSeries, setActiveSeries] = React.useState<number>(20);
@@ -205,39 +216,22 @@ const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
   };
 
   const handleResetCamera = () => {
-    sendCommand('command:camera:reset', undefined);
+    sendCommand('command:camera:reset', {});
   };
 
   return (
     <div className="w-full bg-slate-800 border-b border-slate-700 shadow-lg">
       <div className="flex items-start py-2 overflow-x-auto">
-        {/* 基础工具 */}
-        <ButtonGroup title="工具">
-          <ToolButton
-            icon="👆"
-            label="选择"
-            active={selectedTool === 'select'}
-            onClick={() => onToolChange('select')}
+        {/* 基础工具 - 使用 CommandToolbar */}
+        <div className="flex flex-col gap-1 px-3 border-r border-slate-700">
+          <div className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+            工具
+          </div>
+          <CommandToolbar
+            actions={TRANSFORM_TOOLBAR_CONFIG}
+            activeId={currentTool}
           />
-          <ToolButton
-            icon="✋"
-            label="移动"
-            active={selectedTool === 'translate'}
-            onClick={() => onToolChange('translate')}
-          />
-          <ToolButton
-            icon="🔄"
-            label="旋转"
-            active={selectedTool === 'rotate'}
-            onClick={() => onToolChange('rotate')}
-          />
-          <ToolButton
-            icon="📏"
-            label="缩放"
-            active={selectedTool === 'scale'}
-            onClick={() => onToolChange('scale')}
-          />
-        </ButtonGroup>
+        </div>
 
         {/* 模型创建 */}
         <ButtonGroup title="插入">
