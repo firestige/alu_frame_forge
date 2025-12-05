@@ -11,6 +11,7 @@ import { useBoxSelect } from '../hooks/useBoxSelect';
 import { usePlacementInput } from '../hooks/usePlacementInput';
 import { usePlacementState } from '../hooks/usePlacementState';
 import { useCreationCommands } from '../hooks/useCreationCommands';
+import { useTransformTool } from '../hooks/useTransformTool';
 import { BoxSelectionOverlay } from './BoxSelectionOverlay';
 
 import type { IRenderer } from '@/core/renderer';
@@ -45,7 +46,7 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   // 工具选择
   const [selectedTool, setSelectedTool] = usePersistentState<
-    'select' | 'move' | 'rotate'
+    'select' | 'translate' | 'rotate' | 'scale'
   >('designer.tool', 'select');
 
   // 侧边栏折叠状态（预留）
@@ -105,6 +106,10 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   const { isPlacementActive } = usePlacementState();
   usePlacementInput(containerRef, isPlacementActive);
+
+  // ==================== 8. 变换工具处理 ====================
+
+  useTransformTool(selectedTool, setSelectedTool);
 
   // ==================== 渲染 ====================
 

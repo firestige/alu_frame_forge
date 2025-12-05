@@ -153,8 +153,8 @@ const ButtonGroup: React.FC<ButtonGroupProps> = ({ title, children }) => {
 // Toolbar 主组件
 export interface ToolbarProps {
   // 当前选中的工具（UI 状态）
-  selectedTool: 'select' | 'move' | 'rotate';
-  onToolChange: (tool: 'select' | 'move' | 'rotate') => void;
+  selectedTool: 'select' | 'translate' | 'rotate' | 'scale';
+  onToolChange: (tool: 'select' | 'translate' | 'rotate' | 'scale') => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
@@ -222,16 +222,20 @@ const Toolbar: React.FC<ToolbarProps> = ({ selectedTool, onToolChange }) => {
           <ToolButton
             icon="✋"
             label="移动"
-            active={selectedTool === 'move'}
-            onClick={() => onToolChange('move')}
-            disabled
+            active={selectedTool === 'translate'}
+            onClick={() => onToolChange('translate')}
           />
           <ToolButton
             icon="🔄"
             label="旋转"
             active={selectedTool === 'rotate'}
             onClick={() => onToolChange('rotate')}
-            disabled
+          />
+          <ToolButton
+            icon="📏"
+            label="缩放"
+            active={selectedTool === 'scale'}
+            onClick={() => onToolChange('scale')}
           />
         </ButtonGroup>
 

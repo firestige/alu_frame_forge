@@ -58,7 +58,7 @@ export type ColorHex = number;
  * 标准相机预设（26个标准位置）
  * 支持面（6个）、棱（12个）、角（8个）视图
  */
-export enum CameraPreset {
+export const enum CameraPreset {
   // === 6 个面视图 ===
   FRONT = 'front',
   BACK = 'back',
@@ -512,6 +512,114 @@ export interface IRenderer {
    * 用于特殊相机操作
    */
   getNativeCamera(): unknown;
+
+  // ==================== 变换控制器 ====================
+
+  /**
+   * 获取变换控制器
+   * 用于交互式对象变换（移动/旋转/缩放）
+   */
+  getTransformController(): ITransformController;
+}
+
+// ==================== 变换控制器接口 ====================
+
+/**
+ * 变换数据（用于回调）
+ */
+export interface TransformData {
+  objectId: string;
+  transform: {
+    position: { x: number; y: number; z: number };
+    rotation: { x: number; y: number; z: number };
+    scale: { x: number; y: number; z: number };
+  };
+}
+
+/**
+ * 变换控制器接口
+ *
+ * 设计说明：
+ * 变换控制是所有 3D 编辑器的通用需求：
+ * - Three.js 使用 TransformControls
+ * - Babylon.js 使用 Gizmo 系统
+ * - Unity 使用 Transform Gizmo
+ * - Blender 使用交互式变换工具
+ *
+ * 本接口抽象这个通用需求，不依赖具体渲染库。
+ *
+ * 通信方式：
+ * - 向下：通过方法调用控制行为（attachToObject、setMode 等）
+ * - 向上：通过回调函数报告状态（onDraggingChanged、onTransformCompleted）
+ */
+export interface ITransformController {
+  // ==================== 回调函数（向上报告状态）====================
+
+  /**
+   * 拖拽状态变化回调
+   * @param dragging 是否正在拖拽
+   */
+  onDraggingChanged?: (dragging: boolean) => void;
+
+  /**
+   * 变换完成回调
+   * @param data 变换数据
+   */
+  onTransformCompleted?: (data: TransformData) => void;
+
+  // ==================== 控制方法（向下控制行为）====================
+
+  /**
+   * 附着到对象
+   * @param objectId 对象 ID（用于事件追踪）
+   * @param nativeObject 原生渲染对象（从 RenderSyncService 获取）
+   */
+  attachToObject(objectId: string, nativeObject: unknown): void;
+
+  /**
+   * 分离当前对象
+   */
+  detach(): void;
+
+  /**
+   * 设置变换模式
+   * @param mode 变换模式
+   */
+  setMode(mode: 'translate' | 'rotate' | 'scale'): void;
+
+  /**
+   * 获取当前模式
+   * @returns 当前模式，如果未附着则返回 null
+   */
+  getMode(): 'translate' | 'rotate' | 'scale' | null;
+
+  /**
+   * 设置坐标空间
+   * @param space 坐标空间（局部或世界）
+   */
+  setSpace(space: 'local' | 'world'): void;
+
+  /**
+   * 获取当前坐标空间
+   */
+  getSpace(): 'local' | 'world';
+
+  /**
+   * 获取当前附着的对象 ID
+   * @returns 对象 ID，如果未附着则返回 null
+   */
+  getAttachedObjectId(): string | null;
+
+  /**
+   * 启用/禁用控制器
+   * @param enabled 是否启用
+   */
+  setEnabled(enabled: boolean): void;
+
+  /**
+   * 销毁控制器，释放资源
+   */
+  dispose(): void;
 }
 
 /**

@@ -8,6 +8,8 @@ import { SelectionService } from '../features/designer/services/SelectionService
 import { BoxSelectController } from '../features/designer/services/BoxSelectController';
 import { CameraService } from '@/core/renderer/services/CameraService';
 import { CameraCommandHandler } from '../features/designer/services/CameraCommandHandler';
+import { TransformService } from '../features/designer/services/TransformService';
+import { TransformCommandHandler } from '../features/designer/services/TransformCommandHandler';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
 import { DesignerProvider } from '../features/designer/context';
 import {
@@ -19,6 +21,8 @@ import {
   designerEventBus,
   onCommand,
   offCommand,
+  onState,
+  offState,
 } from '@/core/services/eventBus';
 import type { IRenderer } from '@/core/renderer/renderer-types';
 
@@ -77,6 +81,8 @@ const DesignerPage: React.FC = () => {
     boxSelect: BoxSelectController | null;
     cameraService: CameraService | null;
     cameraCommandHandler: CameraCommandHandler | null;
+    transformService: TransformService | null;
+    transformCommandHandler: TransformCommandHandler | null;
   }>({
     creation: null,
     editor: null,
@@ -86,6 +92,8 @@ const DesignerPage: React.FC = () => {
     boxSelect: null,
     cameraService: null,
     cameraCommandHandler: null,
+    transformService: null,
+    transformCommandHandler: null,
   });
 
   // 初始化不依赖 renderer 的服务
@@ -143,6 +151,15 @@ const DesignerPage: React.FC = () => {
 
     const cameraCommandHandler = new CameraCommandHandler(cameraService);
 
+    // 初始化 TransformService 和 TransformCommandHandler
+    const transformService = new TransformService(
+      rendererRef.current,
+      renderSync
+    );
+    const transformCommandHandler = new TransformCommandHandler(
+      transformService
+    );
+
     setFeatureServices(prev => ({
       ...prev,
       renderSync,
@@ -151,6 +168,8 @@ const DesignerPage: React.FC = () => {
       boxSelect,
       cameraService,
       cameraCommandHandler,
+      transformService,
+      transformCommandHandler,
     }));
 
     return () => {
@@ -159,6 +178,8 @@ const DesignerPage: React.FC = () => {
       selection.dispose();
       boxSelect.dispose();
       cameraCommandHandler.dispose();
+      transformCommandHandler.dispose();
+      transformService.dispose();
     };
   }, [isRendererReady, coreServices.objectManager]);
 
@@ -355,7 +376,38 @@ const DesignerPage: React.FC = () => {
     };
   }, [coreServices.objectManager]);
 
-  // ==================== 7. 渲染 ====================
+  // ==================== 7. 事件桥梁：Transform Completed → ObjectManager ====================
+
+  React.useEffect(() => {
+    const handleTransformCompleted = (data: {
+      objectId: string;
+      transform: {
+        position: { x: number; y: number; z: number };
+        rotation: { x: number; y: number; z: number };
+        scale: { x: number; y: number; z: number };
+      };
+    }): void => {
+      console.log('[DesignerPage] Transform completed:', data);
+      coreServices.objectManager.updateObject(data.objectId, {
+        transform: {
+          position: data.transform.position,
+          rotation: {
+            ...data.transform.rotation,
+            order: 'XYZ',
+          },
+          scale: data.transform.scale,
+        },
+      });
+    };
+
+    onState('state:transform:completed', handleTransformCompleted);
+
+    return () => {
+      offState('state:transform:completed', handleTransformCompleted);
+    };
+  }, [coreServices.objectManager]);
+
+  // ==================== 8. 渲染 ====================
 
   console.log('[DesignerPage] 渲染阶段 - featureServices:', {
     creation: !!featureServices.creation,

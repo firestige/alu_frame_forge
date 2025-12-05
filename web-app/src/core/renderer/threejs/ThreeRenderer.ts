@@ -24,6 +24,8 @@ import { RaycasterService } from './RaycasterService';
 import { PreviewManager } from './PreviewManager';
 import { RendererCore } from './RendererCore';
 import type { OutlineEffect } from './OutlineEffect';
+import { ThreeTransformController } from './ThreeTransformController';
+import type { ITransformController } from '../renderer-types';
 
 /**
  * Three.js 渲染器实现
@@ -36,6 +38,7 @@ export class ThreeRenderer implements IRenderer {
   private previewManager: PreviewManager | null = null;
   private rendererCore: RendererCore;
   private outlineEffect: OutlineEffect | null = null;
+  private transformController: ThreeTransformController | null = null;
 
   private initialized = false;
 
@@ -89,10 +92,21 @@ export class ThreeRenderer implements IRenderer {
       this.enableOrbitControls(config.orbitControls);
     }
 
+    // 初始化 TransformController
+    // ✅ 使用 renderer.domElement（canvas），而不是 container（div）
+    const rendererDomElement = this.rendererCore.getRenderer().domElement;
+    this.transformController = new ThreeTransformController(
+      this,
+      this.sceneManager.getScene(),
+      this.cameraController.getCamera(),
+      rendererDomElement
+    );
+
     this.initialized = true;
   }
 
   dispose(): void {
+    this.transformController?.dispose();
     this.rendererCore.dispose();
     this.cameraController?.dispose();
     this.sceneManager.dispose();
@@ -611,6 +625,11 @@ export class ThreeRenderer implements IRenderer {
 
       // 更新相机控制器
       this.cameraController?.updateControls();
+      
+      // ✅ 更新 TransformControls（重要！）
+      if (this.transformController) {
+        (this.transformController as any).update?.();
+      }
 
       // 调用外部回调
       if (callback) {
@@ -662,6 +681,13 @@ export class ThreeRenderer implements IRenderer {
 
   getNativeCamera(): unknown {
     return this.cameraController?.getCamera();
+  }
+
+  getTransformController(): ITransformController {
+    if (!this.transformController) {
+      throw new Error('TransformController not initialized');
+    }
+    return this.transformController;
   }
 }
 
