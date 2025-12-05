@@ -74,6 +74,7 @@ export type DesignerCommandEvents = {
 
   // 模型编辑命令
   'command:model:delete': string; // modelId
+  'command:model:duplicate': string; // modelId - 复制对象
   'command:model:toggleVisibility': string;
   'command:model:showProperties': string;
   'command:model:edit': string;
