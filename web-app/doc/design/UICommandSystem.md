@@ -1138,5 +1138,183 @@ const MyButton = () => {
 
 ---
 
-**文档状态**: ✅ 已完成  
-**下一步**: 按照实施步骤执行代码开发
+## 12. Task #4 实施记录
+
+### 12.1 实施概述
+
+**任务目标**: 在 3D 场景中添加右键菜单（区分空白/对象）
+
+**实施日期**: 2025-12-05
+
+**涉及文件**:
+- `src/features/designer/config/sceneContextMenuConfig.ts` - 场景菜单配置
+- `src/features/designer/hooks/useSceneContextMenu.ts` - 场景菜单 Hook
+- `src/features/designer/ui/DesignerPageUI.tsx` - UI 集成
+- `src/core/renderer/threejs/RaycasterService.ts` - 射线检测修复
+
+### 12.2 实施过程
+
+#### 阶段 1: 场景菜单配置
+创建 `sceneContextMenuConfig.ts`，定义空白区域右键菜单：
+- **粘贴** - 粘贴剪贴板中的对象
+- **相机操作** - 重置相机、框选全部
+- **视图预设** - 前/后/左/右/上/下/等轴测视图
+- **选择操作** - 全选对象
+
+#### 阶段 2: 场景菜单 Hook
+创建 `useSceneContextMenu.ts`，实现：
+- 监听 3D 容器的 `contextmenu` 事件
+- 通过 `renderer.raycastFromScreen()` 进行射线检测
+- 根据检测结果判断显示对象菜单或场景菜单
+- 集成 `useContextMenu` 管理菜单状态
+
+#### 阶段 3: UI 集成
+在 `DesignerPageUI.tsx` 中集成：
+- 导入菜单配置和组件
+- 实例化 `useSceneContextMenu` Hook
+- 条件渲染 `CommandContextMenu` 组件
+- 根据 `contextMenu.type` 动态选择菜单配置
+
+### 12.3 遇到的问题与解决方案
+
+#### 问题 1: ID 不匹配导致对象无法高亮
+
+**现象**:
+```
+[ThreeRenderer] Object a156ff7e-a713-4268-b30c-5e0f92184b2e not found in scene
+Available modelIds: ['obj_1764948885734_97n5jms33', 'obj_1764948885734_leyz70c9e']
+```
+
+**根本原因**:
+- RaycasterService 返回的是 Three.js 内部的 `uuid`（如 `a156ff7e-...`）
+- 但系统期望的是 `modelId`（如 `obj_timestamp_xxx`）
+- Three.js 对象可能嵌套在 Group 中，`userData.modelId` 设置在父级
+
+**解决方案**:
+修改 `RaycasterService.ts` 的 `raycast()` 方法，向上遍历对象树查找 `modelId`：
+
+```typescript
+return intersects.map(hit => {
+  // 向上查找 modelId（可能在父级 Group 上）
+  let currentObj: THREE.Object3D | null = hit.object;
+  let modelId: string | undefined;
+
+  while (currentObj) {
+    if (currentObj.userData.modelId) {
+      modelId = currentObj.userData.modelId;
+      break;
+    }
+    currentObj = currentObj.parent;
+  }
+
+  return {
+    handle: modelId || hit.object.uuid,
+    // ... 其他属性
+  };
+});
+```
+
+**效果**: 现在能正确返回 `obj_timestamp_xxx` 格式的 ID，对象高亮和选择正常工作。
+
+#### 问题 2: 右键拖拽相机触发上下文菜单
+
+**现象**:
+- 用户右键拖拽旋转相机后，鼠标抬起时会触发上下文菜单
+- 菜单显示在不符合预期的位置
+
+**根本原因**:
+- 只监听了 `contextmenu` 事件，无法区分"点击"和"拖拽"
+- 浏览器在右键抬起时总是触发 `contextmenu` 事件
+
+**解决方案**:
+在 `useSceneContextMenu.ts` 中添加拖拽检测逻辑：
+
+```typescript
+// 跟踪右键按下的位置和是否发生了拖拽
+let rightMouseDownPos: { x: number; y: number } | null = null;
+let hasDragged = false;
+const dragThreshold = 5; // 移动超过 5 像素才算拖拽
+
+const handleMouseDown = (e: MouseEvent) => {
+  if (e.button === 2) {
+    rightMouseDownPos = { x: e.clientX, y: e.clientY };
+    hasDragged = false;
+  }
+};
+
+const handleMouseMove = (e: MouseEvent) => {
+  if (rightMouseDownPos && e.buttons === 2) {
+    const dx = Math.abs(e.clientX - rightMouseDownPos.x);
+    const dy = Math.abs(e.clientY - rightMouseDownPos.y);
+    if (dx > dragThreshold || dy > dragThreshold) {
+      hasDragged = true;
+    }
+  }
+};
+
+const handleContextMenu = (e: MouseEvent) => {
+  e.preventDefault();
+  if (hasDragged) {
+    hasDragged = false;
+    return; // 发生了拖拽，不显示菜单
+  }
+  // ... 正常显示菜单逻辑
+};
+```
+
+**效果**: 右键点击显示菜单，右键拖拽不显示菜单，用户体验符合预期。
+
+### 12.4 关键设计决策
+
+#### 决策 1: 复用现有 CommandContextMenu 组件
+**原因**: 
+- 场景菜单和对象菜单本质上都是命令菜单
+- 避免代码重复，保持一致性
+- 通过配置数据区分不同菜单类型
+
+#### 决策 2: 使用 Portal 渲染菜单
+**原因**:
+- 菜单需要渲染到 `document.body` 避免父容器 `overflow: hidden` 裁剪
+- 确保 `z-index: 9999` 始终在最上层
+- 与框选、变换控件等其他 UI 元素隔离
+
+#### 决策 3: 射线检测向上查找 modelId
+**原因**:
+- Three.js 对象结构可能是 Group > Mesh 的嵌套关系
+- `userData.modelId` 可能设置在任意层级
+- 向上遍历是最可靠的查找方式
+
+### 12.5 测试验证
+
+**功能测试**:
+- ✅ 右键点击空白区域显示场景菜单
+- ✅ 右键点击对象显示对象菜单
+- ✅ 菜单项正确触发对应命令
+- ✅ ESC 键关闭菜单
+- ✅ 点击外部关闭菜单
+- ✅ 右键拖拽不显示菜单
+
+**边界测试**:
+- ✅ 对象嵌套在 Group 中仍能正确识别
+- ✅ 菜单防止溢出屏幕边界
+- ✅ 多次快速右键点击无异常
+
+### 12.6 后续优化建议
+
+1. **性能优化**
+   - 考虑节流 `mousemove` 事件监听
+   - 优化射线检测频率
+
+2. **功能增强**
+   - 支持菜单项的子菜单（嵌套菜单）
+   - 支持菜单项的图标组件（而非 emoji）
+   - 支持菜单项的复选框状态
+
+3. **可访问性**
+   - 添加键盘导航支持（上下箭头选择）
+   - 添加 ARIA 属性支持屏幕阅读器
+
+---
+
+**文档状态**: ✅ 已完成（含 Task #4 实施记录）  
+**下一步**: Task #5 - 变换系统集成

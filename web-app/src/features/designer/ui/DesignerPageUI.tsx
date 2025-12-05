@@ -12,7 +12,11 @@ import { usePlacementInput } from '../hooks/usePlacementInput';
 import { usePlacementState } from '../hooks/usePlacementState';
 import { useCreationCommands } from '../hooks/useCreationCommands';
 import { useTransformTool } from '../hooks/useTransformTool';
+import { useSceneContextMenu } from '../hooks/useSceneContextMenu';
 import { BoxSelectionOverlay } from './BoxSelectionOverlay';
+import { CommandContextMenu } from '@/components/ContextMenu';
+import { OBJECT_CONTEXT_MENU } from '../config/contextMenuConfig';
+import { SCENE_CONTEXT_MENU } from '../config/sceneContextMenuConfig';
 import { onState } from '@/core/services/eventBus';
 
 import type { IRenderer } from '@/core/renderer';
@@ -119,6 +123,13 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
   useTransformTool();
 
+  // ==================== 9. 场景右键菜单 ====================
+
+  const { contextMenu, closeContextMenu } = useSceneContextMenu(
+    containerRef as React.RefObject<HTMLDivElement>,
+    renderer
+  );
+
   // ==================== 渲染 ====================
 
   return (
@@ -140,6 +151,24 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
 
           {/* 框选矩形覆盖层 */}
           <BoxSelectionOverlay />
+
+          {/* 场景右键菜单 */}
+          {contextMenu.open && (
+            <CommandContextMenu
+              position={{ x: contextMenu.x, y: contextMenu.y }}
+              open={contextMenu.open}
+              actions={
+                contextMenu.type === 'object'
+                  ? OBJECT_CONTEXT_MENU
+                  : SCENE_CONTEXT_MENU
+              }
+              context={{
+                objectId: contextMenu.targetId,
+                ...contextMenu.metadata,
+              }}
+              onClose={closeContextMenu}
+            />
+          )}
         </div>
       </div>
     </div>
