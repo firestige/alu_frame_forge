@@ -51,6 +51,7 @@
 ```
 
 **设计原则**：
+
 - UI 组件**不直接导入** `sendCommand`，统一通过 `useCommand()` Hook
 - UI 组件**不直接监听** EventBus，统一通过 `useCommandState()` Hook
 - 通用组件（Toolbar、ContextMenu）基于配置数据驱动，与具体业务解耦
@@ -73,9 +74,9 @@ import type { DesignerCommandMap } from '@/core/services/eventBus';
 
 /**
  * useCommand - UI 组件发送命令的统一接口
- * 
+ *
  * 使所有 UI 组件通过相同的方式发送命令，无需直接导入 sendCommand
- * 
+ *
  * @example
  * const { send } = useCommand();
  * send('command:model:delete', objectId);
@@ -101,16 +102,17 @@ export const useCommand = () => {
 // 在任何组件中使用
 const MyComponent = () => {
   const { send } = useCommand();
-  
+
   const handleDelete = (id: string) => {
     send('command:model:delete', id);
   };
-  
+
   return <button onClick={() => handleDelete('obj-1')}>删除</button>;
 };
 ```
 
 **优势**：
+
 - ✅ 类型安全（TypeScript 自动提示命令和参数）
 - ✅ 统一入口（所有组件使用相同方式）
 - ✅ 易于测试（可以 mock `useCommand`）
@@ -130,12 +132,12 @@ import type { DesignerStateMap } from '@/core/services/eventBus';
 
 /**
  * useCommandState - 订阅后端状态变化
- * 
+ *
  * 自动处理订阅和取消订阅，组件卸载时自动清理
- * 
+ *
  * @param stateKey - 状态事件名
  * @param callback - 状态变化时的回调函数
- * 
+ *
  * @example
  * useCommandState('state:object:list', (data) => {
  *   setObjects(data.objects);
@@ -161,16 +163,17 @@ export const useCommandState = <K extends keyof DesignerStateMap>(
 ```tsx
 const MyComponent = () => {
   const [objects, setObjects] = React.useState<SceneObject[]>([]);
-  
-  useCommandState('state:object:list', (data) => {
+
+  useCommandState('state:object:list', data => {
     setObjects(data.objects);
   });
-  
+
   return <div>{objects.length} 个对象</div>;
 };
 ```
 
 **优势**：
+
 - ✅ 自动生命周期管理（避免内存泄漏）
 - ✅ 类型安全（自动推导状态数据类型）
 - ✅ 简化代码（无需手动 `useEffect`）
@@ -187,6 +190,7 @@ const MyComponent = () => {
 - **配置数据**：特定的、可扩展的、与业务相关
 
 **收益**：
+
 1. 添加新功能只需修改配置文件
 2. 组件可在不同场景复用
 3. 易于测试（配置数据可以独立测试）
@@ -205,28 +209,28 @@ const MyComponent = () => {
 export interface ToolbarAction {
   /** 唯一标识符 */
   id: string;
-  
+
   /** 显示文本（可选） */
   label?: string;
-  
+
   /** 图标组件 */
   icon: React.ReactNode;
-  
+
   /** 提示文本 */
   tooltip?: string;
-  
+
   /** 要发送的命令 */
   command: string;
-  
+
   /** 命令参数 */
   payload?: any;
-  
+
   /** 是否为激活状态 */
   active?: boolean;
-  
+
   /** 是否禁用 */
   disabled?: boolean;
-  
+
   /** 分组标识（用于按钮分组） */
   group?: string;
 }
@@ -245,21 +249,21 @@ import type { ToolbarAction } from '@/features/designer/types/toolbar';
 export interface CommandToolbarProps {
   /** 工具栏操作项列表（配置数据） */
   actions: ToolbarAction[];
-  
+
   /** 当前激活的操作 ID */
   activeId?: string;
-  
+
   /** 自定义类名 */
   className?: string;
 }
 
 /**
  * CommandToolbar - 数据驱动的通用工具栏组件
- * 
+ *
  * 通过配置数据渲染工具栏，点击按钮时发送对应命令
- * 
+ *
  * @example
- * <CommandToolbar 
+ * <CommandToolbar
  *   actions={TRANSFORM_TOOLBAR_CONFIG}
  *   activeId="translate"
  * />
@@ -278,7 +282,7 @@ export const CommandToolbar: React.FC<CommandToolbarProps> = ({
 
   return (
     <div className={`flex gap-1 ${className}`}>
-      {actions.map((action) => (
+      {actions.map(action => (
         <IconButton
           key={action.id}
           icon={action.icon}
@@ -363,7 +367,7 @@ import { TRANSFORM_TOOLBAR_CONFIG } from '@/features/designer/config/toolbarConf
 
 const DesignerToolbar = () => {
   const [selectedTool, setSelectedTool] = React.useState('select');
-  
+
   return (
     <CommandToolbar
       actions={TRANSFORM_TOOLBAR_CONFIG}
@@ -386,13 +390,13 @@ const DesignerToolbar = () => {
 export interface MenuContext {
   /** 对象 ID（对象菜单） */
   objectId?: string;
-  
+
   /** 选中的对象列表 */
   selectedObjects?: string[];
-  
+
   /** 对象是否可见 */
   isVisible?: boolean;
-  
+
   /** 其他上下文信息 */
   [key: string]: any;
 }
@@ -403,33 +407,33 @@ export interface MenuContext {
 export interface MenuAction {
   /** 唯一标识符 */
   id: string;
-  
+
   /** 显示文本 */
   label: string;
-  
+
   /** 图标（emoji 或组件） */
   icon?: string;
-  
+
   /** 要发送的命令 */
   command: string;
-  
-  /** 
+
+  /**
    * 命令参数
    * - 静态值：直接传递
    * - 函数：根据上下文动态生成
    */
   payload?: any | ((context: MenuContext) => any);
-  
+
   /** 快捷键提示 */
   shortcut?: string;
-  
+
   /** 是否为危险操作（如删除） */
   danger?: boolean;
-  
+
   /** 是否为分隔符 */
   separator?: boolean;
-  
-  /** 
+
+  /**
    * 是否禁用
    * - 布尔值：静态禁用
    * - 函数：根据上下文动态判断
@@ -446,30 +450,33 @@ export interface MenuAction {
 import * as React from 'react';
 import { useCommand } from '@/features/designer/hooks/useCommand';
 import { PopoverMenu } from '@/components/Popover';
-import type { MenuAction, MenuContext } from '@/features/designer/types/contextMenu';
+import type {
+  MenuAction,
+  MenuContext,
+} from '@/features/designer/types/contextMenu';
 
 export interface CommandContextMenuProps {
   /** 菜单操作项列表（配置数据） */
   actions: MenuAction[];
-  
+
   /** 上下文信息（用于动态 payload 和 disabled） */
   context: MenuContext;
-  
+
   /** 菜单位置 */
   position: { x: number; y: number };
-  
+
   /** 是否显示 */
   open: boolean;
-  
+
   /** 关闭回调 */
   onClose: () => void;
 }
 
 /**
  * CommandContextMenu - 数据驱动的右键菜单组件
- * 
+ *
  * 通过配置数据渲染右键菜单，点击菜单项时发送对应命令
- * 
+ *
  * @example
  * <CommandContextMenu
  *   actions={OBJECT_CONTEXT_MENU}
@@ -490,16 +497,18 @@ export const CommandContextMenu: React.FC<CommandContextMenuProps> = ({
 
   const handleActionClick = (action: MenuAction) => {
     // 检查是否禁用
-    const disabled = typeof action.disabled === 'function'
-      ? action.disabled(context)
-      : action.disabled;
-    
+    const disabled =
+      typeof action.disabled === 'function'
+        ? action.disabled(context)
+        : action.disabled;
+
     if (disabled) return;
 
     // 计算 payload
-    const payload = typeof action.payload === 'function'
-      ? action.payload(context)
-      : action.payload;
+    const payload =
+      typeof action.payload === 'function'
+        ? action.payload(context)
+        : action.payload;
 
     // 发送命令
     send(action.command as any, payload);
@@ -527,9 +536,11 @@ export const CommandContextMenu: React.FC<CommandContextMenuProps> = ({
                 w-full px-3 py-2 text-sm text-left flex items-center gap-2
                 transition-colors
                 ${
-                  (typeof action.disabled === 'function'
-                    ? action.disabled(context)
-                    : action.disabled)
+                  (
+                    typeof action.disabled === 'function'
+                      ? action.disabled(context)
+                      : action.disabled
+                  )
                     ? 'opacity-50 cursor-not-allowed'
                     : 'hover:bg-gray-100 cursor-pointer'
                 }
@@ -566,7 +577,7 @@ export const OBJECT_CONTEXT_MENU: MenuAction[] = [
     label: '属性',
     icon: '✏️',
     command: 'command:model:showProperties',
-    payload: (ctx) => ctx.objectId,
+    payload: ctx => ctx.objectId,
   },
   {
     id: 'translate',
@@ -598,7 +609,7 @@ export const OBJECT_CONTEXT_MENU: MenuAction[] = [
     label: '复制',
     icon: '📋',
     command: 'command:model:duplicate',
-    payload: (ctx) => ctx.objectId,
+    payload: ctx => ctx.objectId,
     shortcut: 'Ctrl+D',
   },
   {
@@ -606,7 +617,7 @@ export const OBJECT_CONTEXT_MENU: MenuAction[] = [
     label: '显示/隐藏',
     icon: '👁️',
     command: 'command:model:toggleVisibility',
-    payload: (ctx) => ctx.objectId,
+    payload: ctx => ctx.objectId,
   },
   { separator: true },
   {
@@ -614,7 +625,7 @@ export const OBJECT_CONTEXT_MENU: MenuAction[] = [
     label: '删除',
     icon: '🗑️',
     command: 'command:model:delete',
-    payload: (ctx) => ctx.objectId,
+    payload: ctx => ctx.objectId,
     shortcut: 'Delete',
     danger: true,
   },
@@ -666,7 +677,7 @@ export const SCENE_CONTEXT_MENU: MenuAction[] = [
     icon: '📋',
     command: 'command:model:paste',
     shortcut: 'Ctrl+V',
-    disabled: (ctx) => !ctx.hasClipboard, // 动态禁用
+    disabled: ctx => !ctx.hasClipboard, // 动态禁用
   },
 ];
 ```
@@ -680,18 +691,18 @@ import { useContextMenu } from '@/features/designer/hooks/useContextMenu';
 
 const ObjectTree = () => {
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
-  
+
   const handleObjectContextMenu = (e: React.MouseEvent, objectId: string) => {
     e.preventDefault();
     openContextMenu(e, 'object', objectId);
   };
-  
+
   return (
     <>
-      <div onContextMenu={(e) => handleObjectContextMenu(e, 'obj-1')}>
+      <div onContextMenu={e => handleObjectContextMenu(e, 'obj-1')}>
         右键点击我
       </div>
-      
+
       {contextMenu.open && contextMenu.type === 'object' && (
         <CommandContextMenu
           actions={OBJECT_CONTEXT_MENU}
@@ -731,12 +742,12 @@ export interface ContextMenuState {
 
 /**
  * useContextMenu - 右键菜单状态管理 Hook
- * 
+ *
  * 统一管理右键菜单的显示、位置和上下文信息
- * 
+ *
  * @example
  * const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
- * 
+ *
  * <div onContextMenu={(e) => openContextMenu(e, 'object', 'obj-1')}>
  *   右键点击
  * </div>
@@ -750,14 +761,10 @@ export const useContextMenu = () => {
   });
 
   const openContextMenu = React.useCallback(
-    (
-      event: React.MouseEvent,
-      type: ContextMenuType,
-      targetId?: string
-    ) => {
+    (event: React.MouseEvent, type: ContextMenuType, targetId?: string) => {
       event.preventDefault();
       event.stopPropagation();
-      
+
       setContextMenu({
         open: true,
         x: event.clientX,
@@ -770,7 +777,7 @@ export const useContextMenu = () => {
   );
 
   const closeContextMenu = React.useCallback(() => {
-    setContextMenu((prev) => ({ ...prev, open: false }));
+    setContextMenu(prev => ({ ...prev, open: false }));
   }, []);
 
   return { contextMenu, openContextMenu, closeContextMenu };
@@ -931,8 +938,8 @@ export const OBJECT_CONTEXT_MENU: MenuAction[] = [
     label: '新操作',
     icon: '🆕',
     command: 'command:object:newAction',
-    payload: (ctx) => ctx.objectId,
-    disabled: (ctx) => !ctx.canDoAction, // 动态禁用
+    payload: ctx => ctx.objectId,
+    disabled: ctx => !ctx.canDoAction, // 动态禁用
   },
 ];
 ```
@@ -984,19 +991,21 @@ export const OBJECT_CONTEXT_MENU: MenuAction[] = [
 ### 8.3 类型安全
 
 1. **命令类型推导**：
+
    ```typescript
    // ✅ 类型安全：TypeScript 自动提示命令和参数
    send('command:model:delete', objectId);
-   
+
    // ❌ 类型错误：参数不匹配
    send('command:model:delete', { wrong: 'param' });
    ```
 
 2. **配置数据类型检查**：
+
    ```typescript
    // ✅ 配置符合类型定义
    const config: ToolbarAction[] = [...];
-   
+
    // ❌ 编译错误：缺少必需字段
    const config: ToolbarAction[] = [{ id: 'test' }]; // 缺少 command
    ```
@@ -1018,9 +1027,9 @@ jest.mock('@/core/services/eventBus');
 describe('useCommand', () => {
   it('应该发送命令', () => {
     const { result } = renderHook(() => useCommand());
-    
+
     result.current.send('command:model:delete', 'obj-1');
-    
+
     expect(eventBus.sendCommand).toHaveBeenCalledWith(
       'command:model:delete',
       'obj-1'
@@ -1049,11 +1058,11 @@ describe('CommandToolbar', () => {
     render(<CommandToolbar actions={mockActions} />);
     expect(screen.getByRole('button')).toBeInTheDocument();
   });
-  
+
   it('点击按钮应该发送命令', () => {
     const { result } = renderHook(() => useCommand());
     render(<CommandToolbar actions={mockActions} />);
-    
+
     fireEvent.click(screen.getByRole('button'));
     // 验证命令发送
   });
@@ -1068,16 +1077,16 @@ import { test, expect } from '@playwright/test';
 
 test('对象右键菜单', async ({ page }) => {
   await page.goto('/designer');
-  
+
   // 右键点击对象
   await page.locator('[data-testid="scene-object"]').click({ button: 'right' });
-  
+
   // 验证菜单显示
   await expect(page.locator('[role="menu"]')).toBeVisible();
-  
+
   // 点击删除
   await page.locator('text=删除').click();
-  
+
   // 验证对象被删除
   await expect(page.locator('[data-testid="scene-object"]')).not.toBeVisible();
 });
@@ -1098,7 +1107,7 @@ const MyButton = () => {
   const handleClick = () => {
     sendCommand('command:model:delete', objectId);
   };
-  
+
   return <button onClick={handleClick}>删除</button>;
 };
 ```
@@ -1110,11 +1119,11 @@ import { useCommand } from '@/features/designer/hooks/useCommand';
 
 const MyButton = () => {
   const { send } = useCommand();
-  
+
   const handleClick = () => {
     send('command:model:delete', objectId);
   };
-  
+
   return <button onClick={handleClick}>删除</button>;
 };
 ```
@@ -1147,6 +1156,7 @@ const MyButton = () => {
 **实施日期**: 2025-12-05
 
 **涉及文件**:
+
 - `src/features/designer/config/sceneContextMenuConfig.ts` - 场景菜单配置
 - `src/features/designer/hooks/useSceneContextMenu.ts` - 场景菜单 Hook
 - `src/features/designer/ui/DesignerPageUI.tsx` - UI 集成
@@ -1155,21 +1165,27 @@ const MyButton = () => {
 ### 12.2 实施过程
 
 #### 阶段 1: 场景菜单配置
+
 创建 `sceneContextMenuConfig.ts`，定义空白区域右键菜单：
+
 - **粘贴** - 粘贴剪贴板中的对象
 - **相机操作** - 重置相机、框选全部
 - **视图预设** - 前/后/左/右/上/下/等轴测视图
 - **选择操作** - 全选对象
 
 #### 阶段 2: 场景菜单 Hook
+
 创建 `useSceneContextMenu.ts`，实现：
+
 - 监听 3D 容器的 `contextmenu` 事件
 - 通过 `renderer.raycastFromScreen()` 进行射线检测
 - 根据检测结果判断显示对象菜单或场景菜单
 - 集成 `useContextMenu` 管理菜单状态
 
 #### 阶段 3: UI 集成
+
 在 `DesignerPageUI.tsx` 中集成：
+
 - 导入菜单配置和组件
 - 实例化 `useSceneContextMenu` Hook
 - 条件渲染 `CommandContextMenu` 组件
@@ -1180,12 +1196,14 @@ const MyButton = () => {
 #### 问题 1: ID 不匹配导致对象无法高亮
 
 **现象**:
+
 ```
 [ThreeRenderer] Object a156ff7e-a713-4268-b30c-5e0f92184b2e not found in scene
 Available modelIds: ['obj_1764948885734_97n5jms33', 'obj_1764948885734_leyz70c9e']
 ```
 
 **根本原因**:
+
 - RaycasterService 返回的是 Three.js 内部的 `uuid`（如 `a156ff7e-...`）
 - 但系统期望的是 `modelId`（如 `obj_timestamp_xxx`）
 - Three.js 对象可能嵌套在 Group 中，`userData.modelId` 设置在父级
@@ -1219,10 +1237,12 @@ return intersects.map(hit => {
 #### 问题 2: 右键拖拽相机触发上下文菜单
 
 **现象**:
+
 - 用户右键拖拽旋转相机后，鼠标抬起时会触发上下文菜单
 - 菜单显示在不符合预期的位置
 
 **根本原因**:
+
 - 只监听了 `contextmenu` 事件，无法区分"点击"和"拖拽"
 - 浏览器在右键抬起时总是触发 `contextmenu` 事件
 
@@ -1267,19 +1287,25 @@ const handleContextMenu = (e: MouseEvent) => {
 ### 12.4 关键设计决策
 
 #### 决策 1: 复用现有 CommandContextMenu 组件
-**原因**: 
+
+**原因**:
+
 - 场景菜单和对象菜单本质上都是命令菜单
 - 避免代码重复，保持一致性
 - 通过配置数据区分不同菜单类型
 
 #### 决策 2: 使用 Portal 渲染菜单
+
 **原因**:
+
 - 菜单需要渲染到 `document.body` 避免父容器 `overflow: hidden` 裁剪
 - 确保 `z-index: 9999` 始终在最上层
 - 与框选、变换控件等其他 UI 元素隔离
 
 #### 决策 3: 射线检测向上查找 modelId
+
 **原因**:
+
 - Three.js 对象结构可能是 Group > Mesh 的嵌套关系
 - `userData.modelId` 可能设置在任意层级
 - 向上遍历是最可靠的查找方式
@@ -1287,6 +1313,7 @@ const handleContextMenu = (e: MouseEvent) => {
 ### 12.5 测试验证
 
 **功能测试**:
+
 - ✅ 右键点击空白区域显示场景菜单
 - ✅ 右键点击对象显示对象菜单
 - ✅ 菜单项正确触发对应命令
@@ -1295,6 +1322,7 @@ const handleContextMenu = (e: MouseEvent) => {
 - ✅ 右键拖拽不显示菜单
 
 **边界测试**:
+
 - ✅ 对象嵌套在 Group 中仍能正确识别
 - ✅ 菜单防止溢出屏幕边界
 - ✅ 多次快速右键点击无异常

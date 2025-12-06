@@ -95,12 +95,9 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
   const [enableBoxSelect, setEnableBoxSelect] = React.useState(true);
 
   React.useEffect(() => {
-    const unsubscribe = onState(
-      'state:tool:changed',
-      (tool: string) => {
-        setEnableBoxSelect(tool === 'select');
-      },
-    );
+    const unsubscribe = onState('state:tool:changed', (tool: string) => {
+      setEnableBoxSelect(tool === 'select');
+    });
     return unsubscribe;
   }, []);
 
