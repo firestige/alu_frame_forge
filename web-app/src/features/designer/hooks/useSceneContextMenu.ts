@@ -100,10 +100,15 @@ export const useSceneContextMenu = (
 
       // 使用 raycastFromScreen 进行射线检测
       try {
-        const hits = renderer.raycastFromScreen(e.clientX, e.clientY, viewport, {
-          includeHelpers: false,
-          ignoreHandles: [], // 可以添加需要忽略的对象
-        });
+        const hits = renderer.raycastFromScreen(
+          e.clientX,
+          e.clientY,
+          viewport,
+          {
+            includeHelpers: false,
+            ignoreHandles: [], // 可以添加需要忽略的对象
+          }
+        );
 
         // 检查是否点击到对象
         if (hits.length > 0) {
