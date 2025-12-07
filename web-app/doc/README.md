@@ -2,7 +2,7 @@
 
 > 铝型材框架设计器（Alu Frame Forge）完整文档导航
 
-**最后更新**: 2025-12-03
+**最后更新**: 2025-12-07
 
 ---
 
@@ -64,11 +64,22 @@
 
 ---
 
+## 🧠 方法论文档（methodology/）
+
+| 文档                                                                  | 用途                          | 更新日期   |
+| --------------------------------------------------------------------- | ----------------------------- | ---------- |
+| [README.md](./methodology/README.md)                                  | 方法论文档导航                | 2025-12-07 |
+| [ProjectAnalysis.md](./methodology/ProjectAnalysis.md)                | 项目价值分析                  | 2025-12-07 |
+| [HumanAICollaboration.md](./methodology/HumanAICollaboration.md)      | 协作规范详解                  | 2025-12-07 |
+| [CaseStudyTemplate.md](./methodology/CaseStudyTemplate.md)            | 案例提取模板                  | 2025-12-07 |
+
+---
+
 ## 📝 项目管理
 
 | 文档                             | 用途                         | 更新日期   |
 | -------------------------------- | ---------------------------- | ---------- |
-| [../TODO.md](../TODO.md)         | 待办任务跟踪（优先级、状态） | 2025-11-21 |
+| [../TODO.md](../TODO.md)         | 待办任务跟踪（优先级、状态） | 2025-12-07 |
 | [DevelopLog.md](./DevelopLog.md) | 已完成任务的详细历史记录     | 2025-11-21 |
 
 ---
@@ -107,7 +118,7 @@
 **最后更新**: YYYY-MM-DD
 **文档版本**: X.Y（可选）
 **状态**: Active/Archived/Draft
-```
+```text
 
 ### 更新规则
 
@@ -121,13 +132,13 @@
 
 ```bash
 node scripts/doc-check/verify-doc-metadata.mjs
-```
+```text
 
 ---
 
 ## 📐 文档体系结构
 
-```
+```text
 项目文档体系
 │
 ├─ 📖 了解项目（Architecture）
@@ -140,13 +151,20 @@ node scripts/doc-check/verify-doc-metadata.mjs
 │   ├─ Git 自动化 → GitAutomation.md
 │   └─ 测试计划 → Testing.md
 │
+├─ 🧠 方法论文档（methodology/）
+│   ├─ 方法论导航 → README.md
+│   ├─ 项目价值分析 → ProjectAnalysis.md
+│   ├─ 协作规范详解 → HumanAICollaboration.md
+│   ├─ 案例提取模板 → CaseStudyTemplate.md
+│   └─ 典型案例 → case-studies/
+│
 ├─ 📝 项目管理（Management）
 │   ├─ 任务跟踪 → TODO.md
 │   └─ 开发日志 → DevelopLog.md
 │
 └─ 📚 API 参考（Reference）
     └─ 命令系统 → api/CommandReference.md
-```
+```text
 
 ---
 

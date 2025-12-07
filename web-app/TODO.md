@@ -1,6 +1,6 @@
 # 铝型材框架设计器 - 待办事项
 
-**最后更新**: 2025-12-05
+**最后更新**: 2025-12-07
 
 > **说明**：已完成任务（#1-11）的详细历史记录请参考 [开发日志](./doc/DevelopLog.md)
 
@@ -79,7 +79,6 @@ _当前无 P0 任务_
 
 ---
 
-
 ### ~~3. 实现对象移动和旋转~~ ✅ 已完成
 
 **状态**: ✅ 已完成 (2025-12-05, PR #17)
@@ -99,6 +98,7 @@ _当前无 P0 任务_
 - [x] 支持键盘快捷键（W/E/R 切换模式）
 
 **设计决策说明**:
+
 - TransformToolbar 功能已决策不做，相关交互已集成到 DesignerToolbar，详细见开发日志 2025-12-05。
 
 **参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)、[RenderingSystem.md](./doc/design/RenderingSystem.md)
@@ -122,6 +122,33 @@ _当前无 P0 任务_
 - [ ] 添加快捷键提示
 
 **参考文档**: [UIDesign.md](./doc/design/UIDesign.md)
+
+---
+
+### 19. 建立 Human-AI 协作方法论文档体系
+
+**状态**: 🚧 进行中
+
+**优先级**: P1（高优先级）
+
+**描述**: 将本项目的人机协作实践提炼为可复制的方法论，作为 AI 工程化能力的证明。
+
+**背景**:
+
+本项目使用 Copilot + Sonnet 4.5 完成绝大部分开发工作。为证明 AI 工程化能力，需要将协作过程中的方法论显性化。
+
+**任务列表**:
+
+- [x] 创建 doc/methodology/ 目录结构
+- [x] 编写 README.md - 方法论文档导航
+- [x] 编写 ProjectAnalysis.md - 项目价值分析
+- [x] 编写 HumanAICollaboration.md - 协作规范详解
+- [x] 编写 CaseStudyTemplate.md - 案例提取模板
+- [ ] 从 DevelopLog.md 提取 3-5 个典型案例
+- [ ] 添加量化成果统计
+- [ ] 编写技术博客/分享材料
+
+**参考文档**: [Workflow.md](./doc/guides/Workflow.md)、[DevelopLog.md](./doc/DevelopLog.md)
 
 ---
 
@@ -659,6 +686,7 @@ class ProjectManager {
    - 定义通用的 `IGizmo` 接口（独立于渲染引擎）
    - 为不同渲染器提供统一的 Gizmo 配置
    - 示例接口设计：
+
      ```typescript
      interface IGizmoConfig {
        colors: {
@@ -672,7 +700,7 @@ class ProjectManager {
        opacity: number; // 透明度
        lineWidth?: number; // 线条宽度
      }
-     
+
      interface IGizmo {
        attach(object: unknown): void;
        detach(): void;
@@ -687,13 +715,13 @@ class ProjectManager {
      - 各渲染器实现按照配置生成自己的 Gizmo
      - 优点：配置集中，易于维护
      - 缺点：需要各渲染器支持足够的自定义能力
-   
+
    - **方案 B**：自定义 Gizmo 实现
      - 完全自己实现 Gizmo 渲染逻辑（使用基础图元）
      - 不依赖渲染引擎内置的 Gizmo 控件
      - 优点：完全控制外观，跨引擎一致性最好
      - 缺点：开发成本高，需要处理鼠标交互逻辑
-   
+
    - **方案 C**：Overlay UI 模式
      - Gizmo 使用 HTML/CSS 2D 覆盖层实现
      - 3D 场景只处理变换逻辑，不渲染 Gizmo
