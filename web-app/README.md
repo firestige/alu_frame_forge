@@ -147,7 +147,7 @@ npm run test:coverage
 
 ## 🏗️ 项目结构
 
-```
+```text
 web-app/
 ├── src/
 │   ├── core/                  # 核心业务逻辑层
@@ -207,6 +207,7 @@ web-app/
    ```
 
 5. **清理本地分支**
+
    ```bash
    ./scripts/cleanup-feature.sh
    ```
