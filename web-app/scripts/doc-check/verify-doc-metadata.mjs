@@ -5,7 +5,11 @@ import { resolve } from 'node:path';
 const DOCS_TO_CHECK = [
   'doc/Architecture.md',
   'doc/DevelopLog.md',
-  'doc/WorkflowGuidelines.md',
+  'doc/guides/Workflow.md',
+  'doc/methodology/README.md',
+  'doc/methodology/ProjectAnalysis.md',
+  'doc/methodology/HumanAICollaboration.md',
+  'doc/methodology/CaseStudyTemplate.md',
   'TODO.md',
 ];
 

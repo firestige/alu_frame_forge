@@ -1,6 +1,6 @@
 # 铝型材框架设计器 - 待办事项
 
-**最后更新**: 2025-12-06
+**最后更新**: 2025-12-07
 
 > **说明**：已完成任务的详细历史记录请参考 [开发日志](./doc/DevelopLog.md)
 
@@ -20,7 +20,30 @@ _当前无 P1 任务_
 
 ## P2 - 中优先级（本月完成）
 
-_当前无 P2 任务_
+### 19. 建立 Human-AI 协作方法论文档体系
+
+**状态**: 🚧 进行中
+
+**优先级**: P1（高优先级）
+
+**描述**: 将本项目的人机协作实践提炼为可复制的方法论，作为 AI 工程化能力的证明。
+
+**背景**:
+
+本项目使用 Copilot + Sonnet 4.5 完成绝大部分开发工作。为证明 AI 工程化能力，需要将协作过程中的方法论显性化。
+
+**任务列表**:
+
+- [x] 创建 doc/methodology/ 目录结构
+- [x] 编写 README.md - 方法论文档导航
+- [x] 编写 ProjectAnalysis.md - 项目价值分析
+- [x] 编写 HumanAICollaboration.md - 协作规范详解
+- [x] 编写 CaseStudyTemplate.md - 案例提取模板
+- [ ] 从 DevelopLog.md 提取 3-5 个典型案例
+- [ ] 添加量化成果统计
+- [ ] 编写技术博客/分享材料
+
+**参考文档**: [Workflow.md](./doc/guides/Workflow.md)、[DevelopLog.md](./doc/DevelopLog.md)
 
 ---
 
@@ -220,7 +243,7 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 
 ---
 
-## 已完成任务归档
+### 7. 实现 ConnectorInstanceStrategy
 
 **状态**: ⏳ 待执行
 
@@ -388,10 +411,6 @@ class ProjectManager {
 - 优先实现本地存储版本，云端功能可后续迭代
 
 **参考文档**: [StorageSystem.md](./doc/design/StorageSystem.md)、[CoreArchitecture.md](./doc/design/CoreArchitecture.md)
-
----
-
-### 12. 定制 Gizmo 外观与渲染器 UI 一致性
 
 ---
 
