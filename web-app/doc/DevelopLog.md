@@ -1,6 +1,166 @@
 # 开发日志
 
-**最后更新**: 2025-12-05
+**最后更新**: 2025-12-06
+
+---
+
+## 2025-12-06
+
+### #12. Task #4 - 3D 场景右键菜单系统
+
+**目标**: 实现 3D 场景和对象列表的右键上下文菜单，建立 UI-Command 统一绑定系统
+
+**完成内容**:
+
+#### 1. UI-Command 绑定系统设计与实现
+
+**设计文档**: `doc/design/UICommandSystem.md` (1349行完整设计)
+
+**核心架构**:
+
+```
+UI Components (Toolbar, ContextMenu, Button)
+    ↓ 使用
+UI-Command 绑定层 (useCommand, useCommandState, CommandToolbar, CommandContextMenu)
+    ↓ 调用
+EventBus (sendCommand, onState, offState)
+    ↓ 传递
+Features/Core Services (TransformService, SelectionService, ObjectManager)
+```
+
+**实现的核心 Hook**:
+
+1. **useCommand** - 统一命令发送接口
+
+   ```typescript
+   const { send } = useCommand();
+   send('command:model:delete', objectId);
+   ```
+
+2. **useCommandState** - 统一状态订阅接口
+
+   ```typescript
+   const currentTool = useCommandState('state:tool:changed');
+   ```
+
+3. **useContextMenu** - 右键菜单管理 Hook
+   ```typescript
+   const { show, close } = useContextMenu(menuConfig);
+   ```
+
+**实现的数据驱动组件**:
+
+1. **CommandToolbar** - 数据驱动工具栏组件
+2. **CommandContextMenu** - 数据驱动右键菜单组件
+
+#### 2. 场景右键菜单实现
+
+**文件**: `features/designer/config/sceneContextMenuConfig.ts`
+
+**功能清单** (14个操作):
+
+- ✅ 粘贴对象
+- ✅ 重置相机视角
+- ✅ 聚焦所有对象
+- ✅ 7个视角预设：前/后/左/右/上/下/等轴测
+- ✅ 全选对象
+
+**技术实现** (`useSceneContextMenu.ts`):
+
+- Raycaster 对象检测（区分对象菜单和场景菜单）
+- **拖拽检测** - 5px 移动阈值，防止相机旋转时误触发菜单
+- 右键按下/抬起位置计算，判断是否为点击或拖拽
+
+```typescript
+// 拖拽检测核心逻辑
+const distance = Math.sqrt(
+  Math.pow(lastRightClickPos.current.x - e.clientX, 2) +
+    Math.pow(lastRightClickPos.current.y - e.clientY, 2)
+);
+if (distance > 5) return; // 拖拽超过5px，不显示菜单
+```
+
+#### 3. 对象右键菜单实现
+
+**文件**: `features/designer/config/contextMenuConfig.ts`
+
+**功能清单** (9个操作):
+
+- ✅ 删除、复制、隐藏、显示
+- ✅ 聚焦对象
+- ✅ 重命名
+- ✅ 分组/取消分组
+- ✅ 移到最前/最后
+
+#### 4. ObjectTree 右键菜单集成
+
+**修改文件**: `features/designer/ui/ObjectTree.tsx`
+
+**实现方式**:
+
+```typescript
+const { show, close } = useContextMenu(OBJECT_CONTEXT_MENU);
+
+// 右键点击列表项时触发
+const handleContextMenu = (e: React.MouseEvent, objectId: string) => {
+  e.preventDefault();
+  show(e.clientX, e.clientY, { objectId });
+};
+```
+
+#### 5. DesignerToolbar 重构
+
+**修改文件**: `features/designer/ui/DesignerToolbar.tsx`
+
+**重构内容**:
+
+- ❌ 移除原有的 prop drilling (`currentTool`, `onToolChange`)
+- ✅ 使用 `CommandToolbar` 数据驱动组件
+- ✅ 通过 `useCommandState` 订阅工具状态
+- ✅ 配置文件驱动: `toolbarConfig.ts`
+
+#### 6. Bug 修复 - RaycasterService ID 不匹配
+
+**问题**: RaycasterService 返回 Three.js 内部 UUID，而非业务层 `obj_timestamp_xxx` 格式
+
+**解决方案**:
+
+```typescript
+// 修改前: 直接返回 mesh.uuid
+// 修改后: 递归查找 userData.modelId
+export const getObjectIdFromIntersection = (
+  object: THREE.Object3D
+): string | null => {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (current.userData?.modelId) {
+      return current.userData.modelId; // 返回 obj_xxx 格式
+    }
+    current = current.parent;
+  }
+  return null;
+};
+```
+
+#### 7. EventBus 扩展
+
+**新增命令**:
+
+- `command:model:duplicate` - 复制对象命令
+- `command:tool:change` - 工具切换命令
+- `state:tool:changed` - 工具状态变化事件
+
+**文件**: `core/services/eventBus.ts`
+
+#### 8. 技术亮点
+
+1. **数据驱动架构** - 菜单配置与组件逻辑分离
+2. **拖拽检测算法** - 5px 阈值避免相机旋转误触
+3. **类型安全** - 完整的 TypeScript 类型定义
+4. **高扩展性** - 添加新菜单项只需修改配置文件
+
+**相关 PR**: #18  
+**设计文档**: [UICommandSystem.md](./doc/design/UICommandSystem.md)
 
 ---
 
@@ -26,10 +186,12 @@ private onDraggingChanged = (event): void => {
 **架构原则违背**:
 
 根据架构文档，我们的通信原则是：
+
 1. **UI ↔ Feature/Core**：通过 **EventBus** 双向通信
 2. **Core Interface ↔ Implementation**：通过 **直接调用 + 回调函数**
 
 Implementation 层不应该：
+
 - ❌ 直接导入 `eventBus`
 - ❌ 直接发布状态事件
 - ❌ 知道业务层的事件系统
@@ -69,26 +231,28 @@ export class ThreeTransformController implements ITransformController {
   // ✅ 实现回调接口
   public onDraggingChanged?: (dragging: boolean) => void;
   public onTransformCompleted?: (data: TransformData) => void;
-  
+
   private handleDraggingChanged = (event): void => {
     const dragging = Boolean(event.value);
-    
+
     // ✅ 通过 IRenderer 接口协调 OrbitControls
     if (dragging) {
       this.renderer.requestDisableOrbitControls('TransformController');
     } else {
       this.renderer.releaseDisableOrbitControls('TransformController');
     }
-    
+
     // ✅ 通过回调向上层报告（不直接用 EventBus）
     this.onDraggingChanged?.(dragging);
   };
-  
+
   private handleMouseUp = (): void => {
     // ✅ 通过回调报告变换完成
     this.onTransformCompleted?.({
       objectId: this.currentObjectId,
-      transform: { /* ... */ }
+      transform: {
+        /* ... */
+      },
     });
   };
 }
@@ -102,19 +266,19 @@ export class TransformService {
   constructor(renderer: IRenderer, renderSync: RenderSyncService) {
     this.renderer = renderer;
     this.renderSync = renderSync;
-    
+
     // ✅ 设置回调函数，接收 Implementation 层的报告
     this.setupControllerCallbacks();
   }
-  
+
   private setupControllerCallbacks(): void {
     const controller = this.renderer.getTransformController();
-    
+
     // ✅ 在 Feature 层设置回调，这里发布 EventBus 事件
     controller.onDraggingChanged = (dragging: boolean) => {
       publishState('state:transform:draggingChanged', { dragging });
     };
-    
+
     controller.onTransformCompleted = data => {
       publishState('state:transform:completed', data);
     };
@@ -126,7 +290,7 @@ export class TransformService {
 
 1. **分层清晰**: Implementation 层不依赖 EventBus，保持技术实现的纯粹性
 2. **可替换性**: 未来替换为 Babylon.js 时，使用相同的回调接口
-3. **职责单一**: 
+3. **职责单一**:
    - Implementation 层：技术实现，通过回调报告状态
    - Feature 层：业务逻辑，设置回调并发布 EventBus 事件
    - UI 层：订阅 EventBus，响应状态变化
@@ -157,20 +321,24 @@ OrbitControls 协调 (`requestDisableOrbitControls()`) 不是特殊情况，它�
 #### 核心特性调整
 
 **✅ 保留缩放模式**
+
 - 实现三种模式：移动、旋转、**缩放**
 - 理由：缩放是 3D 编辑器的标准功能，实现成本低
 
 **❌ 移除浮动 TransformToolbar**
+
 - 所有变换按钮集成在顶部 DesignerToolbar
 - 理由：避免遮挡视口，符合 CAD 软件习惯
 - 影响：删除 `src/features/designer/ui/TransformToolbar.tsx`（不再需要）
 
 **⚠️ 按需附着 Gizmo**
+
 - **不自动附着**：选中对象后不自动显示 Gizmo
 - **主动激活**：点击"移动/旋转/缩放"按钮时才附着
 - 理由：参考 Inventor 交互模式，给用户明确控制权
 
 **🔄 通过工具栏退出模式**
+
 - 点击顶部"选择"按钮退出变换模式
 - 不再使用 Q/Esc 键取消选择
 - 理由：符合主流 CAD 软件习惯
@@ -178,6 +346,7 @@ OrbitControls 协调 (`requestDisableOrbitControls()`) 不是特殊情况，它�
 #### 交互流程变更
 
 **新流程**:
+
 ```
 1. 用户选中对象
 2. 点击顶部"移动"按钮
@@ -188,6 +357,7 @@ OrbitControls 协调 (`requestDisableOrbitControls()`) 不是特殊情况，它�
 ```
 
 **快捷键支持**:
+
 - `W` - 切换到移动模式（需要已选中对象）
 - `E` - 切换到旋转模式（需要已选中对象）
 - `R` - 切换到缩放模式（需要已选中对象）
@@ -199,7 +369,7 @@ OrbitControls 协调 (`requestDisableOrbitControls()`) 不是特殊情况，它�
 ```typescript
 /**
  * 变换控制器接口（渲染器抽象）
- * 
+ *
  * 设计说明：
  * - 变换控制是所有 3D 编辑器的通用需求
  * - Three.js 使用 TransformControls
@@ -223,6 +393,7 @@ export interface ITransformController {
 ```
 
 **关键设计原则**:
+
 1. **接口使用 `unknown` 类型** - 保持渲染器抽象，不暴露 Three.js 类型
 2. **通过 RenderSyncService 获取对象** - TransformService 从 RenderSyncService 获取原生对象，传递给 ITransformController
 3. **Three.js 实现内部转换** - ThreeTransformController 内部将 `unknown` 转换为 `THREE.Object3D`
@@ -230,11 +401,13 @@ export interface ITransformController {
 #### 文件变更清单
 
 **新建文件**:
+
 - `src/core/renderer/threejs/ThreeTransformController.ts`
 - `src/features/designer/services/TransformService.ts`
 - `src/features/designer/services/TransformCommandHandler.ts`
 
 **修改文件**:
+
 - `src/core/renderer/renderer-types.ts` - 新增 ITransformController 接口
 - `src/core/renderer/threejs/ThreeRenderer.ts` - 实现 getTransformController()
 - `src/features/designer/ui/DesignerToolbar.tsx` - 添加变换按钮
@@ -242,35 +415,40 @@ export interface ITransformController {
 - `src/core/services/eventBus.ts` - 新增事件类型
 
 **删除文件**:
+
 - ~~`src/features/designer/ui/TransformToolbar.tsx`~~ - 不再需要（决策不实现）
 
 #### 设计决策记录
 
-| 决策 | 内容 | 理由 |
-|------|------|------|
-| **D1** | 变换模式包含缩放 | 缩放是标准功能，成本低，符合用户预期 |
-| **D2** | 不实现浮动 TransformToolbar | 避免遮挡视口，工具栏位置统一 |
-| **D3** | 不自动附着 Gizmo | 参考 Inventor，给用户明确控制权 |
-| **D4** | 通过顶部工具栏退出变换模式 | 符合主流 CAD 软件习惯 |
-| **D5** | Local/World 空间切换 | 第一版默认 Local 空间，不提供 UI 切换 |
+| 决策   | 内容                        | 理由                                  |
+| ------ | --------------------------- | ------------------------------------- |
+| **D1** | 变换模式包含缩放            | 缩放是标准功能，成本低，符合用户预期  |
+| **D2** | 不实现浮动 TransformToolbar | 避免遮挡视口，工具栏位置统一          |
+| **D3** | 不自动附着 Gizmo            | 参考 Inventor，给用户明确控制权       |
+| **D4** | 通过顶部工具栏退出变换模式  | 符合主流 CAD 软件习惯                 |
+| **D5** | Local/World 空间切换        | 第一版默认 Local 空间，不提供 UI 切换 |
 
 #### 待办事项（审查发现）
 
 **P0: IRenderer 接口完善** ✅
+
 - 在 `renderer-types.ts` 中定义 `ITransformController` 接口（已完成）
 - 在 `IRenderer` 中添加 `getTransformController()` 方法（已完成）
 
 **P1: 清理重复的高亮方法** ⏳
+
 - 问题：`IRenderer` 接口中存在重复的高亮方法
 - 行动：在后续重构中删除旧方法
 
 **P2: 相机控制器接口提取（可选）** ⏸️
+
 - 问题：相机控制方法分散在 `IRenderer` 中
 - 行动：可选优化，不影响当前功能，暂时保持现状
 
 #### 验收标准
 
 **功能验收**:
+
 - ✅ 选中对象后，点击顶部"移动"按钮，显示移动 Gizmo（三个箭头）
 - ✅ 点击"旋转"按钮，显示旋转 Gizmo（三个圆环）
 - ✅ 点击"缩放"按钮，显示缩放 Gizmo（三个方块）
@@ -283,6 +461,7 @@ export interface ITransformController {
 - ✅ 当前激活的模式按钮高亮显示
 
 **架构验收**:
+
 - ✅ Implementation 层不直接使用 EventBus（通过回调）
 - ✅ ITransformController 接口使用 `unknown` 类型保持抽象
 - ✅ TransformService 通过 RenderSyncService 获取渲染对象
