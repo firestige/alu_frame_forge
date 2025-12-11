@@ -24,7 +24,7 @@ _当前无 P1 任务_
 
 **状态**: 🚧 进行中
 
-**优先级**: P1（高优先级）
+**优先级**: P2（中优先级）
 
 **描述**: 将本项目的人机协作实践提炼为可复制的方法论，作为 AI 工程化能力的证明。
 
@@ -139,107 +139,6 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 - [ ] 注册到 ModelFactory
 
 **参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)
-
----
-
-### 12. 定制 Gizmo 外观与渲染器 UI 一致性
-
-**状态**: ⏳ 待执行
-
-**优先级**: P3（低优先级，设计探索）
-
-**描述**: 研究如何定制 Three.js TransformControls Gizmo 的外观，使其与应用的整体 UI 风格保持一致。并探讨当更换渲染器时（如 Babylon.js、WebGPU），如何保证 UI 风格的统一性。
-
-**问题背景**:
-
-当前使用的 Three.js `TransformControls` Gizmo（红绿蓝三色箭头）采用标准的 3D 编辑器风格，但与我们应用的 Material Design 主题和自定义配色方案不完全匹配。此外，如果未来切换到其他渲染引擎（Babylon.js、WebGPU 等），每个引擎都有自己的 Gizmo 实现和风格，可能导致用户体验不一致。
-
-**研究方向**:
-
-1. **定制 Three.js TransformControls 外观**
-   - 修改 Gizmo 材质颜色（匹配应用主题色）
-   - 调整 Gizmo 尺寸和形状
-   - 探索是否可以完全自定义 Gizmo 几何体
-   - 参考：[TransformControls 源码](https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/TransformControls.js)
-
-2. **抽象 Gizmo 系统**
-   - 定义通用的 `IGizmo` 接口（独立于渲染引擎）
-   - 为不同渲染器提供统一的 Gizmo 配置
-   - 示例接口设计：
-
-     ```typescript
-     interface IGizmoConfig {
-       colors: {
-         x: string; // X 轴颜色（默认红色）
-         y: string; // Y 轴颜色（默认绿色）
-         z: string; // Z 轴颜色（默认蓝色）
-         hover: string; // 悬停高亮颜色
-         selected: string; // 选中状态颜色
-       };
-       size: number; // Gizmo 尺寸倍数
-       opacity: number; // 透明度
-       lineWidth?: number; // 线条宽度
-     }
-
-     interface IGizmo {
-       attach(object: unknown): void;
-       detach(): void;
-       setMode(mode: 'translate' | 'rotate' | 'scale'): void;
-       setConfig(config: Partial<IGizmoConfig>): void;
-     }
-     ```
-
-3. **跨渲染器一致性策略**
-   - **方案 A**：统一配置文件
-     - 在应用层定义 Gizmo 样式配置
-     - 各渲染器实现按照配置生成自己的 Gizmo
-     - 优点：配置集中，易于维护
-     - 缺点：需要各渲染器支持足够的自定义能力
-   - **方案 B**：自定义 Gizmo 实现
-     - 完全自己实现 Gizmo 渲染逻辑（使用基础图元）
-     - 不依赖渲染引擎内置的 Gizmo 控件
-     - 优点：完全控制外观，跨引擎一致性最好
-     - 缺点：开发成本高，需要处理鼠标交互逻辑
-   - **方案 C**：Overlay UI 模式
-     - Gizmo 使用 HTML/CSS 2D 覆盖层实现
-     - 3D 场景只处理变换逻辑，不渲染 Gizmo
-     - 优点：与应用 UI 风格完全一致，易于定制
-     - 缺点：无法准确表达 3D 空间关系，交互可能不够直观
-
-4. **技术调研任务**
-   - [ ] 研究 Three.js TransformControls 的可定制性
-   - [ ] 调研 Babylon.js 的 Gizmo 系统
-   - [ ] 调研 WebGPU 渲染器的交互控件方案
-   - [ ] 评估自定义实现 Gizmo 的工作量
-   - [ ] 评估 2D Overlay Gizmo 的可行性
-   - [ ] 设计 IGizmo 接口和配置系统
-   - [ ] 编写技术方案文档
-
-**参考案例**:
-
-- [Babylon.js Gizmo](https://doc.babylonjs.com/features/featuresDeepDive/mesh/gizmo) - 支持自定义颜色和材质
-- [Unity3D Gizmo](https://docs.unity3d.com/Manual/GizmosMenu.html) - 可配置颜色和大小
-- [Blender Transform Widget](https://docs.blender.org/manual/en/latest/editors/3dview/controls/gizmos.html) - 高度可定制
-
-**讨论问题**:
-
-- 是否需要支持主题色自动应用到 Gizmo？（如深色主题 vs 浅色主题）
-- 是否需要支持用户自定义 Gizmo 外观？
-- 跨渲染器一致性的优先级有多高？
-- 是否可以接受不同渲染器的 Gizmo 有细微差异？
-
-**前置条件**:
-
-- Transform 系统已实现并稳定运行
-- IRenderer 接口已稳定，不频繁变更
-
-**后续拆解**:
-
-- 本任务为研究型任务，需先完成技术调研
-- 根据调研结果决定具体实施方案
-- 可能拆分为多个子任务：配置系统设计、Three.js 定制、抽象层实现等
-
-**参考文档**: [RenderingSystem.md](./doc/design/RenderingSystem.md)、[CoreArchitecture.md](./doc/design/CoreArchitecture.md)
 
 ---
 
@@ -411,6 +310,107 @@ class ProjectManager {
 - 优先实现本地存储版本，云端功能可后续迭代
 
 **参考文档**: [StorageSystem.md](./doc/design/StorageSystem.md)、[CoreArchitecture.md](./doc/design/CoreArchitecture.md)
+
+---
+
+### 12. 定制 Gizmo 外观与渲染器 UI 一致性
+
+**状态**: ⏳ 待执行
+
+**优先级**: P3（低优先级，设计探索）
+
+**描述**: 研究如何定制 Three.js TransformControls Gizmo 的外观，使其与应用的整体 UI 风格保持一致。并探讨当更换渲染器时（如 Babylon.js、WebGPU），如何保证 UI 风格的统一性。
+
+**问题背景**:
+
+当前使用的 Three.js `TransformControls` Gizmo（红绿蓝三色箭头）采用标准的 3D 编辑器风格，但与我们应用的 Material Design 主题和自定义配色方案不完全匹配。此外，如果未来切换到其他渲染引擎（Babylon.js、WebGPU 等），每个引擎都有自己的 Gizmo 实现和风格，可能导致用户体验不一致。
+
+**研究方向**:
+
+1. **定制 Three.js TransformControls 外观**
+   - 修改 Gizmo 材质颜色（匹配应用主题色）
+   - 调整 Gizmo 尺寸和形状
+   - 探索是否可以完全自定义 Gizmo 几何体
+   - 参考：[TransformControls 源码](https://github.com/mrdoob/three.js/blob/master/examples/jsm/controls/TransformControls.js)
+
+2. **抽象 Gizmo 系统**
+   - 定义通用的 `IGizmo` 接口（独立于渲染引擎）
+   - 为不同渲染器提供统一的 Gizmo 配置
+   - 示例接口设计：
+
+     ```typescript
+     interface IGizmoConfig {
+       colors: {
+         x: string; // X 轴颜色（默认红色）
+         y: string; // Y 轴颜色（默认绿色）
+         z: string; // Z 轴颜色（默认蓝色）
+         hover: string; // 悬停高亮颜色
+         selected: string; // 选中状态颜色
+       };
+       size: number; // Gizmo 尺寸倍数
+       opacity: number; // 透明度
+       lineWidth?: number; // 线条宽度
+     }
+
+     interface IGizmo {
+       attach(object: unknown): void;
+       detach(): void;
+       setMode(mode: 'translate' | 'rotate' | 'scale'): void;
+       setConfig(config: Partial<IGizmoConfig>): void;
+     }
+     ```
+
+3. **跨渲染器一致性策略**
+   - **方案 A**：统一配置文件
+     - 在应用层定义 Gizmo 样式配置
+     - 各渲染器实现按照配置生成自己的 Gizmo
+     - 优点：配置集中，易于维护
+     - 缺点：需要各渲染器支持足够的自定义能力
+   - **方案 B**：自定义 Gizmo 实现
+     - 完全自己实现 Gizmo 渲染逻辑（使用基础图元）
+     - 不依赖渲染引擎内置的 Gizmo 控件
+     - 优点：完全控制外观，跨引擎一致性最好
+     - 缺点：开发成本高，需要处理鼠标交互逻辑
+   - **方案 C**：Overlay UI 模式
+     - Gizmo 使用 HTML/CSS 2D 覆盖层实现
+     - 3D 场景只处理变换逻辑，不渲染 Gizmo
+     - 优点：与应用 UI 风格完全一致，易于定制
+     - 缺点：无法准确表达 3D 空间关系，交互可能不够直观
+
+4. **技术调研任务**
+   - [ ] 研究 Three.js TransformControls 的可定制性
+   - [ ] 调研 Babylon.js 的 Gizmo 系统
+   - [ ] 调研 WebGPU 渲染器的交互控件方案
+   - [ ] 评估自定义实现 Gizmo 的工作量
+   - [ ] 评估 2D Overlay Gizmo 的可行性
+   - [ ] 设计 IGizmo 接口和配置系统
+   - [ ] 编写技术方案文档
+
+**参考案例**:
+
+- [Babylon.js Gizmo](https://doc.babylonjs.com/features/featuresDeepDive/mesh/gizmo) - 支持自定义颜色和材质
+- [Unity3D Gizmo](https://docs.unity3d.com/Manual/GizmosMenu.html) - 可配置颜色和大小
+- [Blender Transform Widget](https://docs.blender.org/manual/en/latest/editors/3dview/controls/gizmos.html) - 高度可定制
+
+**讨论问题**:
+
+- 是否需要支持主题色自动应用到 Gizmo？（如深色主题 vs 浅色主题）
+- 是否需要支持用户自定义 Gizmo 外观？
+- 跨渲染器一致性的优先级有多高？
+- 是否可以接受不同渲染器的 Gizmo 有细微差异？
+
+**前置条件**:
+
+- Transform 系统已实现并稳定运行
+- IRenderer 接口已稳定，不频繁变更
+
+**后续拆解**:
+
+- 本任务为研究型任务，需先完成技术调研
+- 根据调研结果决定具体实施方案
+- 可能拆分为多个子任务：配置系统设计、Three.js 定制、抽象层实现等
+
+**参考文档**: [RenderingSystem.md](./doc/design/RenderingSystem.md)、[CoreArchitecture.md](./doc/design/CoreArchitecture.md)
 
 ---
 
