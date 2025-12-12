@@ -1,6 +1,6 @@
 # 铝型材框架设计器 - 待办事项
 
-**最后更新**: 2025-12-07
+**最后更新**: 2025-12-13
 
 > **说明**：已完成任务的详细历史记录请参考 [开发日志](./doc/DevelopLog.md)
 
@@ -14,44 +14,11 @@ _当前无 P0 任务_
 
 ## P1 - 高优先级（本周完成）
 
-_当前无 P1 任务_
-
----
-
-## P2 - 中优先级（本月完成）
-
-### 19. 建立 Human-AI 协作方法论文档体系
-
-**状态**: 🚧 进行中
-
-**优先级**: P2（中优先级）
-
-**描述**: 将本项目的人机协作实践提炼为可复制的方法论，作为 AI 工程化能力的证明。
-
-**背景**:
-
-本项目使用 Copilot + Sonnet 4.5 完成绝大部分开发工作。为证明 AI 工程化能力，需要将协作过程中的方法论显性化。
-
-**任务列表**:
-
-- [x] 创建 doc/methodology/ 目录结构
-- [x] 编写 README.md - 方法论文档导航
-- [x] 编写 ProjectAnalysis.md - 项目价值分析
-- [x] 编写 HumanAICollaboration.md - 协作规范详解
-- [x] 编写 CaseStudyTemplate.md - 案例提取模板
-- [ ] 从 DevelopLog.md 提取 3-5 个典型案例
-- [ ] 添加量化成果统计
-- [ ] 编写技术博客/分享材料
-
-**参考文档**: [Workflow.md](./doc/guides/Workflow.md)、[DevelopLog.md](./doc/DevelopLog.md)
-
----
-
-## P3 - 低优先级（长期规划）
-
 ### 5. 实现 ProfileInstanceStrategy（真实型材生成）
 
 **状态**: ⏳ 待执行
+
+**优先级**: P1（高优先级）
 
 **前置条件**: StubProfileStrategy 验证通过
 
@@ -118,6 +85,231 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 
 ---
 
+### 9. 加工操作实现
+
+**状态**: ⏳ 待执行
+
+**优先级**: P1（高优先级）
+
+**描述**: 实现型材的加工操作（打孔、切角、攻丝、槽口）。
+
+**技术方案**: 使用 three-bvh-csg 库进行 CSG 运算
+
+**任务列表**:
+
+- [ ] 集成 three-bvh-csg 库
+- [ ] 实现打孔操作（减去圆柱体）
+- [ ] 实现切角操作（修改顶点位置）
+- [ ] 实现攻丝操作（添加螺纹几何）
+- [ ] 实现槽口操作（减去矩形体）
+- [ ] 在 ProfileInstanceStrategy 中应用
+
+**参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)
+
+---
+
+### 13. 锚点与约束系统
+
+**状态**: ⏳ 待执行
+
+**优先级**: P1（高优先级）
+
+**描述**: 实现 CAD 级别的锚点系统和约束系统，支持精确建模和智能对齐。
+
+**背景**:
+
+专业 CAD/建模工具的核心功能之一是锚点（Anchor Point）和约束（Constraint）系统。没有这些功能，用户只能手动精确定位对象，体验极差。本系统将提供：
+- 自动识别关键锚点（端点、中点、中心等）
+- 智能吸附（Snapping）功能
+- 对象间约束关系管理
+- 可视化对齐辅助
+
+**核心功能**:
+
+1. **锚点系统（Anchor System）**
+   - 自动锚点：端点、中点、中心点、四分点
+   - 几何锚点：面中心、边中点、顶点
+   - 自定义锚点：用户定义的特殊位置
+   - 锚点可视化：悬停时显示锚点标记
+
+2. **吸附功能（Snapping）**
+   - 锚点吸附：移动对象时自动吸附到附近锚点
+   - 网格吸附：按照固定网格间距吸附
+   - 角度吸附：旋转时按固定角度增量吸附
+   - 距离吸附：保持固定距离关系
+   - 吸附阈值配置：可调整吸附敏感度
+
+3. **约束系统（Constraint System）**
+   - 距离约束：固定两个对象间的距离
+   - 角度约束：固定两个对象间的角度
+   - 对齐约束：平行、垂直、共线、共面
+   - 同心约束：两个对象共享中心点
+   - 约束可视化：显示约束关系和尺寸标注
+
+4. **对齐辅助（Alignment Guides）**
+   - 智能辅助线：拖动时显示对齐参考线
+   - 距离标注：实时显示对象间距离
+   - 角度标注：实时显示旋转角度
+   - 多对象对齐：批量对齐选中的对象
+
+5. **约束求解器（Constraint Solver）**
+   - 自动计算满足约束的位置和姿态
+   - 冲突检测：识别相互冲突的约束
+   - 优先级管理：处理约束优先级
+
+**技术方案**:
+
+```typescript
+// 锚点定义
+interface AnchorPoint {
+  id: string;
+  type: 'vertex' | 'edge-midpoint' | 'face-center' | 'object-center' | 'custom';
+  position: Vector3;
+  normal?: Vector3; // 法向量（用于面锚点）
+  objectId: string;
+  metadata?: Record<string, unknown>;
+}
+
+// 约束定义
+interface Constraint {
+  id: string;
+  type: 'distance' | 'angle' | 'parallel' | 'perpendicular' | 'concentric';
+  objects: string[]; // 涉及的对象ID
+  parameters: {
+    distance?: number;
+    angle?: number;
+    axis?: Vector3;
+  };
+  priority: number; // 约束优先级
+  enabled: boolean;
+}
+
+// 吸附配置
+interface SnappingConfig {
+  enabled: boolean;
+  anchorSnap: boolean;
+  gridSnap: boolean;
+  angleSnap: boolean;
+  snapThreshold: number; // 像素阈值
+  gridSize: number;
+  angleIncrement: number; // 度数
+}
+
+// 核心服务
+class AnchorService {
+  // 从对象提取锚点
+  extractAnchors(object: SceneObject): AnchorPoint[];
+  
+  // 查找附近的锚点
+  findNearbyAnchors(position: Vector3, threshold: number): AnchorPoint[];
+  
+  // 计算吸附位置
+  calculateSnapPosition(position: Vector3, config: SnappingConfig): Vector3;
+}
+
+class ConstraintService {
+  // 添加约束
+  addConstraint(constraint: Constraint): void;
+  
+  // 求解约束
+  solve(): boolean;
+  
+  // 验证约束
+  validate(): ConstraintValidationResult;
+}
+```
+
+**任务列表**:
+
+**Phase 1: 锚点系统基础**
+- [ ] 设计锚点数据结构和接口
+- [ ] 实现 AnchorService 核心服务
+- [ ] 实现锚点提取算法（端点、中点、中心）
+- [ ] 实现锚点可视化组件（3D标记）
+- [ ] 集成到 ThreeRenderer
+
+**Phase 2: 吸附功能**
+- [ ] 实现锚点吸附算法
+- [ ] 实现网格吸附功能
+- [ ] 实现角度吸附功能
+- [ ] 添加吸附配置界面
+- [ ] 集成到 TransformControls 交互
+
+**Phase 3: 约束系统**
+- [ ] 设计约束数据结构
+- [ ] 实现 ConstraintService 核心服务
+- [ ] 实现距离约束
+- [ ] 实现角度约束
+- [ ] 实现对齐约束（平行、垂直）
+- [ ] 实现约束求解器（基础版本）
+
+**Phase 4: 可视化辅助**
+- [ ] 实现智能辅助线渲染
+- [ ] 实现距离标注显示
+- [ ] 实现角度标注显示
+- [ ] 实现约束关系可视化
+- [ ] 添加对齐工具栏
+
+**Phase 5: 高级功能**
+- [ ] 优化约束求解器性能
+- [ ] 实现约束冲突检测
+- [ ] 添加约束优先级管理
+- [ ] 实现批量对齐工具
+- [ ] 添加吸附音效和触觉反馈
+
+**参考案例**:
+
+- [Blender Snapping](https://docs.blender.org/manual/en/latest/editors/3dview/controls/snapping.html) - 强大的吸附系统
+- [SketchUp Inference Engine](https://help.sketchup.com/en/article/3000124) - 智能推理引擎
+- [Fusion 360 Constraints](https://help.autodesk.com/view/fusion360/ENU/?guid=GUID-F2D8C97B-D99F-4F1D-9B6E-7F7E8F8F8F8F) - 约束系统
+- [FreeCAD Sketcher](https://wiki.freecad.org/Sketcher_Workbench) - 参数化约束
+
+**技术依赖**:
+
+- Three.js - 3D 渲染和几何计算
+- 线性代数库 - 约束求解（可选：使用现有的求解器库）
+- EventBus - 锚点和约束事件通知
+
+**前置条件**:
+
+- TransformControls 系统已实现（任务3 ✅）
+- 真实3D对象生成（任务5，同步开发）
+
+**参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)、[RenderingSystem.md](./doc/design/RenderingSystem.md)
+
+---
+
+## P2 - 中优先级（本月完成）
+
+### 19. 建立 Human-AI 协作方法论文档体系
+
+**状态**: 🚧 进行中
+
+**优先级**: P2（中优先级）
+
+**描述**: 将本项目的人机协作实践提炼为可复制的方法论，作为 AI 工程化能力的证明。
+
+**背景**:
+
+本项目使用 Copilot + Sonnet 4.5 完成绝大部分开发工作。为证明 AI 工程化能力，需要将协作过程中的方法论显性化。
+
+**任务列表**:
+
+- [x] 创建 doc/methodology/ 目录结构
+- [x] 编写 README.md - 方法论文档导航
+- [x] 编写 ProjectAnalysis.md - 项目价值分析
+- [x] 编写 HumanAICollaboration.md - 协作规范详解
+- [x] 编写 CaseStudyTemplate.md - 案例提取模板
+- [ ] 从 DevelopLog.md 提取 3-5 个典型案例
+- [ ] 添加量化成果统计
+- [ ] 编写技术博客/分享材料
+
+**参考文档**: [Workflow.md](./doc/guides/Workflow.md)、[DevelopLog.md](./doc/DevelopLog.md)
+
+---
+
+## P3 - 低优先级（长期规划）
+
 ### 6. 实现 FastenerInstanceStrategy
 
 **状态**: ⏳ 待执行
@@ -175,27 +367,6 @@ class ProfileInstanceStrategy implements InstanceStrategy {
 - 将 GeometryFactory 改为实例类
 - 策略通过构造函数注入 GeometryFactory
 - 提供通用的几何体生成方法（圆柱、六角柱、布尔运算等）
-
-**参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)
-
----
-
-### 9. 加工操作实现
-
-**状态**: ⏳ 待执行
-
-**描述**: 实现型材的加工操作（打孔、切角、攻丝、槽口）。
-
-**技术方案**: 使用 three-bvh-csg 库进行 CSG 运算
-
-**任务列表**:
-
-- [ ] 集成 three-bvh-csg 库
-- [ ] 实现打孔操作（减去圆柱体）
-- [ ] 实现切角操作（修改顶点位置）
-- [ ] 实现攻丝操作（添加螺纹几何）
-- [ ] 实现槽口操作（减去矩形体）
-- [ ] 在 ProfileInstanceStrategy 中应用
 
 **参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)
 
