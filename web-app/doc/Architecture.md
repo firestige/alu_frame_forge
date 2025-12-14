@@ -18,13 +18,14 @@
 
 ### 设计文档索引
 
-| 文档                                                | 描述           | 主要内容                                                      |
-| --------------------------------------------------- | -------------- | ------------------------------------------------------------- |
-| [CoreArchitecture.md](./design/CoreArchitecture.md) | 核心架构设计   | 分层架构、CoreServiceProvider、事件驱动、策略模式、双模型系统 |
-| [UIDesign.md](./design/UIDesign.md)                 | UI/UX 设计系统 | 主题系统、Framer Motion、组件库、响应式布局、无障碍设计       |
-| [StateManagement.md](./design/StateManagement.md)   | 状态管理策略   | Context Provider、Zustand、usePersistentState、同步策略       |
-| [StorageSystem.md](./design/StorageSystem.md)       | 存储与持久化   | AutoSaveService、三层持久化、SceneIO、queryService            |
-| [RenderingSystem.md](./design/RenderingSystem.md)   | 渲染系统设计   | 渲染器抽象、Three.js 实现、RenderSyncService                  |
+| 文档                                                                  | 描述           | 主要内容                                                      |
+| --------------------------------------------------------------------- | -------------- | ------------------------------------------------------------- |
+| [CoreArchitecture.md](./design/CoreArchitecture.md)                   | 核心架构设计   | 分层架构、CoreServiceProvider、事件驱动、策略模式、双模型系统 |
+| [UIDesign.md](./design/UIDesign.md)                                   | UI/UX 设计系统 | 主题系统、Framer Motion、组件库、响应式布局、无障碍设计       |
+| [StateManagement.md](./design/StateManagement.md)                     | 状态管理策略   | Context Provider、Zustand、usePersistentState、同步策略       |
+| [StorageSystem.md](./design/StorageSystem.md)                         | 存储与持久化   | AutoSaveService、三层持久化、SceneIO、queryService            |
+| [RenderingSystem.md](./design/RenderingSystem.md)                     | 渲染系统设计   | 渲染器抽象、Three.js 实现、RenderSyncService                  |
+| [CrossSectionNormalization.md](./design/CrossSectionNormalization.md) | 截面归一化系统 | SVG 路径标注、归一化数据格式、交互式编辑器、混合存储策略      |
 
 ### 快速导航
 
@@ -34,6 +35,7 @@
 - **处理状态管理？** → 阅读 [StateManagement.md](./design/StateManagement.md)
 - **实现数据持久化？** → 阅读 [StorageSystem.md](./design/StorageSystem.md)
 - **集成渲染器？** → 阅读 [RenderingSystem.md](./design/RenderingSystem.md)
+- **处理 SVG 截面标注？** → 阅读 [CrossSectionNormalization.md](./design/CrossSectionNormalization.md)
 
 ---
 

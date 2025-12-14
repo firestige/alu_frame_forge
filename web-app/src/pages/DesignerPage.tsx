@@ -120,6 +120,9 @@ const DesignerPage: React.FC = () => {
       '[DesignerPage] 创建 RenderSyncService、PlacementController、SelectionService、BoxSelectController 和 CameraService'
     );
 
+    // 设置 renderer 到 ObjectManager，这会重新注册需要 renderer 的策略（如 ProfileInstanceStrategy）
+    coreServices.objectManager.setRenderer(rendererRef.current);
+
     const renderSync = new RenderSyncService(
       coreServices.objectManager,
       rendererRef.current
@@ -146,7 +149,7 @@ const DesignerPage: React.FC = () => {
       return;
     }
 
-    const cameraService = new CameraService(cameraController, 10);
+    const cameraService = new CameraService(cameraController, 1.5); // 1.5m 适合家具场景
     cameraService.loadSavedView(); // 加载保存的视角
 
     const cameraCommandHandler = new CameraCommandHandler(cameraService);
@@ -242,13 +245,25 @@ const DesignerPage: React.FC = () => {
         // 场景3: 加载过程出错
         console.error('[DesignerPage] 项目加载异常:', error);
 
+        // 检测是否是旧数据格式问题
+        const errorMessage = (error as Error).message || '';
+        if (
+          errorMessage.includes('substring') ||
+          errorMessage.includes('outerPath')
+        ) {
+          console.warn('[DesignerPage] 🔧 检测到旧数据格式，清空 localStorage');
+          localStorage.clear();
+          window.location.reload();
+          return;
+        }
+
         // Fallback: 创建空白项目，而不是卡住
         useDesignerProjectStore.getState().setProject({
           id: `project-${Date.now()}`,
           name: '未命名项目',
           metadata: {
             name: '未命名项目',
-            description: `加载项目时出错: ${(error as Error).message}`,
+            description: `加载项目时出错: ${errorMessage}`,
           },
         });
 
@@ -259,6 +274,40 @@ const DesignerPage: React.FC = () => {
 
     loadProjectData();
   }, [isRendererReady, coreServices.objectManager]); // 依赖服务就绪和渲染器就绪
+
+  // ==================== 4.5 测试模式：通过 URL 参数创建测试对象 ====================
+
+  React.useEffect(() => {
+    if (!isRendererReady) return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const testParam = searchParams.get('test');
+
+    if (testParam === '2020') {
+      console.log('[DesignerPage] 🧪 测试模式：创建2020型材对象');
+
+      try {
+        const testObject = coreServices.objectManager.createObjectFromAsset(
+          'profile-2020',
+          {
+            name: '2020型材-测试',
+            transform: {
+              position: { x: 0, y: 0, z: 0 },
+              rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+              scale: { x: 1, y: 1, z: 1 },
+            },
+            userParams: {
+              length: 500, // 500mm长度
+            },
+          }
+        );
+
+        console.log('[DesignerPage] ✅ 测试对象已创建:', testObject.id);
+      } catch (error) {
+        console.error('[DesignerPage] ❌ 创建测试对象失败:', error);
+      }
+    }
+  }, [isRendererReady, coreServices.objectManager]);
 
   // ==================== 5. 事件桥梁：Command → Service ====================
 

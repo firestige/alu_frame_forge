@@ -49,29 +49,71 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     }
 
     const profileAsset = asset as ProfileAsset;
+
+    // 🔍 Debug: 检查资产数据结构
+    console.log('[ProfileInstanceStrategy] 🔍 Asset data check:', {
+      assetId: asset.id,
+      assetName: asset.name,
+      hasCrossSection: !!profileAsset.crossSection,
+      crossSectionKeys: profileAsset.crossSection
+        ? Object.keys(profileAsset.crossSection)
+        : 'undefined',
+      crossSectionValue: profileAsset.crossSection,
+    });
+
+    if (!profileAsset.crossSection) {
+      throw new Error(`ProfileAsset ${asset.id} missing crossSection data`);
+    }
+
+    if (!profileAsset.crossSection.outerPath) {
+      throw new Error(
+        `ProfileAsset ${asset.id} missing crossSection.outerPath`
+      );
+    }
+
     const length =
       (options.userParams.length as number) ||
-      profileAsset.defaultLength ||
+      profileAsset.lengthConstraints?.default ||
       1000;
+
+    console.log('[ProfileInstanceStrategy] Creating profile:', {
+      assetId: asset.id,
+      assetName: asset.name,
+      outerPath: profileAsset.crossSection.outerPath.substring(0, 50) + '...',
+      holes: profileAsset.crossSection.holes.length,
+      length,
+      userParams: options.userParams,
+    });
 
     // 生成唯一 ID
     const id = this.generateId();
 
-    // 1. 解析 SVG 路径为抽象形状
-    const shape = SVGPathParser.parse(profileAsset.crossSection.svgPath);
+    // 1. 解析 SVG 路径为抽象形状（使用契约数据）
+    const shape = SVGPathParser.parse(profileAsset.crossSection.outerPath);
+    console.log('[ProfileInstanceStrategy] Outer shape parsed:', shape);
 
-    // 2. 转换材质属性
+    // TODO: 处理孔洞（holes）
+    if (profileAsset.crossSection.holes.length > 0) {
+      console.log(
+        '[ProfileInstanceStrategy] Holes detected:',
+        profileAsset.crossSection.holes.length
+      );
+      // 未来实现：解析 holes 并传递给渲染器
+    }
+
+    // 2. 转换材质属性（明显的铝合金银色）
     const materialProps: MaterialProperties = {
-      type: 'metal', // TODO: 从 profileAsset.material 推断类型
-      color: 0x999999, // TODO: 从素材获取颜色
-      metalness: 0.9,
-      roughness: 0.3,
+      type: 'metal',
+      color: 0xd4d4d4, // 明亮的铝合金银色，便于观察
+      metalness: 0.8,
+      roughness: 0.2,
     };
 
     // 3. 创建拉伸参数
     const extrusionParams: ExtrusionParams = {
       shape,
       length,
+      targetSize: profileAsset.crossSection.dimensions.width, // 使用契约的 dimensions.width
       material: materialProps,
       transform: options.transform,
       userData: {
@@ -84,17 +126,47 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     const meshHandle = this.renderer.createExtrudedMesh(extrusionParams);
     const visualMesh = meshHandle.nativeObject;
 
+    // 🔍 记录几何体尺寸信息
+    if (visualMesh && 'geometry' in visualMesh) {
+      const geometry = (visualMesh as any).geometry;
+      if (geometry && geometry.computeBoundingBox) {
+        geometry.computeBoundingBox();
+        const bbox = geometry.boundingBox;
+        if (bbox) {
+          const size = {
+            x: bbox.max.x - bbox.min.x,
+            y: bbox.max.y - bbox.min.y,
+            z: bbox.max.z - bbox.min.z,
+          };
+          console.log('[ProfileInstanceStrategy] 🎯 创建对象几何体信息:', {
+            'BoundingBox(米)': bbox,
+            '尺寸(米)': size,
+            '尺寸(毫米)': {
+              x: size.x * 1000,
+              y: size.y * 1000,
+              z: size.z * 1000,
+            },
+            '输入参数length(毫米)': length,
+            截面outerPath:
+              profileAsset.crossSection.outerPath.substring(0, 50) + '...',
+            截面holes数量: profileAsset.crossSection.holes.length,
+          });
+        }
+      }
+    }
+
     // 创建计算几何（完整版）
     const computeGeometry: ExtrudedProfileGeometry = {
       type: 'extruded_profile',
-      crossSection: profileAsset.crossSection.svgPath,
+      crossSection: profileAsset.crossSection.outerPath, // 使用 outerPath
       length,
       machiningOps: options.machiningOps || [],
       material: profileAsset.material,
     };
 
     // 计算质量（密度 * 体积）
-    const volume = (profileAsset.crossSection.area || 0) * length; // mm³
+    const area = profileAsset.crossSection.geometricProperties?.area || 0; // 使用契约的 geometricProperties
+    const volume = area * length; // mm³
     const mass = (profileAsset.material.density * volume) / 1e9; // kg
 
     const sceneObject: SceneObject = {
@@ -147,8 +219,8 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     const profileAsset = asset as ProfileAsset;
     const length = sceneObject.userParams.length as number;
 
-    // 1. 解析 SVG 路径
-    const shape = SVGPathParser.parse(profileAsset.crossSection.svgPath);
+    // 1. 解析 SVG 路径（使用契约数据）
+    const shape = SVGPathParser.parse(profileAsset.crossSection.outerPath);
 
     // 2. 转换材质属性
     const materialProps: MaterialProperties = {
@@ -162,6 +234,7 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     const extrusionParams: ExtrusionParams = {
       shape,
       length,
+      targetSize: profileAsset.crossSection.dimensions.width, // 使用契约的 dimensions.width
       material: materialProps,
       transform: sceneObject.transform,
       userData: {
@@ -183,7 +256,8 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     computeGeom.machiningOps = sceneObject.machiningOps;
 
     // 重新计算质量
-    const volume = (profileAsset.crossSection.area || 0) * length;
+    const area = profileAsset.crossSection.geometricProperties?.area || 0; // 使用契约的 geometricProperties
+    const volume = area * length;
     sceneObject.compute.mass = (profileAsset.material.density * volume) / 1e9;
 
     // 更新时间戳

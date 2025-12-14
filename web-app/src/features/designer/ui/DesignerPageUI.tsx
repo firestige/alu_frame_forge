@@ -17,7 +17,9 @@ import { BoxSelectionOverlay } from './BoxSelectionOverlay';
 import { CommandContextMenu } from '@/components/ContextMenu';
 import { OBJECT_CONTEXT_MENU } from '../config/contextMenuConfig';
 import { SCENE_CONTEXT_MENU } from '../config/sceneContextMenuConfig';
-import { onState } from '@/core/services/eventBus';
+import { onState, sendCommand } from '@/core/services/eventBus';
+import { useSelectionState } from '../hooks/useSelectionState';
+import { useDesignerObjects } from '../hooks/useDesignerObjects';
 
 import type { IRenderer } from '@/core/renderer';
 
@@ -62,13 +64,9 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
   const viewerControls = use3DViewer({
     containerRef: containerRef as React.RefObject<HTMLDivElement>,
     backgroundColor: '#1a1a1a',
-    cameraPosition: { x: 5, y: 5, z: 5 },
-    orbitControls: {
-      enableDamping: true,
-      dampingFactor: 0.05,
-      minDistance: 2,
-      maxDistance: 20,
-    },
+    // 不传递 cameraPosition 和 orbitControls，使用 use3DViewer 的默认值
+    // 默认: cameraPosition = { x: 0.8, y: 0.8, z: 0.8 }, FOV = 45°
+    // 默认: minDistance = 0.005m (5mm), maxDistance = 10m
   });
 
   const renderer = viewerControls.getRenderer();
@@ -126,6 +124,31 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
     containerRef as React.RefObject<HTMLDivElement>,
     renderer
   );
+
+  // ==================== 10. 快捷键：F键聚焦选中对象 ====================
+
+  const { selectedIds } = useSelectionState();
+  const objects = useDesignerObjects();
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F键：聚焦到选中对象
+      if (e.key === 'f' || e.key === 'F') {
+        if (!e.shiftKey && selectedIds.length > 0) {
+          const firstId = selectedIds[0];
+          sendCommand('command:camera:focusObject', {
+            objectId: firstId,
+          });
+        } else if (e.shiftKey) {
+          // Shift+F：释放聚焦，回到原点
+          sendCommand('command:camera:resetFocus', undefined);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIds]);
 
   // ==================== 渲染 ====================
 

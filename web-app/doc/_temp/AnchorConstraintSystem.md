@@ -63,6 +63,7 @@ Renderer Layer (ThreeJS Adapters)
 **目标**: 解除 Core 层对 Three.js 的直接依赖
 
 **实现文件**:
+
 - [core/geometry/types.ts](../src/core/geometry/types.ts) - IShape, ICurve, MaterialProperties
 - [core/geometry/SVGPathParser.ts](../src/core/geometry/SVGPathParser.ts) - SVG Path → IShape
 - [core/renderer/threejs/adapters/ThreeGeometryAdapter.ts](../src/core/renderer/threejs/adapters/ThreeGeometryAdapter.ts) - IShape → THREE.Shape
@@ -77,7 +78,11 @@ export interface IShape {
   closed: boolean;
 }
 
-export type ICurve = ILineCurve | IQuadraticBezierCurve | ICubicBezierCurve | IArcCurve;
+export type ICurve =
+  | ILineCurve
+  | IQuadraticBezierCurve
+  | ICubicBezierCurve
+  | IArcCurve;
 
 // Adapter converts to Three.js
 export class ThreeGeometryAdapter {
@@ -86,8 +91,10 @@ export class ThreeGeometryAdapter {
     // Convert each curve type to THREE.js equivalents
     for (const curve of shape.curves) {
       switch (curve.type) {
-        case 'line': /* ... */; break;
-        case 'quadratic-bezier': /* ... */; break;
+        case 'line' /* ... */:
+          break;
+        case 'quadratic-bezier' /* ... */:
+          break;
         // ...
       }
     }
@@ -103,6 +110,7 @@ export class ThreeGeometryAdapter {
 **目标**: 实现锚点生成、查询、更新的 Core 服务
 
 **实现文件**:
+
 - [core/anchor/types.ts](../src/core/anchor/types.ts) - AnchorType, AnchorPoint interface
 - [core/anchor/AnchorService.ts](../src/core/anchor/AnchorService.ts) - Map-based storage
 
@@ -111,35 +119,39 @@ export class ThreeGeometryAdapter {
 ```typescript
 export class AnchorService {
   // Generate anchors from SceneObject geometry
-  generateAnchors(objectId: string, sceneObject: SceneObject): AnchorPoint[]
+  generateAnchors(objectId: string, sceneObject: SceneObject): AnchorPoint[];
 
   // Find nearest anchor within threshold
   findNearestAnchor(
     position: Vector3,
     threshold: number,
     objectId?: string
-  ): AnchorQueryResult | null
+  ): AnchorQueryResult | null;
 
   // Find all anchors within radius
   findAnchorsInRadius(
     position: Vector3,
     radius: number,
     objectId?: string
-  ): AnchorQueryResult[]
+  ): AnchorQueryResult[];
 
   // Update anchors after transform
   updateAnchorsAfterTransform(
     objectId: string,
-    transform: { position: Vector3; rotation?: { x: number; y: number; z: number } }
-  ): void
+    transform: {
+      position: Vector3;
+      rotation?: { x: number; y: number; z: number };
+    }
+  ): void;
 
   // Callbacks (Core → Features communication)
-  onAnchorsUpdated?: (objectId: string, anchors: AnchorPoint[]) => void
-  onNearestAnchorFound?: (result: AnchorQueryResult | null) => void
+  onAnchorsUpdated?: (objectId: string, anchors: AnchorPoint[]) => void;
+  onNearestAnchorFound?: (result: AnchorQueryResult | null) => void;
 }
 ```
 
 **锚点类型**:
+
 - `end` - 端点
 - `midpoint` - 中点
 - `corner` - 截面角点
@@ -153,6 +165,7 @@ export class AnchorService {
 **目标**: 实现约束管理与求解的 Core 服务
 
 **实现文件**:
+
 - [core/constraint/types.ts](../src/core/constraint/types.ts) - Constraint types, priority system
 - [core/constraint/ConstraintService.ts](../src/core/constraint/ConstraintService.ts) - Constraint management
 
@@ -160,12 +173,12 @@ export class AnchorService {
 
 ```typescript
 export type ConstraintType =
-  | 'fixed-joint'        // 固定连接（位置+角度锁定）
-  | 'point-to-point'     // 点对点对齐
-  | 'axis-align'         // 轴对齐（平行/垂直）
-  | 'sliding-joint'      // 沿轴滑动
-  | 'angle'              // 角度约束
-  | 'distance';          // 距离约束
+  | 'fixed-joint' // 固定连接（位置+角度锁定）
+  | 'point-to-point' // 点对点对齐
+  | 'axis-align' // 轴对齐（平行/垂直）
+  | 'sliding-joint' // 沿轴滑动
+  | 'angle' // 角度约束
+  | 'distance'; // 距离约束
 
 export type ConstraintPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
 ```
@@ -175,32 +188,36 @@ export type ConstraintPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
 ```typescript
 export class ConstraintService {
   // Add constraint with validation
-  addConstraint(constraint: Constraint): boolean
+  addConstraint(constraint: Constraint): boolean;
 
   // Remove constraint
-  removeConstraint(constraintId: string): boolean
+  removeConstraint(constraintId: string): boolean;
 
   // Solve constraints for object transform
   solveConstraints(
     changedObjectId: string,
-    proposedTransform: { position: Vector3; rotation?: { x: number; y: number; z: number } }
-  ): ConstraintSolveResult | null
+    proposedTransform: {
+      position: Vector3;
+      rotation?: { x: number; y: number; z: number };
+    }
+  ): ConstraintSolveResult | null;
 
   // Validate constraint feasibility
-  validateConstraint(constraint: Constraint): ConstraintValidationResult
+  validateConstraint(constraint: Constraint): ConstraintValidationResult;
 
   // Detect conflicting constraints
-  detectConflicts(): string[]
+  detectConflicts(): string[];
 
   // Callbacks
-  onConstraintAdded?: (constraint: Constraint) => void
-  onConstraintRemoved?: (constraintId: string) => void
-  onSolveCompleted?: (result: ConstraintSolveResult) => void
-  onConflictDetected?: (conflicts: string[]) => void
+  onConstraintAdded?: (constraint: Constraint) => void;
+  onConstraintRemoved?: (constraintId: string) => void;
+  onSolveCompleted?: (result: ConstraintSolveResult) => void;
+  onConflictDetected?: (conflicts: string[]) => void;
 }
 ```
 
 **优先级系统**:
+
 - `CRITICAL` (1000) - 结构性约束，必须满足
 - `HIGH` (100) - 装配约束
 - `NORMAL` (10) - 对齐约束
@@ -213,6 +230,7 @@ export class ConstraintService {
 **目标**: 创建 Facade 层连接 Core 服务与 EventBus
 
 **实现文件**:
+
 - [features/designer/services/AnchorManager.ts](../src/features/designer/services/AnchorManager.ts) - Facade + EventBus integration
 - [features/designer/services/ConstraintManager.ts](../src/features/designer/services/ConstraintManager.ts) - Facade + Observer pattern
 
@@ -227,14 +245,20 @@ export class AnchorManager {
 
   private setupCallbacks(): void {
     this.anchorService.onAnchorsUpdated = (objectId, anchors) => {
-      this.eventBus.emit('state:anchor:updated', { objectId, anchorCount: anchors.length });
+      this.eventBus.emit('state:anchor:updated', {
+        objectId,
+        anchorCount: anchors.length,
+      });
     };
     // ...
   }
 
   // Simplified Facade API
-  generateAnchors(objectId: string, sceneObject: SceneObject): void
-  findNearestAnchor(position: Vector3, threshold?: number): AnchorQueryResult | null
+  generateAnchors(objectId: string, sceneObject: SceneObject): void;
+  findNearestAnchor(
+    position: Vector3,
+    threshold?: number
+  ): AnchorQueryResult | null;
   // ...
 }
 ```
@@ -243,16 +267,28 @@ export class AnchorManager {
 
 ```typescript
 export class ConstraintManager {
-  constructor(eventBus: EventBus, anchorManager: AnchorManager, config?: ConstraintManagerConfig) {
+  constructor(
+    eventBus: EventBus,
+    anchorManager: AnchorManager,
+    config?: ConstraintManagerConfig
+  ) {
     this.constraintService = new ConstraintService();
     this.setupCallbacks(); // Connect callbacks to EventBus
     this.setupAnchorService(); // Inject AnchorService
   }
 
   // Assembly helpers
-  createLJointAssembly(profileAId: string, profileBId: string, connectorId: string): boolean
-  createTJointAssembly(mainProfileId: string, sideProfileId: string, position: number): boolean
-  updateTJointPosition(constraintId: string, newPosition: number): void
+  createLJointAssembly(
+    profileAId: string,
+    profileBId: string,
+    connectorId: string
+  ): boolean;
+  createTJointAssembly(
+    mainProfileId: string,
+    sideProfileId: string,
+    position: number
+  ): boolean;
+  updateTJointPosition(constraintId: string, newPosition: number): void;
 }
 ```
 
@@ -260,25 +296,25 @@ export class ConstraintManager {
 
 ```typescript
 // Anchor events
-'state:anchor:updated'
-'state:anchor:nearestFound'
-'command:anchor:enableSnapping'
-'command:anchor:disableSnapping'
+'state:anchor:updated';
+'state:anchor:nearestFound';
+'command:anchor:enableSnapping';
+'command:anchor:disableSnapping';
 
 // Constraint events
-'state:constraint:added'
-'state:constraint:removed'
-'state:constraint:solved'
-'state:constraint:conflict'
-'state:constraint:enabledChanged'
+'state:constraint:added';
+'state:constraint:removed';
+'state:constraint:solved';
+'state:constraint:conflict';
+'state:constraint:enabledChanged';
 
 // Assembly commands
-'command:assembly:createLJoint'
-'command:assembly:createTJoint'
-'command:assembly:updateTJointPosition'
+'command:assembly:createLJoint';
+'command:assembly:createTJoint';
+'command:assembly:updateTJointPosition';
 
 // Transform updates
-'command:object:updateTransform'
+'command:object:updateTransform';
 ```
 
 **测试覆盖**: 15 tests
@@ -560,6 +596,7 @@ state:constraint:conflict
 **问题**: Core 层如何通知 Features 层状态变化？
 
 **选项**:
+
 1. Core 层直接依赖 EventBus（违反分层原则）
 2. Features 层轮询 Core 层（低效）
 3. Callback Pattern（当前方案）
@@ -567,6 +604,7 @@ state:constraint:conflict
 **决策**: 使用 Callback Pattern
 
 **理由**:
+
 - 保持 Core 层零依赖（renderer-agnostic, framework-agnostic）
 - Callback 由 Features 层在构造时注入，Core 层仅调用回调
 - Features 层负责将 Callback 转换为 EventBus 事件
@@ -604,6 +642,7 @@ class AnchorManager {
 **决策**: AnchorService 使用 `Map<objectId, AnchorPoint[]>`
 
 **理由**:
+
 - Core 层不应依赖 Three.js 的 `mesh.userData`（违反分层原则）
 - Map 存储更高效，支持批量查询（findAnchorsInRadius）
 - 未来可迁移到其他渲染器（如 Babylon.js）无需重构
@@ -616,6 +655,7 @@ class AnchorManager {
 **决策**: 引入 IShape/ICurve 抽象层
 
 **理由**:
+
 - 原设计违反了 Core 层的 renderer-independence 原则
 - 未来可能支持多渲染器（Babylon.js, WebGPU）
 - 抽象层使 Core 层可独立测试（无需初始化 WebGL）
@@ -646,17 +686,20 @@ class AnchorManager {
 ## 10 参考与下一步
 
 ### 参考文档
+
 - [CoreArchitecture.md](../design/CoreArchitecture.md) - 分层架构设计
 - [RenderingSystem.md](../design/RenderingSystem.md) - 渲染器抽象
 - [StateManagement.md](../design/StateManagement.md) - EventBus 设计
 
 ### 参考实现
+
 - Blender Snapping System - 强大的吸附系统
 - SketchUp Inference Engine - 智能推理引擎
 - Fusion 360 Constraints - 约束系统
 - FreeCAD Sketcher - 参数化约束
 
 ### 下一步工作
+
 1. 实现锚点可视化（AnchorGizmo）
 2. 实现约束可视化（智能辅助线）
 3. 创建 AssemblyPanel UI 组件
@@ -664,6 +707,7 @@ class AnchorManager {
 5. 性能优化（锚点查询、约束求解）
 
 ### 移动计划
+
 - 本文档将在 Phase 6 完成后移动到 `doc/design/AnchorConstraintSystem.md`
 - 当前保留在 `doc/_temp/` 作为 Phase 1-5 实现记录
 
@@ -672,17 +716,20 @@ class AnchorManager {
 ## 附录 A: 测试覆盖清单
 
 ### Geometry Abstraction (12 tests)
+
 - ✅ SVGPathParser basic commands (M, L, H, V)
 - ✅ SVGPathParser curves (C, Q, A)
 - ✅ ThreeGeometryAdapter shape conversion
 - ✅ ThreeMaterialFactory material creation
 
 ### Strategy Refactoring (18 tests)
+
 - ✅ ProfileInstanceStrategy with abstract geometry
 - ✅ ThreeRenderer.createExtrudedMesh integration
 - ✅ Material properties application
 
 ### Anchor System (11 tests)
+
 - ✅ AnchorService.generateAnchors (end, midpoint, corner, center, snap)
 - ✅ AnchorService.findNearestAnchor with threshold
 - ✅ AnchorService.findAnchorsInRadius
@@ -690,6 +737,7 @@ class AnchorManager {
 - ✅ Callback pattern (onAnchorsUpdated, onNearestAnchorFound)
 
 ### Constraint System (16 tests)
+
 - ✅ ConstraintService.addConstraint with validation
 - ✅ ConstraintService.removeConstraint
 - ✅ ConstraintService.solveConstraints (point-to-point, axis-align)
@@ -698,6 +746,7 @@ class AnchorManager {
 - ✅ Callback pattern (onConstraintAdded, onSolveCompleted, onConflictDetected)
 
 ### Features Integration (15 tests)
+
 - ✅ AnchorManager EventBus integration
 - ✅ ConstraintManager EventBus integration
 - ✅ Assembly commands (createLJoint, createTJoint)

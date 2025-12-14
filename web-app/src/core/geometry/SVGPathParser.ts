@@ -49,27 +49,44 @@ export class SVGPathParser {
    * @throws {Error} 如果路径无效
    */
   static parse(svgPath: string): IShape {
+    console.log(
+      '[SVGPathParser] 📐 开始解析SVG路径:',
+      svgPath.substring(0, 100)
+    );
+
     if (!svgPath || typeof svgPath !== 'string') {
       throw new Error('Invalid SVG path: path must be a non-empty string');
     }
 
     // 简单的 SVG 命令解析（临时实现，后续集成 svg-path-parser）
     const commands = this.parseCommands(svgPath.trim());
+    console.log('[SVGPathParser] 📊 解析到命令数量:', commands.length);
 
-    const curves: ICurve[] = [];
+    // 支持多个子路径（用于识别孔洞）
+    const subPaths: IShape[] = [];
+    let currentCurves: ICurve[] = [];
     let currentPoint: Vector2 = { x: 0, y: 0 };
     let startPoint: Vector2 = { x: 0, y: 0 };
-    let isClosed = false;
+    let currentClosed = false;
 
     for (const cmd of commands) {
       switch (cmd.code) {
         case 'M': // MoveTo
+          // 如果当前已有曲线，保存为一个子路径
+          if (currentCurves.length > 0) {
+            subPaths.push({
+              curves: currentCurves,
+              isClosed: currentClosed,
+            });
+            currentCurves = [];
+            currentClosed = false;
+          }
           currentPoint = { x: cmd.x!, y: cmd.y! };
           startPoint = { ...currentPoint };
           break;
 
         case 'L': // LineTo
-          curves.push({
+          currentCurves.push({
             type: 'line' as CurveType,
             start: { ...currentPoint },
             end: { x: cmd.x!, y: cmd.y! },
@@ -78,7 +95,7 @@ export class SVGPathParser {
           break;
 
         case 'H': // Horizontal LineTo
-          curves.push({
+          currentCurves.push({
             type: 'line' as CurveType,
             start: { ...currentPoint },
             end: { x: cmd.x!, y: currentPoint.y },
@@ -87,7 +104,7 @@ export class SVGPathParser {
           break;
 
         case 'V': // Vertical LineTo
-          curves.push({
+          currentCurves.push({
             type: 'line' as CurveType,
             start: { ...currentPoint },
             end: { x: currentPoint.x, y: cmd.y! },
@@ -96,7 +113,7 @@ export class SVGPathParser {
           break;
 
         case 'C': // Cubic Bezier
-          curves.push({
+          currentCurves.push({
             type: 'cubic-bezier' as CurveType,
             start: { ...currentPoint },
             end: { x: cmd.x!, y: cmd.y! },
@@ -109,7 +126,7 @@ export class SVGPathParser {
           break;
 
         case 'Q': // Quadratic Bezier
-          curves.push({
+          currentCurves.push({
             type: 'quadratic-bezier' as CurveType,
             start: { ...currentPoint },
             end: { x: cmd.x!, y: cmd.y! },
@@ -121,7 +138,7 @@ export class SVGPathParser {
         case 'A': // Arc（圆弧 - 简化处理）
           // TODO: 实现完整的圆弧转换
           // 当前简化为直线
-          curves.push({
+          currentCurves.push({
             type: 'line' as CurveType,
             start: { ...currentPoint },
             end: { x: cmd.x!, y: cmd.y! },
@@ -135,23 +152,56 @@ export class SVGPathParser {
             currentPoint.x !== startPoint.x ||
             currentPoint.y !== startPoint.y
           ) {
-            curves.push({
+            currentCurves.push({
               type: 'line' as CurveType,
               start: { ...currentPoint },
               end: { ...startPoint },
             });
           }
-          isClosed = true;
+          currentClosed = true;
+          currentPoint = { ...startPoint }; // 闭合后回到起点
           break;
       }
     }
 
-    // 计算边界框
-    const boundingBox = this.calculateBoundingBox(curves);
+    // 保存最后一个子路径
+    if (currentCurves.length > 0) {
+      subPaths.push({
+        curves: currentCurves,
+        isClosed: currentClosed,
+      });
+    }
+
+    console.log('[SVGPathParser] 🔍 识别到子路径数量:', subPaths.length);
+
+    // 如果只有一个子路径，直接返回
+    if (subPaths.length === 1) {
+      const boundingBox = this.calculateBoundingBox(subPaths[0].curves);
+      return {
+        curves: subPaths[0].curves,
+        isClosed: subPaths[0].isClosed,
+        metadata: {
+          sourcePath: svgPath,
+          boundingBox,
+        },
+      };
+    }
+
+    // 多个子路径：第一个作为外轮廓，其余作为孔洞
+    const mainShape = subPaths[0];
+    const holes = subPaths.slice(1);
+    const boundingBox = this.calculateBoundingBox(mainShape.curves);
+
+    console.log(
+      '[SVGPathParser] 🎯 主轮廓curves数量:',
+      mainShape.curves.length
+    );
+    console.log('[SVGPathParser] 🕳️  孔洞数量:', holes.length);
 
     return {
-      curves,
-      isClosed,
+      curves: mainShape.curves,
+      isClosed: mainShape.isClosed,
+      holes,
       metadata: {
         sourcePath: svgPath,
         boundingBox,

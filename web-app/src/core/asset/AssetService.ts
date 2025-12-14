@@ -25,14 +25,16 @@ export class AssetService {
   }
 
   /**
-   * 初始化服务
-   * 加载预置型材数据并注册到 Registry
+   * 初始化 AssetService
+   * 注意：内置资产现在由 CoreServiceProvider 在应用启动时注册
    */
   initialize(): void {
-    this.loadPresetProfiles();
+    // 不再自动加载预置资产
+    // 内置资产由 CoreServiceProvider 统一管理
   }
 
   /**
+   * @deprecated 已废弃 - 内置资产由 CoreServiceProvider 注册
    * 加载预置型材数据
    */
   private loadPresetProfiles(): void {

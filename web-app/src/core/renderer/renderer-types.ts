@@ -64,6 +64,9 @@ export interface ExtrusionParams {
   /** 拉伸长度 */
   length: number;
 
+  /** 目标截面尺寸(mm) - 用于自动缩放和居中SVG坐标 */
+  targetSize?: number;
+
   /** 材质属性（抽象类型） */
   material: unknown; // 运行时是 MaterialProperties
 
@@ -667,6 +670,25 @@ export interface ITransformController {
    * 销毁控制器，释放资源
    */
   dispose(): void;
+}
+
+/**
+ * 调试信息接口
+ */
+export interface RendererDebugInfo {
+  camera: {
+    position: Vector3;
+    target: Vector3;
+    fov: number;
+    near: number;
+    far: number;
+  };
+  orbitControls?: {
+    enabled: boolean;
+    minDistance: number;
+    maxDistance: number;
+    enableDamping: boolean;
+  };
 }
 
 /**

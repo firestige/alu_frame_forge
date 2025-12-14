@@ -32,6 +32,12 @@ import type { IShape } from '@/core/geometry/types';
 import type { MaterialProperties } from '@/core/geometry/types';
 import { ThreeGeometryAdapter } from './adapters/ThreeGeometryAdapter';
 import { ThreeMaterialFactory } from './adapters/ThreeMaterialFactory';
+import {
+  AnchorGizmo,
+  AlignmentGuides,
+  ConstraintVisualizer,
+  DimensionLabel,
+} from '../gizmos';
 
 /**
  * Three.js 渲染器实现
@@ -45,6 +51,12 @@ export class ThreeRenderer implements IRenderer {
   private rendererCore: RendererCore;
   private outlineEffect: OutlineEffect | null = null;
   private transformController: ThreeTransformController | null = null;
+
+  // Gizmo 组件
+  private anchorGizmo: AnchorGizmo | null = null;
+  private alignmentGuides: AlignmentGuides | null = null;
+  private constraintVisualizer: ConstraintVisualizer | null = null;
+  private dimensionLabel: DimensionLabel | null = null;
 
   private initialized = false;
 
@@ -108,10 +120,27 @@ export class ThreeRenderer implements IRenderer {
       rendererDomElement
     );
 
+    // 初始化 Gizmo 组件
+    this.anchorGizmo = new AnchorGizmo(
+      this.sceneManager.getScene(),
+      this.cameraController.getCamera()
+    );
+    this.alignmentGuides = new AlignmentGuides(this.sceneManager.getScene());
+    this.constraintVisualizer = new ConstraintVisualizer(
+      this.sceneManager.getScene()
+    );
+    this.dimensionLabel = new DimensionLabel(this.sceneManager.getScene());
+
     this.initialized = true;
   }
 
   dispose(): void {
+    // 销毁 Gizmo 组件
+    this.anchorGizmo?.dispose();
+    this.alignmentGuides?.dispose();
+    this.constraintVisualizer?.dispose();
+    this.dimensionLabel?.dispose();
+
     this.transformController?.dispose();
     this.rendererCore.dispose();
     this.cameraController?.dispose();
@@ -161,15 +190,29 @@ export class ThreeRenderer implements IRenderer {
    * 创建拉伸网格
    */
   createExtrudedMesh(params: ExtrusionParams): MeshHandle {
+    console.log('[ThreeRenderer] 🎯 开始创建拉伸网格:', {
+      length: params.length,
+      shape: params.shape,
+      userData: params.userData,
+    });
+
     // 1. 转换抽象形状到 Three.js Shape
     const shape = params.shape as IShape;
-    const threeShape = ThreeGeometryAdapter.shapeToThreeShape(shape);
+    const threeShape = ThreeGeometryAdapter.shapeToThreeShape(
+      shape,
+      params.targetSize
+    );
+    console.log(
+      '[ThreeRenderer] ✅ Shape转换完成, curves数量:',
+      shape.curves?.length
+    );
 
     // 2. 创建拉伸几何体
     const geometry = ThreeGeometryAdapter.createSimplifiedExtrudeGeometry(
       threeShape,
       params.length
     );
+    console.log('[ThreeRenderer] ✅ ExtrudeGeometry创建完成');
 
     // 3. 创建材质
     const materialProps = params.material as MaterialProperties;
@@ -754,6 +797,63 @@ export class ThreeRenderer implements IRenderer {
       throw new Error('TransformController not initialized');
     }
     return this.transformController;
+  }
+
+  // ==================== 调试接口 ====================
+
+  getDebugInfo() {
+    const camera = this.cameraController?.getCamera();
+    const controls = this.cameraController?.getOrbitControls();
+    const position = camera ? camera.position : { x: 0, y: 0, z: 0 };
+    const target = controls ? controls.target : { x: 0, y: 0, z: 0 };
+
+    return {
+      camera: {
+        position: { x: position.x, y: position.y, z: position.z },
+        target: { x: target.x, y: target.y, z: target.z },
+        fov: camera?.fov || 0,
+        near: camera?.near || 0,
+        far: camera?.far || 0,
+      },
+      orbitControls: controls
+        ? {
+            enabled: controls.enabled,
+            minDistance: controls.minDistance,
+            maxDistance: controls.maxDistance,
+            enableDamping: controls.enableDamping,
+          }
+        : undefined,
+    };
+  }
+
+  // ==================== Gizmo 组件访问 ====================
+
+  /**
+   * 获取锚点可视化组件
+   */
+  getAnchorGizmo(): AnchorGizmo | null {
+    return this.anchorGizmo;
+  }
+
+  /**
+   * 获取对齐辅助线组件
+   */
+  getAlignmentGuides(): AlignmentGuides | null {
+    return this.alignmentGuides;
+  }
+
+  /**
+   * 获取约束可视化组件
+   */
+  getConstraintVisualizer(): ConstraintVisualizer | null {
+    return this.constraintVisualizer;
+  }
+
+  /**
+   * 获取尺寸标注组件
+   */
+  getDimensionLabel(): DimensionLabel | null {
+    return this.dimensionLabel;
   }
 }
 

@@ -1,0 +1,73 @@
+// 2020 型材归一化截面数据
+// 由 prepare-profile-data.mjs 自动生成于 2025-12-14
+
+import type { ProfileAsset } from '@/core/asset/types/asset';
+import type { NormalizedCrossSection } from '@/core/contract/ProfileCrossSectionContract';
+import { AssetType, AssetSource } from '@/core/asset/types/enums';
+
+export const profile2020Normalized: NormalizedCrossSection = {
+  outerPath:
+    'M344.82,123.28v-8.9h11.57V27.19c0-14.74-11.95-26.69-26.69-26.69h-87.19v11.57h-8.9v17.79h48.04v29.02l-52.84,52.84h-100.74l-52.84-52.84v-29.02h48.04V12.07h-8.9V.5H27.19C12.45.5.5,12.45.5,27.19v87.19h11.57v8.9h17.79v-48.04h29.02l52.84,52.84v100.74l-52.84,52.84h-29.02v-48.04H12.07v8.9H.5v87.19c0,14.74,11.95,26.69,26.69,26.69h87.19v-11.57h8.9v-17.79h-48.04v-29.02l52.84-52.84h100.74l52.84,52.84v29.02h-48.04v17.79h8.9v11.57h87.19c14.74,0,26.69-11.95,26.69-26.69v-87.19h-11.57v-8.9h-17.79v48.04h-29.02l-52.84-52.84v-100.74l52.84-52.84h29.02v48.04h17.79ZM178.44,222.93c-24.57,0-44.49-19.92-44.49-44.49s19.92-44.49,44.49-44.49,44.49,19.92,44.49,44.49-19.92,44.49-44.49,44.49Z',
+  holes: [
+    'M 133.95,178.44 A 44.49,44.49 0 1,0 222.93,178.44 A 44.49,44.49 0 1,0 133.95,178.44 Z',
+  ],
+  dimensions: {
+    width: 20,
+    height: 20,
+    wallThickness: 1.5,
+    origin: {
+      type: 'center',
+    },
+  },
+  geometricProperties: {
+    area: 104800.38,
+    momentOfInertia: {
+      Ix: 3493346,
+      Iy: 3493346,
+    },
+  },
+  annotation: {
+    originalFileName: '2020.svg',
+    annotatedBy: 'auto-classifier',
+    annotatedAt: '2025-12-14T10:06:46.906Z',
+    autoDetected: true,
+    confidence: 0.5,
+    schemaVersion: '2.0.0',
+    notes:
+      '存在 1 个未被完全包含的路径，可能是边界框计算误差. 对称性: X=true, Y=true',
+  },
+};
+
+export const profile2020Asset: ProfileAsset = {
+  id: 'profile-2020',
+  name: '2020型材',
+  type: AssetType.PROFILE,
+  source: AssetSource.BUILTIN,
+  series: '20-series',
+  description: '20x20mm 6063-T5铝型材',
+
+  crossSection: profile2020Normalized,
+
+  material: {
+    name: '6063-T5',
+    yieldStrength: 160,
+    density: 2700,
+    elasticModulus: 69000,
+    poissonRatio: 0.33,
+  },
+
+  lengthConstraints: {
+    min: 100,
+    max: 3000,
+    default: 500,
+    step: 50,
+  },
+
+  supportedOperations: ['drilling', 'cutting', 'tapping'],
+
+  metadata: {
+    createdAt: '2025-12-14T10:06:46.907Z',
+    updatedAt: '2025-12-14T10:06:46.907Z',
+    tags: ['standard', 'symmetric', '20-series'],
+  },
+};

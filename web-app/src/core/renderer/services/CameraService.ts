@@ -28,9 +28,9 @@ export class CameraService {
   private cameraController: CameraController;
   private defaultDistance: number;
 
-  constructor(cameraController: CameraController, defaultDistance = 10) {
+  constructor(cameraController: CameraController, defaultDistance = 1.5) {
     this.cameraController = cameraController;
-    this.defaultDistance = defaultDistance;
+    this.defaultDistance = defaultDistance; // 1.5m，适合观察家具尺寸
     this.initializePresets();
     this.currentView = this.getPresetView(CameraPreset.ISOMETRIC);
   }
@@ -326,6 +326,46 @@ export class CameraService {
    */
   async reset(animated = true): Promise<void> {
     await this.setViewPreset(CameraPreset.ISOMETRIC, animated);
+  }
+
+  /**
+   * 释放聚焦（将OrbitControls的target重置到原点）
+   * @param animated 是否使用动画
+   */
+  async resetFocus(animated = true): Promise<void> {
+    const controls = this.cameraController.getOrbitControls();
+    if (!controls) {
+      console.warn('[CameraService] OrbitControls not available');
+      return;
+    }
+
+    const camera = this.cameraController.getCamera();
+    const currentPos = camera.position;
+    const currentTarget = controls.target;
+
+    // 计算从当前target到原点的偏移
+    const offset = {
+      x: currentPos.x - currentTarget.x,
+      y: currentPos.y - currentTarget.y,
+      z: currentPos.z - currentTarget.z,
+    };
+
+    // 相机位置也要同步移动，保持相对关系
+    const newPosition = {
+      x: offset.x,
+      y: offset.y,
+      z: offset.z,
+    };
+
+    await this.cameraController.animateToPosition(
+      newPosition,
+      { x: 0, y: 0, z: 0 },
+      undefined,
+      animated ? 600 : 0
+    );
+
+    this.notifyViewChanged();
+    console.log('[CameraService] 🎯 已释放聚焦，重置到原点');
   }
 
   // ==================== 内部逻辑 ====================

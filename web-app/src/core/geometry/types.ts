@@ -51,13 +51,17 @@ export interface ICurve {
  * 抽象形状接口
  *
  * 表示由多条曲线组成的 2D 闭合或开放路径
+ * 支持孔洞（holes）用于处理复杂截面
  */
 export interface IShape {
-  /** 组成形状的曲线列表 */
+  /** 组成形状的曲线列表（外轮廓） */
   curves: ICurve[];
 
   /** 形状是否闭合 */
   isClosed: boolean;
+
+  /** 孔洞列表（内部需要挖空的区域） */
+  holes?: IShape[];
 
   /** 可选的元数据 */
   metadata?: {

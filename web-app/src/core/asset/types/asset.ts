@@ -7,6 +7,7 @@ import type {
   MachiningOpType,
 } from './enums';
 import type { ParameterDefinitions } from './parameters';
+import type { NormalizedCrossSection } from '../contract/ProfileCrossSectionContract';
 
 /**
  * 素材基础接口
@@ -29,28 +30,6 @@ export interface Asset {
   createdAt?: Date;
   /** 更新时间 */
   updatedAt?: Date;
-}
-
-/**
- * 截面定义
- * 用于描述铝型材的横截面几何
- */
-export interface CrossSection {
-  /** SVG 路径字符串，用于拉伸生成 3D 几何体 */
-  svgPath: string;
-  /** 截面宽度 (mm) */
-  width: number;
-  /** 截面高度 (mm) */
-  height: number;
-  /** 壁厚 (mm) */
-  wallThickness: number;
-  /** 截面面积 (mm²) - 用于结构计算 */
-  area?: number;
-  /** 惯性矩 (mm⁴) - 用于强度计算 */
-  momentOfInertia?: {
-    Ix: number;
-    Iy: number;
-  };
 }
 
 /**
@@ -78,18 +57,37 @@ export interface MaterialProperties {
  */
 export interface ProfileAsset extends Asset {
   type: typeof AssetType.PROFILE;
-  /** 截面定义 */
-  crossSection: CrossSection;
+
+  /** 系列标识（20系列、30系列等） */
+  series: string;
+
+  /** 截面数据（使用标准化契约格式） */
+  crossSection: NormalizedCrossSection;
+
   /** 材料属性 */
   material: MaterialProperties;
+
+  /** 长度约束 */
+  lengthConstraints: {
+    /** 最小长度 (mm) */
+    min: number;
+    /** 最大长度 (mm) */
+    max: number;
+    /** 默认长度 (mm) */
+    default: number;
+    /** 长度步进 (mm) */
+    step: number;
+  };
+
   /** 支持的加工操作类型 */
   supportedOperations: MachiningOpType[];
-  /** 默认长度 (mm) */
-  defaultLength?: number;
-  /** 最小长度 (mm) */
-  minLength?: number;
-  /** 最大长度 (mm) */
-  maxLength?: number;
+
+  /** 元数据 */
+  metadata: {
+    createdAt: string;
+    updatedAt: string;
+    tags: string[];
+  };
 }
 
 /**

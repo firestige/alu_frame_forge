@@ -98,6 +98,36 @@ export const CoreServiceProvider: React.FC<CoreServiceProviderProps> = ({
     console.log('[CoreServiceProvider] Core 层服务初始化完成');
   }
 
+  // 注册内置资产（应用级，只执行一次）
+  React.useEffect(() => {
+    if (!servicesRef.current) return;
+
+    console.log('[CoreServiceProvider] 注册内置资产');
+
+    // 动态导入内置资产
+    import('@/data/profiles/generated/2020-profile')
+      .then(({ profile2020Asset }) => {
+        // 防止 React StrictMode 导致的重复注册
+        const assetRegistry =
+          servicesRef.current?.objectManager['assetRegistry'];
+        if (assetRegistry?.['builtinAssets'].has(profile2020Asset.id)) {
+          console.log('[CoreServiceProvider] ⏭️  2020型材已存在，跳过注册');
+          return;
+        }
+
+        servicesRef.current?.objectManager.registerAsset(profile2020Asset);
+        console.log('[CoreServiceProvider] ✅ 2020型材已注册');
+      })
+      .catch(error => {
+        console.error('[CoreServiceProvider] ❌ 资产注册失败:', error);
+      });
+
+    // 未来可以批量注册
+    // import('@/data/profiles').then(({ allProfiles }) => {
+    //   allProfiles.forEach(asset => objectManager.registerAsset(asset));
+    // });
+  }, []);
+
   // 初始化 AutoSaveService（依赖 servicesRef 创建后）
   React.useEffect(() => {
     if (autoSaveRef.current || !servicesRef.current) return;
