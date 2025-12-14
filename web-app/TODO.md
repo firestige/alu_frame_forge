@@ -1,6 +1,6 @@
 # 铝型材框架设计器 - 待办事项
 
-**最后更新**: 2025-12-14
+**最后更新**: 2025-12-15
 
 > **说明**：已完成任务的详细历史记录请参考 [开发日志](./doc/DevelopLog.md)
 
@@ -99,72 +99,77 @@
 
 ---
 
-### 6. 实现 ProfileInstanceStrategy（真实型材生成）
+### 6. 型材系统实现
 
-**状态**: ✅ 已完成
+**状态**: ✅ 已完成 (2025-12-15)
 
 **优先级**: P1（高优先级）
 
-**描述**: 实现真实的型材截面拉伸逻辑，替换当前的 Stub 策略。
+**描述**: 实现完整的型材系统，包括 SVG 截面解析、拉伸几何体生成、孔洞处理、参数化编辑。
 
-**技术方案**:
+**已完成功能**:
 
-- SVG Path 解析：将 `crossSection.path` 转换为 Three.js Shape
-- 几何体生成：使用 `THREE.ExtrudeGeometry` 进行拉伸
-- 参数化尺寸：从 `userParams.length` 读取拉伸长度
+1. **ProfileInstanceStrategy 核心实现** ✅
+   - SVG Path 解析（支持外轮廓 + 多孔洞）
+   - 使用 SVGLoader 处理复杂路径
+   - 面积对比选择正确的绕向
+   - 孔洞方向验证和修正
 
-**核心实现**:
+2. **NormalizedCrossSection 数据结构** ✅
+   - `outerPath`: SVG path data（外轮廓）
+   - `holes`: SVG path data[]（孔洞数组）
+   - 数据契约统一（生成工具 → ProfileAsset → Strategy）
 
-```typescript
-class ProfileInstanceStrategy implements InstanceStrategy {
-  createSceneObject(
-    asset: ProfileAsset,
-    options: SceneObjectCreateOptions
-  ): SceneObject {
-    // 1. 解析 SVG Path
-    const shape = this.parseSVGPath(asset.parameters.crossSection.path);
+3. **AssetService SVG 转换能力** ✅
+   - `convertSVGToCrossSection()` 方法
+   - 验证路径闭合性（抽象层）
+   - 提取路径数据（支持 L/C/Q/A 命令）
 
-    // 2. 创建拉伸几何体
-    const length =
-      options.userParams?.length ?? asset.parameters.length.default;
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: length,
-      bevelEnabled: false,
-    });
+4. **孔洞侧壁渲染** ✅
+   - `createHoleWallGeometry()` 生成孔洞侧壁
+   - `mergeGeometries()` 合并外轮廓和侧壁
+   - 修复孔洞没有贴图的问题
 
-    // 3. 创建材质和网格
-    const material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
-    const mesh = new THREE.Mesh(geometry, material);
+5. **参数化编辑功能** ✅
+   - NumberInput 组件（支持约束、单位、键盘微调）
+   - PropertyEditor 通用属性编辑器
+   - ParameterEditDialog 对话框（P1）
+   - PropertyPanel 内联编辑（P0）
+   - 右键菜单"编辑参数"集成
+   - ObjectManager.updateUserParams 完整流程
 
-    // 4. 应用加工操作（如果有）
-    if (options.machiningOps && options.machiningOps.length > 0) {
-      this.applyMachiningOperations(mesh, options.machiningOps);
-    }
+6. **架构设计** ✅
+   - 三层职责划分（Library → AssetService → Strategy）
+   - AssetService 保证抽象层正确性（路径闭合）
+   - Strategy 保证渲染层正确性（方向关系、拓扑结构）
+   - 数据契约定义期望，消费方保留验证能力
 
-    // 5. 返回 SceneObject
-    return {
-      /* ... */
-    };
-  }
-}
-```
+**测试覆盖**:
 
-**任务列表**:
+- ✅ AssetService.svg-conversion.test.ts (4 tests)
+- ✅ SVGPathParser.test.ts (12 tests)
+- ✅ ProfileInstanceStrategy 集成测试
 
-- [ ] 实现 SVG Path 解析器（支持 M, L, C, Q, A 命令）
-- [ ] 实现 ExtrudeGeometry 生成逻辑
-- [ ] 实现加工操作应用（布尔运算）
-- [ ] 集成 three-bvh-csg 库
-- [ ] 注册到 ModelFactory（替换 StubProfileStrategy）
-- [ ] 测试各种型材截面
+**关键文件**:
 
-**参考资料**:
+- `src/core/asset/AssetService.ts` - SVG 转换
+- `src/core/object/strategies/ProfileInstanceStrategy.ts` - 型材实例化
+- `src/components/Dialog/Dialog.tsx` - 通用对话框
+- `src/components/Input/NumberInput.tsx` - 数值输入
+- `src/features/designer/ui/components/ParameterEditDialog.tsx` - 参数编辑
+- `src/data/profiles/generated/profile-2020.ts` - 2020型材数据
 
-- [Three.js ExtrudeGeometry 文档](https://threejs.org/docs/#api/en/geometries/ExtrudeGeometry)
-- [SVG Path 规范](https://www.w3.org/TR/SVG/paths.html)
-- [three-bvh-csg GitHub](https://github.com/gkjohnson/three-bvh-csg)
+**架构文档**:
 
-**参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)、[RenderingSystem.md](./doc/design/RenderingSystem.md)
+- [DataFlowArchitecture-Final.md](./doc/methodology/case-studies/DataFlowArchitecture-Final.md) - 完整架构设计
+- [ProfileRenderingIssue-SVGPathDirection.md](./doc/methodology/case-studies/ProfileRenderingIssue-SVGPathDirection.md) - SVG 方向问题案例
+
+**未完成部分**:
+
+- ⏳ 加工操作实现（见任务 #9）
+- ⏳ 锚点可视化（见任务 #13 Phase 6）
+
+**参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)、[DataFlowArchitecture-Final.md](./doc/methodology/case-studies/DataFlowArchitecture-Final.md)
 
 ---
 
@@ -446,46 +451,301 @@ class ConstraintService {
 
 ---
 
-## P3 - 低优先级（长期规划）
+## P1 - 高优先级（本周完成）
 
-### 6. 实现 FastenerInstanceStrategy
+### 14. 连接件与紧固件系统 - 约束验证场景搭建
 
-**状态**: ⏳ 待执行
+**状态**: 🚧 进行中
 
-**描述**: 实现紧固件（螺栓、螺母）的参数化模型生成。
+**优先级**: P1（**从 P3 提升**，约束系统验证的前置条件）
 
-**技术方案**:
+**问题背景**:
 
-- 螺栓：圆柱体 + 六角头 + 螺纹（可选）
-- 螺母：六角柱 + 内螺纹（可选）
-- T型螺母：特殊形状的参数化生成
+当前状态：
 
-**任务列表**:
+- ✅ 型材系统完整（ProfileAsset + Strategy + 参数化编辑）
+- ✅ 锚点系统 Core 层完成（AnchorService, 11 tests）
+- ✅ 约束系统 Core 层完成（ConstraintService, 16 tests）
+- ❌ 缺少完整的验证场景
 
-- [ ] 实现螺栓几何体生成
-- [ ] 实现螺母几何体生成
-- [ ] 实现 T 型螺母几何体生成
-- [ ] 参数化控制（规格、长度等）
-- [ ] 注册到 ModelFactory
+无法验证：
 
-**参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)
+- 连接件孔位 → 型材端面孔的对齐约束
+- T型连接件 → 型材侧面槽的滑动约束
+- 多对象装配的约束求解效果
+- 用户交互流程（拖拽吸附、智能对齐）
+
+**核心目标**:
+搭建完整的"型材 + 连接件 + 紧固件"验证场景，验证约束系统在真实装配场景中的表现。
+
+**架构决策**:
+
+1. **功能性简化模型策略**
+   - 视觉可以简化（性能优化）→ 用基本几何体组合
+   - 功能数据必须精确（约束计算准确性）→ 基于真实规格或合理 STUB
+   - 架构分离（visual vs compute）→ 支持后续升级
+
+2. **占位数据策略**（STUB Data）
+   - 在获得真实产品规格前，使用合理推测的占位数据
+   - 明确标注 🔴 STUB，注明精度等级（如 ± 2mm）
+   - 后续只替换数据，无需修改框架代码
+   - 数据文件命名：`*.stub.ts`，真实数据：`*.real.ts`
+
+3. **最小实现集**
+   - 1 款 L型角件（40x40mm，适配 2020 型材）
+   - 1 款 M5 螺栓（20mm）
+   - 足以验证核心约束逻辑
+
+**详细实施计划**:
+
+**Phase 1: 数据结构设计**（0.5天）
+
+创建完整的类型定义：
+
+文件：`src/core/asset/types/connector.ts`
+
+```typescript
+export interface ConnectorAsset extends BaseAsset {
+  type: AssetType.CONNECTOR;
+  connectorType: ConnectorType; // L_BRACKET, T_BRACKET, etc.
+  compatibleSeries: number[]; // [20, 30, 40]
+
+  // 视觉模型（简化，用于渲染）
+  visual: ConnectorVisualModel;
+
+  // 功能数据（精确，用于约束计算）
+  functional: ConnectorFunctionalData;
+
+  material: MaterialSpec;
+}
+
+export interface ConnectorFunctionalData {
+  contactFaces: ContactFace[]; // 接触面（面面约束）
+  holes: ConnectorHole[]; // 孔位（点对点约束）
+  slides?: ConnectorSlide[]; // 滑槽（滑动约束）
+  mass: number;
+  centerOfMass: Vector3;
+}
+
+export interface ConnectorHole {
+  id: string;
+  position: Vector3; // 相对于连接件中心
+  axis: Vector3; // 孔的方向
+  holeType: HoleType; // THROUGH, THREADED, etc.
+  diameter: number;
+  depth: number; // -1 表示通孔
+  threadSpec?: ThreadSpec; // M5, M6 等
+  purpose: HolePurpose; // PROFILE_ATTACHMENT, FASTENER_THROUGH
+  alignmentTarget?: AlignmentTarget; // 对齐目标定义
+}
+```
+
+文件：`src/core/asset/types/fastener.ts`
+
+```typescript
+export interface FastenerAsset extends BaseAsset {
+  type: AssetType.FASTENER;
+  fastenerType: 'bolt' | 'nut' | 'screw';
+  threadSpec: ThreadSpec;
+  length?: number; // 螺栓长度
+}
+```
+
+扩展锚点类型：
+
+- `AnchorType.CONNECTOR_HOLE`
+- `AnchorType.CONNECTOR_FACE`
+
+**Phase 2: 占位数据创建**（0.5天）
+
+文件：`src/data/connectors/l-bracket-40.stub.ts`
+
+```typescript
+/**
+ * 🔴 STUB DATA - 待真实规格替换
+ * 精度等级：± 2mm（仅用于框架验证）
+ *
+ * TODO: 替换为真实产品规格
+ * 参考产品：80/20 系列 4112 或 Bosch Rexroth 类似产品
+ */
+export const lBracket40Stub: ConnectorAsset = {
+  id: 'connector-l-bracket-40-stub',
+  name: 'L型角件 40x40 (STUB)',
+  type: AssetType.CONNECTOR,
+  connectorType: ConnectorType.L_BRACKET,
+
+  visual: {
+    type: 'simplified',
+    simplified: {
+      primitives: [
+        // 用两个立方体组合成 L 型
+        { type: 'box', position: {x: -20, y: 0, z: 0}, dimensions: {...} },
+        { type: 'box', position: {x: 0, y: 0, z: 20}, dimensions: {...} }
+      ]
+    }
+  },
+
+  functional: {
+    contactFaces: [
+      // 🔴 STUB: 基于合理推测
+      { id: 'face-inner-a', normal: {x:1,y:0,z:0}, position: {x:-20,y:0,z:2.5} },
+      { id: 'face-inner-b', normal: {x:0,y:0,z:1}, position: {x:2.5,y:0,z:20} }
+    ],
+    holes: [
+      // 🔴 STUB: 假设距边缘 5mm，对齐 2020 型材端面孔
+      { id: 'hole-a1', position: {x:-15,y:0,z:5}, diameter: 5.5, ... },
+      { id: 'hole-a2', position: {x:-15,y:0,z:-5}, ... },
+      { id: 'hole-b1', position: {x:5,y:0,z:15}, ... },
+      { id: 'hole-b2', position: {x:-5,y:0,z:15}, ... }
+    ],
+    mass: 0.05, // 🔴 STUB: 50g
+    centerOfMass: {x:-10,y:0,z:10}
+  }
+};
+```
+
+文件：`src/data/fasteners/m5-bolt-20.stub.ts`
+
+**Phase 3: ConnectorInstanceStrategy**（1天）
+
+文件：`src/core/object/strategies/ConnectorInstanceStrategy.ts`
+
+核心逻辑：
+
+```typescript
+export class ConnectorInstanceStrategy implements InstanceStrategy {
+  canHandle(asset: AnyAsset): boolean {
+    return asset.type === AssetType.CONNECTOR;
+  }
+
+  createSceneObject(asset: AnyAsset, options): SceneObject {
+    const connectorAsset = asset as ConnectorAsset;
+
+    // 1. 创建视觉模型（基于 simplified primitives）
+    const visualMesh = this.createVisualMesh(connectorAsset);
+
+    // 2. 生成锚点（基于 functional.holes 和 contactFaces）
+    const anchors = this.generateAnchors(connectorAsset);
+
+    // 3. 返回 SceneObject（分离 visual 和 compute）
+    return {
+      id: this.generateId(),
+      assetId: asset.id,
+      type: 'connector',
+      visual: { mesh: visualMesh },
+      compute: {
+        geometry: {
+          type: 'connector',
+          contactFaces: connectorAsset.functional.contactFaces,
+          holes: connectorAsset.functional.holes,
+        },
+        mass: connectorAsset.functional.mass,
+      },
+      anchors,
+      // ...
+    };
+  }
+
+  private createVisualMesh(asset: ConnectorAsset): THREE.Group {
+    // 遍历 primitives，创建立方体/圆柱体组合
+  }
+
+  private generateAnchors(asset: ConnectorAsset): AnchorPoint[] {
+    // 为每个孔位和接触面生成锚点
+  }
+}
+```
+
+**Phase 4: FastenerInstanceStrategy**（0.5天）
+
+文件：`src/core/object/strategies/FastenerInstanceStrategy.ts`
+
+简化实现：
+
+- 视觉：小圆柱体（直径 5mm，长度 20mm）
+- 功能：threadSpec 数据
+
+**Phase 5: 验证场景搭建**（1天）
+
+创建测试场景：
+
+```typescript
+// 在 DesignerPage 或测试文件中
+
+// 1. 创建 2 根型材
+const profileA = objectManager.addObject(profile2020Asset, {
+  length: 500,
+  position: { x: 0, y: 0, z: 0 },
+});
+
+const profileB = objectManager.addObject(profile2020Asset, {
+  length: 300,
+  position: { x: 0, y: 0, z: 0 }, // 初始位置
+});
+
+// 2. 添加 L 型角件
+const bracket = objectManager.addObject(lBracket40Stub, {
+  position: { x: 250, y: 0, z: 0 },
+});
+
+// 3. 创建约束：角件孔 → 型材端点
+constraintManager.addConstraint({
+  type: 'point-to-point',
+  objectAId: bracket.id,
+  objectBId: profileA.id,
+  anchorAId: 'hole-a1',
+  anchorBId: 'profile-a-end-back',
+  priority: 'HIGH',
+});
+
+constraintManager.addConstraint({
+  type: 'point-to-point',
+  objectAId: bracket.id,
+  objectBId: profileB.id,
+  anchorAId: 'hole-b1',
+  anchorBId: 'profile-b-end-front',
+  priority: 'HIGH',
+});
+
+// 4. 添加紧固件（可选）
+const bolt1 = objectManager.addObject(m5BoltStub, {
+  position: bracket.anchors.find(a => a.id === 'hole-a1').position,
+});
+
+// 5. 验证约束求解
+const result = constraintManager.solveConstraints();
+expect(result.satisfied).toBe(true);
+```
+
+**成功标准**:
+
+- ✅ 能在场景中看到：2 根型材 + 1 个角件 + 2 个螺栓
+- ✅ 约束系统能计算正确的位置关系
+- ✅ 拖动型材时，约束自动求解
+- ✅ 锚点系统能识别连接件孔位
+- ✅ 框架代码支持后续替换真实数据（无需修改逻辑）
+
+**后续工作**（Phase 6+，未来迭代）:
+
+- ⏳ 获取真实产品规格（80/20、Bosch Rexroth 等）
+- ⏳ 创建 `*.real.ts` 文件替换 STUB 数据
+- ⏳ 实现 UI 可视化层（AnchorGizmo, ConstraintGizmo）
+- ⏳ 添加更多连接件类型（T型、转角等）
+
+**关联任务**:
+
+- 依赖：Task #6 型材系统（已完成 ✅）
+- 依赖：Task #13 锚点与约束系统 Phase 1-5（已完成 ✅）
+- 阻塞：Task #13 Phase 6 UI 可视化（需要真实场景验证需求）
+
+**参考文档**:
+
+- [锚点与约束系统设计](./doc/_temp/AnchorConstraintSystem.md)
+- [核心架构](./doc/design/CoreArchitecture.md)
 
 ---
 
-### 7. 实现 ConnectorInstanceStrategy
-
-**状态**: ⏳ 待执行
-
-**描述**: 实现连接件（角码、直角连接件等）的参数化模型生成。
-
-**任务列表**:
-
-- [ ] 定义连接件类型枚举
-- [ ] 实现各种连接件几何体生成
-- [ ] 参数化控制（尺寸、孔位等）
-- [ ] 注册到 ModelFactory
-
-**参考文档**: [CoreArchitecture.md](./doc/design/CoreArchitecture.md)
+## P3 - 低优先级（长期规划）
 
 ---
 

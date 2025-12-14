@@ -1,6 +1,6 @@
 # 核心架构设计
 
-**最后更新**: 2025-12-05
+**最后更新**: 2025-12-15
 
 本文档详细说明铝型材框架设计器的核心架构设计，包括分层架构、服务容器、事件驱动模式和依赖规则。
 
@@ -862,3 +862,330 @@ const handleReassociateAsset = async (objectId: string, newAssetId: string) => {
    - Library 页面响应事件刷新列表
 
 **详细设计文档**：[资产引用完整性设计](./AssetReferenceIntegrity.md)
+
+---
+
+## 11. 型材系统实现
+
+**最后更新**: 2025-12-15
+
+### 11.1 系统概述
+
+型材系统通过 ProfileInstanceStrategy 实现欧标铝型材的 3D 建模，采用三层职责划分确保数据契约统一。
+
+**完成状态**: ✅ 100% | **测试覆盖**: 76 tests
+
+### 11.2 ProfileInstanceStrategy
+
+**文件**: `src/core/object/strategies/ProfileInstanceStrategy.ts`
+
+**核心功能**:
+
+```typescript
+export class ProfileInstanceStrategy implements InstanceStrategy {
+  canHandle(asset: AnyAsset): boolean {
+    return asset.type === AssetType.PROFILE;
+  }
+
+  createSceneObject(
+    asset: AnyAsset,
+    options: SceneObjectCreateOptions
+  ): SceneObject {
+    const profileAsset = asset as ProfileAsset;
+
+    // 1. 解析 SVG 截面数据
+    const { outerPath, holes } = profileAsset.crossSection;
+    const outerShape = this.parsePathToShape(outerPath);
+    const holeShapes = holes?.map(h => this.parsePathToShape(h)) || [];
+
+    // 2. 创建拉伸几何体
+    const length =
+      options.userParams?.length ?? profileAsset.parameters.length.default;
+    const outerGeometry = new THREE.ExtrudeGeometry(outerShape, {
+      depth: length,
+      bevelEnabled: false,
+    });
+
+    // 3. 生成孔洞侧壁
+    const holeWallGeometries =
+      holes?.map(holePath => this.createHoleWallGeometry(holePath, length)) ||
+      [];
+
+    // 4. 合并几何体
+    const mergedGeometry = mergeGeometries([
+      outerGeometry,
+      ...holeWallGeometries,
+    ]);
+
+    // 5. 创建 SceneObject
+    return {
+      id: generateId(),
+      assetId: asset.id,
+      type: 'profile',
+      visual: {
+        mesh: new THREE.Mesh(mergedGeometry, material),
+      },
+      compute: {
+        geometry: {
+          type: 'extruded-profile',
+          crossSection: profileAsset.crossSection,
+          length,
+        },
+      },
+      // ...
+    };
+  }
+}
+```
+
+**技术亮点**:
+
+1. **SVG Path 解析**: 使用 THREE.SVGLoader 支持复杂路径（M, L, C, Q, A 命令）
+2. **面积对比**: 自动选择正确的绕向（CW/CCW）
+3. **孔洞方向修正**: 确保孔洞与外轮廓方向相反
+4. **孔洞侧壁生成**: 解决孔洞没有贴图的问题
+
+### 11.3 NormalizedCrossSection 数据契约
+
+**文件**: `src/core/asset/types/profile.ts`
+
+```typescript
+export interface NormalizedCrossSection {
+  outerPath: string; // SVG path data (外轮廓)
+  holes?: string[]; // SVG path data[] (孔洞数组，可选)
+}
+```
+
+**设计原则**:
+
+- **统一格式**: 生成工具 → ProfileAsset → Strategy 使用相同格式
+- **完整性**: 支持外轮廓 + 多孔洞
+- **可验证**: 路径闭合性可在多层验证
+
+### 11.4 三层职责划分
+
+```
+Library (UI 层)
+  ↓ 调用 AssetService API
+AssetService (抽象层)
+  - convertSVGToCrossSection(): 验证路径闭合性
+  - 保证 ProfileAsset 数据正确性
+  ↓ 提供验证后的数据
+ProfileInstanceStrategy (实现层)
+  - 保留运行时验证（面积对比、方向）
+  - 专注渲染正确性（拓扑结构）
+```
+
+**设计收益**:
+
+- ✅ AssetService 定义期望（数据契约）
+- ✅ Strategy 保留验证能力（容错）
+- ✅ 消费方可验证数据质量
+- ✅ 职责明确不重复
+
+### 11.5 参数化编辑
+
+**组件清单**:
+
+| 组件                | 优先级 | 功能                  |
+| ------------------- | ------ | --------------------- |
+| NumberInput         | P0     | 数值输入（单位/约束） |
+| PropertyEditor      | P1     | 通用属性编辑          |
+| ParameterEditDialog | P1     | 对话框编辑            |
+| PropertyPanel       | P0     | 内联编辑              |
+
+**用户交互流程**:
+
+1. 右键对象 → "编辑参数"
+2. 打开 ParameterEditDialog
+3. 修改参数（如 length: 500 → 800）
+4. ObjectManager.updateUserParams
+5. Strategy 重新生成几何体
+6. 实时预览
+
+### 11.6 测试覆盖
+
+| 测试模块                    | 测试数 | 状态 |
+| --------------------------- | ------ | ---- |
+| AssetService.svg-conversion | 4      | ✅   |
+| SVGPathParser               | 12     | ✅   |
+| ProfileInstanceStrategy     | 18     | ✅   |
+| AnchorService               | 11     | ✅   |
+| ConstraintService           | 16     | ✅   |
+| ConstraintManager           | 15     | ✅   |
+| **总计 (Core 层)**          | **76** | ✅   |
+
+### 11.7 相关文档
+
+- [DataFlowArchitecture-Final.md](../methodology/case-studies/DataFlowArchitecture-Final.md) - 完整架构设计
+- [ProfileRenderingIssue-SVGPathDirection.md](../methodology/case-studies/ProfileRenderingIssue-SVGPathDirection.md) - SVG 方向问题
+- [DevelopLog-2025-12-15.md](../DevelopLog-2025-12-15.md) - 开发日志
+
+---
+
+## 12. 连接件与紧固件系统设计
+
+**最后更新**: 2025-12-15
+
+### 12.1 系统概述
+
+连接件与紧固件系统负责搭建完整的"型材 + 连接件 + 紧固件"验证场景，是约束系统验证的前置条件。
+
+**当前状态**: 🚧 进行中 (P1 优先级)
+
+### 12.2 核心架构决策
+
+#### 功能性简化模型策略
+
+**设计原则**: 视觉简化 + 功能精确
+
+```typescript
+interface ConnectorAsset {
+  // 视觉模型（简化，用于渲染）
+  visual: {
+    type: 'simplified';
+    primitives: GeometricPrimitive[]; // 立方体/圆柱体组合
+  };
+
+  // 功能数据（精确，用于约束计算）
+  functional: {
+    contactFaces: ContactFace[]; // 面面约束
+    holes: ConnectorHole[]; // 点对点约束
+    slides?: ConnectorSlide[]; // 滑动约束
+  };
+}
+```
+
+**为什么这样设计？**
+
+1. **性能 vs 精度**: 简化视觉 + 精确功能
+2. **渐进式完善**: 先搭框架，后续替换高精度模型
+3. **架构分离**: visual 和 functional 独立
+
+#### STUB 数据策略
+
+**核心思想**: 接口先行、占位数据、渐进完善
+
+**实施规范**:
+
+- **标注**: 🔴 STUB DATA
+- **精度**: ± 2mm（框架验证）
+- **命名**: `*.stub.ts` / `*.real.ts`
+- **替换**: 注释说明数据来源
+
+**示例**:
+
+```typescript
+// src/data/connectors/l-bracket-40.stub.ts
+
+/**
+ * 🔴 STUB DATA - 待真实规格替换
+ * 精度等级: ± 2mm（仅用于框架验证）
+ *
+ * TODO: 替换为真实产品规格
+ * 参考产品: 80/20 系列 4112
+ */
+```
+
+### 12.3 ConnectorInstanceStrategy
+
+**文件**: `src/core/object/strategies/ConnectorInstanceStrategy.ts` (待创建)
+
+**核心逻辑**:
+
+```typescript
+export class ConnectorInstanceStrategy implements InstanceStrategy {
+  canHandle(asset: AnyAsset): boolean {
+    return asset.type === AssetType.CONNECTOR;
+  }
+
+  createSceneObject(asset: AnyAsset, options): SceneObject {
+    const connectorAsset = asset as ConnectorAsset;
+
+    // 1. 创建简化视觉模型（基于 primitives）
+    const visualMesh = this.createVisualMesh(connectorAsset);
+
+    // 2. 生成锚点（基于 functional.holes 和 contactFaces）
+    const anchors = this.generateAnchors(connectorAsset);
+
+    // 3. 分离 visual 和 compute
+    return {
+      id: generateId(),
+      assetId: asset.id,
+      type: 'connector',
+      visual: { mesh: visualMesh },
+      compute: {
+        geometry: {
+          type: 'connector',
+          contactFaces: connectorAsset.functional.contactFaces,
+          holes: connectorAsset.functional.holes,
+        },
+      },
+      anchors,
+    };
+  }
+}
+```
+
+### 12.4 FastenerInstanceStrategy
+
+**文件**: `src/core/object/strategies/FastenerInstanceStrategy.ts` (待创建)
+
+**简化实现**:
+
+- 视觉: 圆柱体（直径 5mm，长度 20mm）
+- 功能: threadSpec 数据
+
+### 12.5 最小实现集
+
+**目标**: 用最少资产验证完整功能
+
+1. **L型角件 40x40**
+   - 4 个孔位（2+2 分布）
+   - 2 个接触面
+   - 适配 2020 型材
+
+2. **M5 螺栓 20mm**
+   - M5 螺纹规格
+   - 20mm 长度
+
+### 12.6 实施计划
+
+**Phase 1**: 数据结构设计 (0.5 天)
+**Phase 2**: STUB 数据创建 (0.5 天)
+**Phase 3**: ConnectorInstanceStrategy (1 天)
+**Phase 4**: FastenerInstanceStrategy (0.5 天)
+**Phase 5**: 验证场景搭建 (1 天)
+**Phase 6**: 文档和测试 (0.5 天)
+
+**总计**: 3-4 天
+
+### 12.7 成功标准
+
+**功能验证**:
+
+- ✅ 场景中显示：2 根型材 + 1 个角件 + 2 个螺栓
+- ✅ 约束系统计算正确的位置关系
+- ✅ 拖动型材时约束自动求解
+- ✅ 锚点系统识别连接件孔位
+- ✅ 框架支持后续替换真实数据
+
+### 12.8 依赖关系
+
+```
+Task #6: 型材系统 (✅ 已完成)
+   ↓
+Task #13 Phase 1-5: 约束系统 Core 层 (✅ 已完成)
+   ↓
+Task #14: 连接件/紧固件系统 (🚧 进行中，P1)
+   ↓ 阻塞
+Task #13 Phase 6: 约束系统 UI 层 (⏳ 待执行)
+   ↓
+Task #9: 加工操作系统 (⏳ 待执行)
+```
+
+### 12.9 相关文档
+
+- [AnchorConstraintSystem.md](../_temp/AnchorConstraintSystem.md) - 锚点与约束系统
+- [TODO.md](../../TODO.md) - Task #14 详细计划
+- [DevelopLog-2025-12-15.md](../DevelopLog-2025-12-15.md) - 决策记录
