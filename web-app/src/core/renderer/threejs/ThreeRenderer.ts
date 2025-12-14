@@ -17,6 +17,8 @@ import type {
   OrbitControlsConfig,
   RaycastHit,
   WorkPlaneConfig,
+  ExtrusionParams,
+  MeshHandle,
 } from '../renderer-types';
 import { SceneManager } from './SceneManager';
 import { CameraController } from './CameraController';
@@ -26,6 +28,10 @@ import { RendererCore } from './RendererCore';
 import type { OutlineEffect } from './OutlineEffect';
 import { ThreeTransformController } from './ThreeTransformController';
 import type { ITransformController } from '../renderer-types';
+import type { IShape } from '@/core/geometry/types';
+import type { MaterialProperties } from '@/core/geometry/types';
+import { ThreeGeometryAdapter } from './adapters/ThreeGeometryAdapter';
+import { ThreeMaterialFactory } from './adapters/ThreeMaterialFactory';
 
 /**
  * Three.js 渲染器实现
@@ -150,6 +156,66 @@ export class ThreeRenderer implements IRenderer {
   }
 
   // ==================== 场景对象管理 ====================
+
+  /**
+   * 创建拉伸网格
+   */
+  createExtrudedMesh(params: ExtrusionParams): MeshHandle {
+    // 1. 转换抽象形状到 Three.js Shape
+    const shape = params.shape as IShape;
+    const threeShape = ThreeGeometryAdapter.shapeToThreeShape(shape);
+
+    // 2. 创建拉伸几何体
+    const geometry = ThreeGeometryAdapter.createSimplifiedExtrudeGeometry(
+      threeShape,
+      params.length
+    );
+
+    // 3. 创建材质
+    const materialProps = params.material as MaterialProperties;
+    const material = ThreeMaterialFactory.create(materialProps);
+
+    // 4. 创建网格
+    const mesh = new THREE.Mesh(geometry, material);
+
+    // 5. 应用变换
+    if (params.transform) {
+      if (params.transform.position) {
+        mesh.position.set(
+          params.transform.position.x,
+          params.transform.position.y,
+          params.transform.position.z
+        );
+      }
+      if (params.transform.rotation) {
+        mesh.rotation.set(
+          params.transform.rotation.x,
+          params.transform.rotation.y,
+          params.transform.rotation.z,
+          params.transform.rotation.order
+        );
+      }
+      if (params.transform.scale) {
+        mesh.scale.set(
+          params.transform.scale.x,
+          params.transform.scale.y,
+          params.transform.scale.z
+        );
+      }
+    }
+
+    // 6. 设置用户数据
+    if (params.userData) {
+      mesh.userData = { ...mesh.userData, ...params.userData };
+    }
+
+    // 7. 返回网格句柄
+    return {
+      nativeObject: mesh,
+      geometryHandle: geometry,
+      materialHandle: material,
+    };
+  }
 
   addObject(object: unknown, userData?: Record<string, unknown>): void {
     if (!object || typeof object !== 'object') {
