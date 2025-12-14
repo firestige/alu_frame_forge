@@ -29,12 +29,12 @@ export class ThreeGeometryAdapter {
     // 检查是否已经是 THREE.Shape（来自 SVGLoader）
     if (shape instanceof THREE.Shape) {
       console.log('[ThreeGeometryAdapter] 检测到 THREE.Shape，直接使用');
-      
+
       // 如果需要缩放，应用缩放变换
       if (targetSize) {
         return this.scaleShape(shape, targetSize);
       }
-      
+
       return shape;
     }
 
@@ -355,7 +355,7 @@ export class ThreeGeometryAdapter {
 
   /**
    * 缩放 THREE.Shape 到目标尺寸
-   * 
+   *
    * @param shape - Three.js Shape
    * @param targetSize - 目标尺寸(mm)
    * @returns 缩放后的 Shape
@@ -365,7 +365,7 @@ export class ThreeGeometryAdapter {
     targetSize: number
   ): THREE.Shape {
     const MM_TO_M = 0.001;
-    
+
     // 计算当前 Shape 的边界框
     const points = shape.getPoints();
     let minX = Infinity,
@@ -399,7 +399,7 @@ export class ThreeGeometryAdapter {
 
     // 创建新的 Shape 应用变换
     const newShape = new THREE.Shape();
-    
+
     // 变换主轮廓
     const transformedPoints = points.map(p => ({
       x: (p.x - centerX) * scale,
@@ -426,14 +426,20 @@ export class ThreeGeometryAdapter {
         const holePath = new THREE.Path();
         holePath.moveTo(transformedHolePoints[0].x, transformedHolePoints[0].y);
         for (let i = 1; i < transformedHolePoints.length; i++) {
-          holePath.lineTo(transformedHolePoints[i].x, transformedHolePoints[i].y);
+          holePath.lineTo(
+            transformedHolePoints[i].x,
+            transformedHolePoints[i].y
+          );
         }
         holePath.closePath();
         newShape.holes.push(holePath);
       }
     }
 
-    console.log('[ThreeGeometryAdapter] ✅ Shape缩放完成, holes:', newShape.holes.length);
+    console.log(
+      '[ThreeGeometryAdapter] ✅ Shape缩放完成, holes:',
+      newShape.holes.length
+    );
     return newShape;
   }
 }

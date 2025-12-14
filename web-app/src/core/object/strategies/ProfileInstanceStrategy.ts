@@ -270,7 +270,7 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
 
   /**
    * 使用 SVGLoader 解析 SVG 路径并正确处理孔洞方向
-   * 
+   *
    * @param outerPath - 外轮廓SVG路径
    * @param holes - 孔洞SVG路径数组
    * @returns IShape 对象（直接传递给 ThreeGeometryAdapter）
@@ -294,10 +294,10 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
 
     // 获取第一个路径（外轮廓）
     const outerPathData = svgData.paths[0];
-    
+
     // 尝试两种方向
-    const shapesAsCCW = outerPathData.toShapes(true);  // 逆时针为外轮廓
-    const shapesAsCW = outerPathData.toShapes(false);  // 顺时针为外轮廓
+    const shapesAsCCW = outerPathData.toShapes(true); // 逆时针为外轮廓
+    const shapesAsCW = outerPathData.toShapes(false); // 顺时针为外轮廓
 
     console.log('[ProfileInstanceStrategy] 🔍 Shape方向测试:', {
       CCW_shapes: shapesAsCCW.length,
@@ -309,14 +309,15 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     if (shapesAsCCW.length > 0 && shapesAsCW.length > 0) {
       const areaCCW = THREE.ShapeUtils.area(shapesAsCCW[0].getPoints());
       const areaCW = THREE.ShapeUtils.area(shapesAsCW[0].getPoints());
-      
+
       console.log('[ProfileInstanceStrategy] 📐 面积对比:', {
         CCW: Math.abs(areaCCW),
         CW: Math.abs(areaCW),
       });
-      
+
       // 选择面积的绝对值更大的作为外轮廓
-      shape = Math.abs(areaCCW) > Math.abs(areaCW) ? shapesAsCCW[0] : shapesAsCW[0];
+      shape =
+        Math.abs(areaCCW) > Math.abs(areaCW) ? shapesAsCCW[0] : shapesAsCW[0];
     } else {
       shape = shapesAsCCW.length > 0 ? shapesAsCCW[0] : shapesAsCW[0];
     }
@@ -336,20 +337,22 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     // 手动添加孔洞（从 svgData.paths 获取）
     if (svgData.paths.length > 1) {
       const outerArea = THREE.ShapeUtils.area(shape.getPoints());
-      
+
       for (let i = 1; i < svgData.paths.length; i++) {
         const holePathData = svgData.paths[i];
         const holeShapes = holePathData.toShapes(true);
-        
+
         if (holeShapes.length > 0) {
           const hole = holeShapes[0];
           const holeArea = THREE.ShapeUtils.area(hole.getPoints());
-          
+
           console.log(`[ProfileInstanceStrategy] 🔍 孔洞 ${i} 面积:`, holeArea);
-          
+
           // 确保孔洞方向与外轮廓相反
-          if ((holeArea > 0) === (outerArea > 0)) {
-            console.log(`[ProfileInstanceStrategy]   ⚠️ 孔洞方向与外轮廓相同，需要反转`);
+          if (holeArea > 0 === outerArea > 0) {
+            console.log(
+              `[ProfileInstanceStrategy]   ⚠️ 孔洞方向与外轮廓相同，需要反转`
+            );
             // 反转孔洞方向
             hole.curves.reverse();
             hole.curves.forEach((curve: any) => {
@@ -360,7 +363,7 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
               }
             });
           }
-          
+
           shape.holes.push(hole);
           console.log(`[ProfileInstanceStrategy] ✅ 添加孔洞 ${i}:`, {
             curves: hole.curves?.length,

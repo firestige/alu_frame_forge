@@ -111,10 +111,10 @@ function App() {
 
     // 提取外轮廓 - 使用 toShapes(false) 避免自动孔洞识别
     const outerSvgPath = svgData.paths[0];
-    
+
     // 尝试两种方向，看哪个是外轮廓
-    const shapesAsCCW = outerSvgPath.toShapes(true);  // 逆时针为外轮廓
-    const shapesAsCW = outerSvgPath.toShapes(false);  // 顺时针为外轮廓
+    const shapesAsCCW = outerSvgPath.toShapes(true); // 逆时针为外轮廓
+    const shapesAsCW = outerSvgPath.toShapes(false); // 顺时针为外轮廓
 
     console.log('🔍 Shape方向测试:', {
       CCW_shapes: shapesAsCCW.length,
@@ -126,14 +126,15 @@ function App() {
     if (shapesAsCCW.length > 0 && shapesAsCW.length > 0) {
       const areaCCW = THREE.ShapeUtils.area(shapesAsCCW[0].getPoints());
       const areaCW = THREE.ShapeUtils.area(shapesAsCW[0].getPoints());
-      
+
       console.log('📐 面积对比:', {
         CCW: Math.abs(areaCCW),
         CW: Math.abs(areaCW),
       });
-      
+
       // 选择面积的绝对值更大的作为外轮廓
-      shape = Math.abs(areaCCW) > Math.abs(areaCW) ? shapesAsCCW[0] : shapesAsCW[0];
+      shape =
+        Math.abs(areaCCW) > Math.abs(areaCW) ? shapesAsCCW[0] : shapesAsCW[0];
     } else {
       shape = shapesAsCCW.length > 0 ? shapesAsCCW[0] : shapesAsCW[0];
     }
@@ -155,11 +156,11 @@ function App() {
           // 孔洞需要是顺时针方向（与外轮廓相反）
           const hole = holeShapes[0];
           const holeArea = THREE.ShapeUtils.area(hole.getPoints());
-          
+
           console.log(`🔍 孔洞 ${i} 面积:`, holeArea);
-          
+
           // 确保孔洞方向正确（应该与外轮廓相反）
-          if ((holeArea > 0) === (THREE.ShapeUtils.area(shape.getPoints()) > 0)) {
+          if (holeArea > 0 === THREE.ShapeUtils.area(shape.getPoints()) > 0) {
             console.log(`  ⚠️ 孔洞方向与外轮廓相同，需要反转`);
             // 反转孔洞方向
             hole.curves.reverse();
@@ -171,7 +172,7 @@ function App() {
               }
             });
           }
-          
+
           shape.holes.push(hole);
           console.log(`✅ 添加孔洞 ${i}:`, {
             holeCurves: hole.curves.length,
