@@ -279,7 +279,7 @@ export interface ITransformController {
 class ThreeTransformController implements ITransformController {
   public onDraggingChanged?: (dragging: boolean) => void;
   public onTransformCompleted?: (data: TransformData) => void;
-  
+
   private handleDraggingChanged = (event): void => {
     // 通过回调向上报告，不直接用 EventBus
     this.onDraggingChanged?.(dragging);
@@ -290,9 +290,9 @@ class ThreeTransformController implements ITransformController {
 class TransformService {
   private setupControllerCallbacks(): void {
     const controller = this.renderer.getTransformController();
-    
+
     // 在这里连接回调和 EventBus
-    controller.onDraggingChanged = (dragging) => {
+    controller.onDraggingChanged = dragging => {
       publishState('state:transform:draggingChanged', { dragging });
     };
   }
@@ -657,4 +657,208 @@ await sendToFEAService(exportData);
 - [状态管理策略](./StateManagement.md) - Context Provider、Zustand、持久化
 - [存储系统设计](./StorageSystem.md) - AutoSaveService、三层持久化
 - [渲染系统设计](./RenderingSystem.md) - Three.js 实现、RenderSyncService
-- [素材管理系统](./AssetSystem.md) - AssetRegistry、参数化定义
+- [素材管理系统](./AssetSystem.md) - AssetRegistry、参数化定义- [资产引用完整性](./AssetReferenceIntegrity.md) - 锁定对象机制（未来功能）
+
+---
+
+## 10. 资产管理生命周期 ⭐
+
+**最后更新**: 2025-12-14
+
+### 10.1 资产来源和权限
+
+本系统支持两种类型的资产：
+
+| 类型     | 标识                  | 可删除 | 来源     | 用途                     |
+| -------- | --------------------- | ------ | -------- | ------------------------ |
+| 预置资产 | `AssetSource.BUILTIN` | ❌     | 系统内置 | 标准型材、紧固件、连接件 |
+| 用户资产 | `AssetSource.CUSTOM`  | ✅     | 用户上传 | 自定义型材截面           |
+
+**设计意图**：
+
+- **预置资产**：保证用户始终有可用的基础素材，不能意外删除
+- **用户资产**：支持定制化需求，可以管理（删除、编辑）
+
+### 10.2 资产加载流程
+
+```
+应用启动（main.tsx）
+    ↓
+CoreServiceProvider 初始化
+    ↓
+创建 AssetService 实例
+    ↓
+调用 AssetService.initialize()
+    ↓
+执行 loadBuiltinAssets()
+    ├─ 从 data/profiles/generated/index.ts 动态导入
+    ├─ 注册 profile-2020 等预置资产
+    └─ 写入 AssetRegistry
+    ↓
+Library 页面
+    ├─ 从 AssetService.getAllProfiles() 获取
+    └─ 展示所有可用资产（BUILTIN + CUSTOM）
+    ↓
+Designer 页面进入
+    ├─ 通过 useCoreServices() 访问 AssetService
+    ├─ 确保使用最新的资产数据
+    └─ 创建对象时验证资产存在性
+```
+
+**关键节点**：
+
+1. **AssetService 是资产管理的唯一核心** - 所有资产查询、注册、删除均通过此服务
+2. **Library 是管理入口** - UI 层面的资产管理页面，调用 AssetService API
+3. **Designer 从 AssetService 查询** - 不直接注册资产，确保数据来源一致
+4. **CoreServiceProvider 只负责初始化** - 不直接注册具体资产
+
+### 10.3 资产中心化架构
+
+```
+┌─────────────────────────────────────────────────┐
+│           AssetService (核心逻辑)               │
+│  - 资产注册/删除/查询                           │
+│  - 预置资产加载 (loadBuiltinAssets)            │
+│  - 用户资产导入 (importCustomAsset)            │
+└────────────────┬───────────────────────────────┘
+                 │ 数据存储
+                 ↓
+┌─────────────────────────────────────────────────┐
+│         AssetRegistry (数据存储)                │
+│  - builtinAssets: Map<id, Asset>               │
+│  - customAssets: Map<id, Asset>                │
+└────────────────┬───────────────────────────────┘
+                 │ UI展示 & 查询
+        ┌────────┴──────────┐
+        ↓                   ↓
+┌──────────────┐   ┌──────────────┐
+│ Library 页面  │   │ Designer 页面 │
+│ (管理界面)   │   │ (使用界面)    │
+│ - 展示资产   │   │ - 查询资产    │
+│ - 删除资产   │   │ - 创建对象    │
+│ - 上传资产   │   │ - 检测缺失    │
+└──────────────┘   └──────────────┘
+```
+
+### 10.4 资产删除流程
+
+```typescript
+// Library 页面调用
+const handleDeleteAsset = async (assetId: string) => {
+  const asset = assetService.getAsset(assetId);
+
+  // 检查权限
+  if (asset.source === AssetSource.BUILTIN) {
+    showError('预置资产不能删除');
+    return;
+  }
+
+  // 检查引用（未来功能）
+  // const references = objectManager.getObjectsByAssetId(assetId);
+  // if (references.length > 0) {
+  //   showWarning(`该资产被 ${references.length} 个对象使用，删除后这些对象将被锁定`);
+  //   if (!await confirm('确认删除？')) return;
+  // }
+
+  // 执行删除
+  assetService.deleteAsset(assetId);
+
+  // 触发事件（未来功能）
+  // eventBus.emit('asset:deleted', { assetId });
+};
+```
+
+### 10.5 资产引用完整性（未来功能）
+
+当项目中的 `SceneObject` 引用的 `Asset` 被删除后：
+
+#### 锁定对象机制
+
+```typescript
+interface SceneObject {
+  id: string;
+  assetId: string;
+  isLocked?: boolean; // 资产不存在时为 true
+  // ...
+}
+
+// Designer 页面进入时检测
+const validateAssetReferences = () => {
+  const objects = objectManager.getAllObjects();
+  const missingAssets = objects.filter(
+    obj => !assetService.getAsset(obj.assetId)
+  );
+
+  // 标记锁定状态
+  missingAssets.forEach(obj => {
+    objectManager.updateObject(obj.id, { isLocked: true });
+  });
+
+  if (missingAssets.length > 0) {
+    console.warn(
+      `检测到 ${missingAssets.length} 个对象引用的资产已删除，已标记为锁定状态`
+    );
+  }
+};
+```
+
+#### 锁定对象限制
+
+- ✅ 可以删除（移出场景）
+- ✅ 可以重新关联新资产
+- ❌ 不能修改参数（长度、规格等）
+- ❌ 不能移动/旋转/缩放
+
+#### 资产重新关联
+
+```typescript
+// 用户选择锁定对象，打开重新关联面板
+const handleReassociateAsset = async (objectId: string, newAssetId: string) => {
+  const object = objectManager.getObject(objectId);
+  const newAsset = assetService.getAsset(newAssetId);
+
+  // 验证兼容性（类型匹配）
+  if (object.type !== newAsset.type) {
+    showError('资产类型不匹配');
+    return;
+  }
+
+  // 重新生成模型
+  const newVisual = modelFactory.createVisual(newAsset, object.userParams);
+  const newCompute = modelFactory.createCompute(newAsset, object.userParams);
+
+  // 更新对象
+  objectManager.updateObject(objectId, {
+    assetId: newAssetId,
+    visual: newVisual,
+    compute: newCompute,
+    isLocked: false, // 解除锁定
+  });
+
+  console.log(`对象 ${objectId} 已重新关联到资产 ${newAssetId}`);
+};
+```
+
+### 10.6 实现要点
+
+1. **AssetService 是唯一核心**
+   - 所有资产操作必须通过 AssetService
+   - CoreServiceProvider 不直接注册具体资产
+   - ObjectManager 不直接操作 AssetRegistry
+
+2. **Library 为管理中心**
+   - 提供资产浏览、删除、上传 UI
+   - 调用 AssetService API 完成操作
+   - 展示资产使用情况（未来功能）
+
+3. **Designer 保证数据一致性**
+   - 页面加载时验证资产引用
+   - 检测缺失资产并标记锁定
+   - 提供资产重新关联功能（未来）
+
+4. **事件驱动同步**
+   - `asset:deleted` 事件通知所有监听者
+   - Designer 页面响应事件标记锁定对象
+   - Library 页面响应事件刷新列表
+
+**详细设计文档**：[资产引用完整性设计](./AssetReferenceIntegrity.md)

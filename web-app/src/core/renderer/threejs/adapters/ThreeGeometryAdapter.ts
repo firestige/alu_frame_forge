@@ -20,12 +20,25 @@ export class ThreeGeometryAdapter {
   /**
    * 将 IShape 转换为 THREE.Shape
    *
-   * @param shape - 抽象形状对象
+   * @param shape - 抽象形状对象（或已经是 THREE.Shape）
    * @param targetSize - 目标尺寸(mm)，如果提供则自动缩放和居中
    * @returns Three.js Shape 对象
    * @throws {Error} 如果形状无效或包含不支持的曲线类型
    */
   static shapeToThreeShape(shape: IShape, targetSize?: number): THREE.Shape {
+    // 检查是否已经是 THREE.Shape（来自 SVGLoader）
+    if (shape instanceof THREE.Shape) {
+      console.log('[ThreeGeometryAdapter] 检测到 THREE.Shape，直接使用');
+      
+      // 如果需要缩放，应用缩放变换
+      if (targetSize) {
+        return this.scaleShape(shape, targetSize);
+      }
+      
+      return shape;
+    }
+
+    // 否则按原有逻辑处理抽象 IShape
     if (!shape || !shape.curves || shape.curves.length === 0) {
       throw new Error('Invalid shape: must contain at least one curve');
     }
@@ -338,5 +351,89 @@ export class ThreeGeometryAdapter {
     };
 
     return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  }
+
+  /**
+   * 缩放 THREE.Shape 到目标尺寸
+   * 
+   * @param shape - Three.js Shape
+   * @param targetSize - 目标尺寸(mm)
+   * @returns 缩放后的 Shape
+   */
+  private static scaleShape(
+    shape: THREE.Shape,
+    targetSize: number
+  ): THREE.Shape {
+    const MM_TO_M = 0.001;
+    
+    // 计算当前 Shape 的边界框
+    const points = shape.getPoints();
+    let minX = Infinity,
+      minY = Infinity;
+    let maxX = -Infinity,
+      maxY = -Infinity;
+
+    for (const point of points) {
+      minX = Math.min(minX, point.x);
+      minY = Math.min(minY, point.y);
+      maxX = Math.max(maxX, point.x);
+      maxY = Math.max(maxY, point.y);
+    }
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const maxDim = Math.max(width, height);
+
+    // 计算缩放比例和偏移
+    const scale = (targetSize * MM_TO_M) / maxDim;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    console.log('[ThreeGeometryAdapter] 🎯 Shape缩放:', {
+      原始边界: { minX, minY, maxX, maxY },
+      原始尺寸: { width, height },
+      '目标尺寸(mm)': targetSize,
+      缩放比例: scale,
+      居中偏移: { centerX, centerY },
+    });
+
+    // 创建新的 Shape 应用变换
+    const newShape = new THREE.Shape();
+    
+    // 变换主轮廓
+    const transformedPoints = points.map(p => ({
+      x: (p.x - centerX) * scale,
+      y: (p.y - centerY) * scale,
+    }));
+
+    if (transformedPoints.length > 0) {
+      newShape.moveTo(transformedPoints[0].x, transformedPoints[0].y);
+      for (let i = 1; i < transformedPoints.length; i++) {
+        newShape.lineTo(transformedPoints[i].x, transformedPoints[i].y);
+      }
+      newShape.closePath();
+    }
+
+    // 变换孔洞
+    for (const hole of shape.holes) {
+      const holePoints = hole.getPoints();
+      const transformedHolePoints = holePoints.map(p => ({
+        x: (p.x - centerX) * scale,
+        y: (p.y - centerY) * scale,
+      }));
+
+      if (transformedHolePoints.length > 0) {
+        const holePath = new THREE.Path();
+        holePath.moveTo(transformedHolePoints[0].x, transformedHolePoints[0].y);
+        for (let i = 1; i < transformedHolePoints.length; i++) {
+          holePath.lineTo(transformedHolePoints[i].x, transformedHolePoints[i].y);
+        }
+        holePath.closePath();
+        newShape.holes.push(holePath);
+      }
+    }
+
+    console.log('[ThreeGeometryAdapter] ✅ Shape缩放完成, holes:', newShape.holes.length);
+    return newShape;
   }
 }

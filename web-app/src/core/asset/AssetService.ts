@@ -6,19 +6,21 @@ import type {
   AnyAsset,
 } from './types/asset';
 import { AssetType, AssetSource, MachiningOpType } from './types/enums';
-import { series20Profiles, series30Profiles } from '@/data/profiles';
 
 /**
  * 资产服务
  * 封装 AssetRegistry 的访问接口，提供业务友好的查询 API
  *
  * 职责：
- * - 初始化时加载预置型材数据
+ * - 初始化时从索引文件动态加载预置资产
  * - 提供按系列、类型分组查询
  * - 封装 AssetRegistry 的底层操作
+ * - 作为资产管理的唯一核心服务
  */
 export class AssetService {
   private registry: AssetRegistry;
+  private initialized: boolean = false;
+  private isInitializing: boolean = false; // 🆕 防止异步竞态
 
   constructor() {
     this.registry = new AssetRegistry();
@@ -26,85 +28,81 @@ export class AssetService {
 
   /**
    * 初始化 AssetService
-   * 注意：内置资产现在由 CoreServiceProvider 在应用启动时注册
+   * 加载所有预置资产（BUILTIN）
+   * 注意：此方法是幂等的，多次调用只会执行一次（支持并发调用）
    */
-  initialize(): void {
-    // 不再自动加载预置资产
-    // 内置资产由 CoreServiceProvider 统一管理
+  async initialize(): Promise<void> {
+    // 已完成初始化
+    if (this.initialized) {
+      console.log('[AssetService] ⏭️  已初始化，跳过重复加载');
+      return;
+    }
+
+    // 正在初始化中（防止并发调用）
+    if (this.isInitializing) {
+      console.log('[AssetService] ⏳ 正在初始化中，等待完成...');
+      // 等待初始化完成
+      while (this.isInitializing) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return;
+    }
+
+    // 开始初始化
+    this.isInitializing = true;
+    try {
+      await this.loadBuiltinAssets();
+      this.initialized = true;
+      console.log('[AssetService] ✅ 初始化完成');
+    } catch (error) {
+      console.error('[AssetService] ❌ 初始化失败:', error);
+      throw error;
+    } finally {
+      this.isInitializing = false;
+    }
   }
 
   /**
-   * @deprecated 已废弃 - 内置资产由 CoreServiceProvider 注册
+   * 加载预置资产
+   * 从 data/profiles/generated/index.ts 动态导入所有生成的资产
+   */
+  private async loadBuiltinAssets(): Promise<void> {
+    try {
+      // 动态导入所有预置型材
+      const profilesModule = await import('@/data/profiles/generated');
+
+      // 注册所有导出的资产
+      if (profilesModule.profile2020Asset) {
+        this.registerAsset(profilesModule.profile2020Asset);
+        console.log('[AssetService] ✅ 已加载预置资产: profile-2020');
+      }
+
+      // 未来可以遍历 profilesModule 的所有导出自动注册
+      // Object.values(profilesModule).forEach(asset => {
+      //   if (asset && typeof asset === 'object' && 'id' in asset) {
+      //     this.registerAsset(asset);
+      //   }
+      // });
+    } catch (error) {
+      console.error('[AssetService] ❌ 加载预置资产失败:', error);
+    }
+  }
+
+  /**
+   * 注册资产到注册表
+   * 供外部（如 CoreServiceProvider）或内部使用
+   * 注意：如果资产已存在会抛出异常，由调用方决定如何处理
+   */
+  registerAsset(asset: AnyAsset): void {
+    this.registry.register(asset);
+  }
+
+  /**
+   * @deprecated 已废弃 - 预置资产由 initialize() 方法统一加载
    * 加载预置型材数据
    */
   private loadPresetProfiles(): void {
-    // 处理 20 系列
-    series20Profiles.forEach(profile => {
-      const profileAsset: ProfileAsset = {
-        id: profile.id,
-        name: profile.name,
-        type: AssetType.PROFILE,
-        source: AssetSource.BUILTIN,
-        description: profile.description,
-        crossSection: {
-          svgPath: profile.svg,
-          width: 20,
-          height: 20,
-          wallThickness: 2,
-        },
-        material: {
-          name: '6063-T5',
-          yieldStrength: 160,
-          density: 2700,
-          elasticModulus: 69000,
-          poissonRatio: 0.33,
-          thermalExpansion: 23.6e-6,
-        },
-        supportedOperations: [
-          MachiningOpType.HOLE,
-          MachiningOpType.CHAMFER,
-          MachiningOpType.THREAD,
-        ],
-        defaultLength: 500,
-        minLength: 100,
-        maxLength: 3000,
-      };
-      this.registry.register(profileAsset);
-    });
-
-    // 处理 30 系列
-    series30Profiles.forEach(profile => {
-      const profileAsset: ProfileAsset = {
-        id: profile.id,
-        name: profile.name,
-        type: AssetType.PROFILE,
-        source: AssetSource.BUILTIN,
-        description: profile.description,
-        crossSection: {
-          svgPath: profile.svg,
-          width: 30,
-          height: 30,
-          wallThickness: 3,
-        },
-        material: {
-          name: '6063-T5',
-          yieldStrength: 160,
-          density: 2700,
-          elasticModulus: 69000,
-          poissonRatio: 0.33,
-          thermalExpansion: 23.6e-6,
-        },
-        supportedOperations: [
-          MachiningOpType.HOLE,
-          MachiningOpType.CHAMFER,
-          MachiningOpType.THREAD,
-        ],
-        defaultLength: 500,
-        minLength: 100,
-        maxLength: 3000,
-      };
-      this.registry.register(profileAsset);
-    });
+    // 空实现 - 预置资产由 initialize() 方法从 data/profiles/generated/ 动态加载
   }
 
   // ==================== 型材查询 ====================
@@ -123,8 +121,8 @@ export class AssetService {
   getProfilesBySeries(series: number): ProfileAsset[] {
     const allProfiles = this.getAllProfiles();
     return allProfiles.filter(profile => {
-      // 从名称或宽度推断系列
-      const width = profile.crossSection.width;
+      // 从截面尺寸推断系列
+      const width = profile.crossSection.dimensions?.width;
       return width === series;
     });
   }

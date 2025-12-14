@@ -287,6 +287,18 @@ const DesignerPage: React.FC = () => {
       console.log('[DesignerPage] 🧪 测试模式：创建2020型材对象');
 
       try {
+        // 验证资产是否存在
+        const asset = coreServices.objectManager.getAsset('profile-2020');
+        if (!asset) {
+          console.error('[DesignerPage] ❌ 资产未找到: profile-2020');
+          console.log(
+            '[DesignerPage] 可用资产列表:',
+            coreServices.objectManager.getAllAssets().map(a => a.id)
+          );
+          return;
+        }
+        console.log('[DesignerPage] ✅ 资产已加载:', asset.name, asset);
+
         const testObject = coreServices.objectManager.createObjectFromAsset(
           'profile-2020',
           {
@@ -302,9 +314,21 @@ const DesignerPage: React.FC = () => {
           }
         );
 
-        console.log('[DesignerPage] ✅ 测试对象已创建:', testObject.id);
+        console.log('[DesignerPage] ✅ 测试对象已创建:', {
+          id: testObject.id,
+          name: testObject.name,
+          assetId: testObject.assetId,
+          visual: testObject.visual ? '✅ 渲染模型存在' : '❌ 渲染模型缺失',
+          compute: testObject.compute ? '✅ 计算模型存在' : '❌ 计算模型缺失',
+        });
       } catch (error) {
         console.error('[DesignerPage] ❌ 创建测试对象失败:', error);
+        if (error instanceof Error) {
+          console.error('[DesignerPage] 错误详情:', {
+            message: error.message,
+            stack: error.stack,
+          });
+        }
       }
     }
   }, [isRendererReady, coreServices.objectManager]);
