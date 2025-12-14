@@ -6,6 +6,9 @@ import type {
   ExtrudedProfileGeometry,
 } from '../types/scene-object';
 import { AssetType } from '../../asset/types/enums';
+import { SVGPathParser } from '@/core/geometry/SVGPathParser';
+import type { MaterialProperties } from '@/core/geometry/types';
+import type { IRenderer, ExtrusionParams } from '@/core/renderer/renderer-types';
 
 /**
  * 型材实例化策略
@@ -19,25 +22,13 @@ import { AssetType } from '../../asset/types/enums';
  */
 export class ProfileInstanceStrategy implements InstanceStrategy {
   /**
-   * 渲染器工厂的引用
-   * 用于创建 Three.js 网格对象
+   * 渲染器引用
+   * 用于创建拉伸网格
    */
-  private geometryFactory: {
-    createExtrudedProfile: (
-      svgPath: string,
-      length: number,
-      simplified?: boolean
-    ) => unknown;
-  };
+  private renderer: IRenderer;
 
-  constructor(geometryFactory: {
-    createExtrudedProfile: (
-      svgPath: string,
-      length: number,
-      simplified?: boolean
-    ) => unknown;
-  }) {
-    this.geometryFactory = geometryFactory;
+  constructor(renderer: IRenderer) {
+    this.renderer = renderer;
   }
 
   canHandle(asset: AnyAsset): boolean {
@@ -63,12 +54,32 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     // 生成唯一 ID
     const id = this.generateId();
 
-    // 创建渲染网格（简化版）
-    const visualMesh = this.geometryFactory.createExtrudedProfile(
-      profileAsset.crossSection.svgPath,
+    // 1. 解析 SVG 路径为抽象形状
+    const shape = SVGPathParser.parse(profileAsset.crossSection.svgPath);
+
+    // 2. 转换材质属性
+    const materialProps: MaterialProperties = {
+      type: 'metal', // TODO: 从 profileAsset.material 推断类型
+      color: 0x999999, // TODO: 从素材获取颜色
+      metalness: 0.9,
+      roughness: 0.3,
+    };
+
+    // 3. 创建拉伸参数
+    const extrusionParams: ExtrusionParams = {
+      shape,
       length,
-      true // 简化模式
-    );
+      material: materialProps,
+      transform: options.transform,
+      userData: {
+        objectId: id,
+        assetId: asset.id,
+      },
+    };
+
+    // 4. 创建渲染网格
+    const meshHandle = this.renderer.createExtrudedMesh(extrusionParams);
+    const visualMesh = meshHandle.nativeObject;
 
     // 创建计算几何（完整版）
     const computeGeometry: ExtrudedProfileGeometry = {
@@ -133,12 +144,32 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     const profileAsset = asset as ProfileAsset;
     const length = sceneObject.userParams.length as number;
 
-    // 重新生成渲染网格
-    const newMesh = this.geometryFactory.createExtrudedProfile(
-      profileAsset.crossSection.svgPath,
+    // 1. 解析 SVG 路径
+    const shape = SVGPathParser.parse(profileAsset.crossSection.svgPath);
+
+    // 2. 转换材质属性
+    const materialProps: MaterialProperties = {
+      type: 'metal',
+      color: 0x999999,
+      metalness: 0.9,
+      roughness: 0.3,
+    };
+
+    // 3. 创建拉伸参数
+    const extrusionParams: ExtrusionParams = {
+      shape,
       length,
-      true
-    );
+      material: materialProps,
+      transform: sceneObject.transform,
+      userData: {
+        objectId: sceneObject.id,
+        assetId: asset.id,
+      },
+    };
+
+    // 4. 重新生成渲染网格
+    const meshHandle = this.renderer.createExtrudedMesh(extrusionParams);
+    const newMesh = meshHandle.nativeObject;
 
     // 更新视觉模型
     sceneObject.visual.mesh = newMesh;
