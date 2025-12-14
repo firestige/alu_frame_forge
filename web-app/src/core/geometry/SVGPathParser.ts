@@ -1,11 +1,11 @@
 /**
  * SVG 路径解析器
- * 
+ *
  * 将 SVG Path 字符串转换为抽象的 IShape 对象
  * 不依赖任何渲染库（Three.js/Babylon.js）
- * 
+ *
  * 技术选型：使用 svg-path-parser 库解析 SVG 命令
- * 
+ *
  * @module core/geometry
  */
 
@@ -32,7 +32,7 @@ interface SVGCommand {
 
 /**
  * SVG 路径解析器
- * 
+ *
  * @example
  * ```typescript
  * const shape = SVGPathParser.parse("M0,0 L20,0 L20,20 L0,20 Z");
@@ -43,7 +43,7 @@ interface SVGCommand {
 export class SVGPathParser {
   /**
    * 解析 SVG 路径字符串为 IShape
-   * 
+   *
    * @param svgPath - SVG 路径字符串
    * @returns 抽象形状对象
    * @throws {Error} 如果路径无效
@@ -55,7 +55,7 @@ export class SVGPathParser {
 
     // 简单的 SVG 命令解析（临时实现，后续集成 svg-path-parser）
     const commands = this.parseCommands(svgPath.trim());
-    
+
     const curves: ICurve[] = [];
     let currentPoint: Vector2 = { x: 0, y: 0 };
     let startPoint: Vector2 = { x: 0, y: 0 };
@@ -131,7 +131,10 @@ export class SVGPathParser {
 
         case 'Z': // ClosePath
         case 'z':
-          if (currentPoint.x !== startPoint.x || currentPoint.y !== startPoint.y) {
+          if (
+            currentPoint.x !== startPoint.x ||
+            currentPoint.y !== startPoint.y
+          ) {
             curves.push({
               type: 'line' as CurveType,
               start: { ...currentPoint },
@@ -158,7 +161,7 @@ export class SVGPathParser {
 
   /**
    * 验证 SVG 路径是否有效
-   * 
+   *
    * @param svgPath - SVG 路径字符串
    * @returns 是否有效
    */
@@ -173,7 +176,7 @@ export class SVGPathParser {
 
   /**
    * 检查路径是否闭合
-   * 
+   *
    * @param svgPath - SVG 路径字符串
    * @returns 是否闭合
    */
@@ -183,14 +186,14 @@ export class SVGPathParser {
 
   /**
    * 简单的 SVG 命令解析器（临时实现）
-   * 
+   *
    * TODO: 替换为 svg-path-parser 库
-   * 
+   *
    * @private
    */
   private static parseCommands(path: string): SVGCommand[] {
     const commands: SVGCommand[] = [];
-    
+
     // 简单的正则解析（仅支持常见命令）
     const commandRegex = /([MLHVCSQTAZ])([^MLHVCSQTAZ]*)/gi;
     let match;
@@ -275,7 +278,7 @@ export class SVGPathParser {
 
   /**
    * 计算曲线集合的边界框
-   * 
+   *
    * @private
    */
   private static calculateBoundingBox(curves: ICurve[]): {

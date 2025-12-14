@@ -1,9 +1,9 @@
 /**
  * Three.js 材质工厂
- * 
+ *
  * 将抽象的 MaterialProperties 转换为 Three.js 材质
  * 实现 Factory 模式，封装材质创建逻辑
- * 
+ *
  * @module core/renderer/threejs/adapters
  */
 
@@ -12,13 +12,13 @@ import type { MaterialProperties } from '@/core/geometry/types';
 
 /**
  * Three.js 材质工厂
- * 
+ *
  * 根据抽象材质属性创建对应的 Three.js 材质对象
  */
 export class ThreeMaterialFactory {
   /**
    * 创建 Three.js 材质
-   * 
+   *
    * @param props - 抽象材质属性
    * @returns Three.js 材质对象
    */
@@ -27,16 +27,16 @@ export class ThreeMaterialFactory {
     switch (props.type) {
       case 'metal':
         return this.createMetalMaterial(props);
-      
+
       case 'plastic':
         return this.createPlasticMaterial(props);
-      
+
       case 'wood':
         return this.createWoodMaterial(props);
-      
+
       case 'glass':
         return this.createGlassMaterial(props);
-      
+
       case 'custom':
       default:
         return this.createStandardMaterial(props);
@@ -45,10 +45,12 @@ export class ThreeMaterialFactory {
 
   /**
    * 创建金属材质
-   * 
+   *
    * @private
    */
-  private static createMetalMaterial(props: MaterialProperties): THREE.MeshStandardMaterial {
+  private static createMetalMaterial(
+    props: MaterialProperties
+  ): THREE.MeshStandardMaterial {
     return new THREE.MeshStandardMaterial({
       color: props.color,
       metalness: props.metalness ?? 0.9,
@@ -63,10 +65,12 @@ export class ThreeMaterialFactory {
 
   /**
    * 创建塑料材质
-   * 
+   *
    * @private
    */
-  private static createPlasticMaterial(props: MaterialProperties): THREE.MeshStandardMaterial {
+  private static createPlasticMaterial(
+    props: MaterialProperties
+  ): THREE.MeshStandardMaterial {
     return new THREE.MeshStandardMaterial({
       color: props.color,
       metalness: props.metalness ?? 0.0,
@@ -80,10 +84,12 @@ export class ThreeMaterialFactory {
 
   /**
    * 创建木材材质
-   * 
+   *
    * @private
    */
-  private static createWoodMaterial(props: MaterialProperties): THREE.MeshStandardMaterial {
+  private static createWoodMaterial(
+    props: MaterialProperties
+  ): THREE.MeshStandardMaterial {
     return new THREE.MeshStandardMaterial({
       color: props.color,
       metalness: props.metalness ?? 0.0,
@@ -95,10 +101,12 @@ export class ThreeMaterialFactory {
 
   /**
    * 创建玻璃材质
-   * 
+   *
    * @private
    */
-  private static createGlassMaterial(props: MaterialProperties): THREE.MeshPhysicalMaterial {
+  private static createGlassMaterial(
+    props: MaterialProperties
+  ): THREE.MeshPhysicalMaterial {
     return new THREE.MeshPhysicalMaterial({
       color: props.color,
       metalness: props.metalness ?? 0.0,
@@ -112,10 +120,12 @@ export class ThreeMaterialFactory {
 
   /**
    * 创建标准材质（默认）
-   * 
+   *
    * @private
    */
-  private static createStandardMaterial(props: MaterialProperties): THREE.MeshStandardMaterial {
+  private static createStandardMaterial(
+    props: MaterialProperties
+  ): THREE.MeshStandardMaterial {
     return new THREE.MeshStandardMaterial({
       color: props.color,
       metalness: props.metalness ?? 0.5,
@@ -130,14 +140,21 @@ export class ThreeMaterialFactory {
 
   /**
    * 更新材质属性
-   * 
+   *
    * @param material - Three.js 材质对象
    * @param props - 新的材质属性
    */
-  static update(material: THREE.Material, props: Partial<MaterialProperties>): void {
-    if (!(material instanceof THREE.MeshStandardMaterial) && 
-        !(material instanceof THREE.MeshPhysicalMaterial)) {
-      console.warn('Only MeshStandardMaterial and MeshPhysicalMaterial can be updated');
+  static update(
+    material: THREE.Material,
+    props: Partial<MaterialProperties>
+  ): void {
+    if (
+      !(material instanceof THREE.MeshStandardMaterial) &&
+      !(material instanceof THREE.MeshPhysicalMaterial)
+    ) {
+      console.warn(
+        'Only MeshStandardMaterial and MeshPhysicalMaterial can be updated'
+      );
       return;
     }
 
@@ -165,7 +182,10 @@ export class ThreeMaterialFactory {
       material.emissive.setHex(props.emissive);
     }
 
-    if (props.emissiveIntensity !== undefined && 'emissiveIntensity' in material) {
+    if (
+      props.emissiveIntensity !== undefined &&
+      'emissiveIntensity' in material
+    ) {
       material.emissiveIntensity = props.emissiveIntensity;
     }
 

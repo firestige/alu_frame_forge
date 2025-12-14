@@ -60,20 +60,20 @@ export type ColorHex = number;
 export interface ExtrusionParams {
   /** 形状定义（抽象类型） */
   shape: unknown; // 运行时是 IShape，但为避免循环依赖，使用 unknown
-  
+
   /** 拉伸长度 */
   length: number;
-  
+
   /** 材质属性（抽象类型） */
   material: unknown; // 运行时是 MaterialProperties
-  
+
   /** 变换（可选） */
   transform?: {
     position?: Vector3;
     rotation?: Euler;
     scale?: Vector3;
   };
-  
+
   /** 用户数据（用于标识） */
   userData?: Record<string, unknown>;
 }
@@ -84,10 +84,10 @@ export interface ExtrusionParams {
 export interface MeshHandle {
   /** 原生对象（由渲染器具体实现） */
   nativeObject: unknown;
-  
+
   /** 几何体句柄（用于资源释放） */
   geometryHandle?: unknown;
-  
+
   /** 材质句柄（用于资源释放） */
   materialHandle?: unknown;
 }

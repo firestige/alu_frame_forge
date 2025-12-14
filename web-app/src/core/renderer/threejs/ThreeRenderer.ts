@@ -691,7 +691,7 @@ export class ThreeRenderer implements IRenderer {
 
       // 更新相机控制器
       this.cameraController?.updateControls();
-      
+
       // ✅ 更新 TransformControls（重要！）
       if (this.transformController) {
         (this.transformController as any).update?.();

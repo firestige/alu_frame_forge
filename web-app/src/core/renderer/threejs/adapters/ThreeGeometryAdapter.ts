@@ -1,9 +1,9 @@
 /**
  * Three.js 几何适配器
- * 
+ *
  * 将抽象的 IShape 转换为 Three.js 的 THREE.Shape
  * 实现 Adapter 模式，隔离 Three.js 依赖
- * 
+ *
  * @module core/renderer/threejs/adapters
  */
 
@@ -13,13 +13,13 @@ import { CurveType } from '@/core/geometry/types';
 
 /**
  * Three.js 几何适配器
- * 
+ *
  * 负责将抽象几何类型转换为 Three.js 特定类型
  */
 export class ThreeGeometryAdapter {
   /**
    * 将 IShape 转换为 THREE.Shape
-   * 
+   *
    * @param shape - 抽象形状对象
    * @returns Three.js Shape 对象
    * @throws {Error} 如果形状无效或包含不支持的曲线类型
@@ -30,7 +30,7 @@ export class ThreeGeometryAdapter {
     }
 
     const threeShape = new THREE.Shape();
-    
+
     // 设置起点（第一条曲线的起点）
     const firstCurve = shape.curves[0];
     threeShape.moveTo(firstCurve.start.x, firstCurve.start.y);
@@ -50,7 +50,7 @@ export class ThreeGeometryAdapter {
 
   /**
    * 将 ICurve 添加到 THREE.Shape
-   * 
+   *
    * @private
    */
   private static addCurveToShape(threeShape: THREE.Shape, curve: ICurve): void {
@@ -110,7 +110,7 @@ export class ThreeGeometryAdapter {
 
   /**
    * 从 THREE.Shape 创建 ExtrudeGeometry
-   * 
+   *
    * @param shape - Three.js Shape
    * @param extrudeSettings - 拉伸参数
    * @returns Three.js ExtrudeGeometry
@@ -124,7 +124,7 @@ export class ThreeGeometryAdapter {
 
   /**
    * 创建简化的拉伸几何体（用于渲染优化）
-   * 
+   *
    * @param shape - Three.js Shape
    * @param length - 拉伸长度
    * @returns 简化的 ExtrudeGeometry
@@ -145,7 +145,7 @@ export class ThreeGeometryAdapter {
 
   /**
    * 创建完整的拉伸几何体（用于 FEA 分析）
-   * 
+   *
    * @param shape - Three.js Shape
    * @param length - 拉伸长度
    * @returns 高精度 ExtrudeGeometry

@@ -8,7 +8,10 @@ import type {
 import { AssetType } from '../../asset/types/enums';
 import { SVGPathParser } from '@/core/geometry/SVGPathParser';
 import type { MaterialProperties } from '@/core/geometry/types';
-import type { IRenderer, ExtrusionParams } from '@/core/renderer/renderer-types';
+import type {
+  IRenderer,
+  ExtrusionParams,
+} from '@/core/renderer/renderer-types';
 
 /**
  * 型材实例化策略
