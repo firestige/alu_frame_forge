@@ -17,7 +17,11 @@ import { BoxSelectionOverlay } from './BoxSelectionOverlay';
 import { CommandContextMenu } from '@/components/ContextMenu';
 import { OBJECT_CONTEXT_MENU } from '../config/contextMenuConfig';
 import { SCENE_CONTEXT_MENU } from '../config/sceneContextMenuConfig';
-import { onState } from '@/core/services/eventBus';
+import { onState, sendCommand } from '@/core/services/eventBus';
+import { useSelectionState } from '../hooks/useSelectionState';
+import { useDesignerObjects } from '../hooks/useDesignerObjects';
+import { ParameterEditDialog } from './components/ParameterEditDialog';
+import { useCoreServices } from '@/core/CoreServiceProvider';
 
 import type { IRenderer } from '@/core/renderer';
 
@@ -47,12 +51,22 @@ export interface DesignerPageUIProps {
  * - 不管理项目加载逻辑（父组件职责）
  */
 const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
+  // ==================== 0. Core Services ====================
+
+  const { objectManager } = useCoreServices();
+
   // ==================== 1. UI 状态（持久化）- 必须最先声明 ====================
 
   // 侧边栏折叠状态（预留）
   const [sidebarCollapsed] = usePersistentState(
     'designer.sidebarCollapsed',
     false
+  );
+
+  // 参数编辑对话框状态
+  const [paramEditDialogOpen, setParamEditDialogOpen] = React.useState(false);
+  const [editingObjectId, setEditingObjectId] = React.useState<string | null>(
+    null
   );
 
   // ==================== 2. 3D 容器和 Renderer ====================
@@ -62,13 +76,9 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
   const viewerControls = use3DViewer({
     containerRef: containerRef as React.RefObject<HTMLDivElement>,
     backgroundColor: '#1a1a1a',
-    cameraPosition: { x: 5, y: 5, z: 5 },
-    orbitControls: {
-      enableDamping: true,
-      dampingFactor: 0.05,
-      minDistance: 2,
-      maxDistance: 20,
-    },
+    // 不传递 cameraPosition 和 orbitControls，使用 use3DViewer 的默认值
+    // 默认: cameraPosition = { x: 0.8, y: 0.8, z: 0.8 }, FOV = 45°
+    // 默认: minDistance = 0.005m (5mm), maxDistance = 10m
   });
 
   const renderer = viewerControls.getRenderer();
@@ -127,6 +137,70 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
     renderer
   );
 
+  // ==================== 10. 参数编辑对话框 ====================
+
+  // 监听编辑参数请求
+  React.useEffect(() => {
+    const unsubscribe = onState(
+      'state:model:editParametersRequested',
+      (data: { objectId: string }) => {
+        setEditingObjectId(data.objectId);
+        setParamEditDialogOpen(true);
+      }
+    );
+    return unsubscribe;
+  }, []);
+
+  // 获取正在编辑的对象
+  const editingObject = editingObjectId
+    ? objectManager.getObject(editingObjectId)
+    : null;
+  const editingAsset = editingObject
+    ? objectManager.getAsset(editingObject.assetId)
+    : undefined;
+
+  // 处理参数编辑确认
+  const handleParamEditConfirm = (
+    updatedParams: Record<string, number | string | boolean>
+  ) => {
+    if (editingObjectId) {
+      objectManager.updateUserParams(editingObjectId, updatedParams);
+    }
+    setParamEditDialogOpen(false);
+    setEditingObjectId(null);
+  };
+
+  // 处理参数编辑取消
+  const handleParamEditCancel = () => {
+    setParamEditDialogOpen(false);
+    setEditingObjectId(null);
+  };
+
+  // ==================== 11. 快捷键：F键聚焦选中对象 ====================
+
+  const { selectedIds } = useSelectionState();
+  const objects = useDesignerObjects();
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F键：聚焦到选中对象
+      if (e.key === 'f' || e.key === 'F') {
+        if (!e.shiftKey && selectedIds.length > 0) {
+          const firstId = selectedIds[0];
+          sendCommand('command:camera:focusObject', {
+            objectId: firstId,
+          });
+        } else if (e.shiftKey) {
+          // Shift+F：释放聚焦，回到原点
+          sendCommand('command:camera:resetFocus', undefined);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIds]);
+
   // ==================== 渲染 ====================
 
   return (
@@ -164,6 +238,17 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
                 ...contextMenu.metadata,
               }}
               onClose={closeContextMenu}
+            />
+          )}
+
+          {/* 参数编辑对话框 */}
+          {editingObject && (
+            <ParameterEditDialog
+              open={paramEditDialogOpen}
+              onClose={handleParamEditCancel}
+              object={editingObject}
+              asset={editingAsset}
+              onConfirm={handleParamEditConfirm}
             />
           )}
         </div>

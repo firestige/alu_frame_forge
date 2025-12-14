@@ -57,7 +57,10 @@ export class ThreeTransformController implements ITransformController {
    */
   private setupEventListeners(): void {
     // 拖拽状态变化
-    this.controls.addEventListener('dragging-changed', this.handleDraggingChanged);
+    this.controls.addEventListener(
+      'dragging-changed',
+      this.handleDraggingChanged
+    );
 
     // 对象变换中（实时更新）
     this.controls.addEventListener('change', this.handleObjectChange);

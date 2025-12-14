@@ -18,7 +18,7 @@ import { AssetService } from '../asset';
 import { ModelFactory } from './ModelFactory';
 import { ProjectSerializer } from './SceneIO';
 import type { ProjectFileFormat } from './SceneIO';
-import { StubProfileStrategy } from './strategies/StubProfileStrategy';
+import { ProfileInstanceStrategy } from './strategies/ProfileInstanceStrategy';
 import { AssetType as AssetTypeEnum } from '../asset/types/enums';
 
 /**
@@ -67,7 +67,8 @@ export class ObjectManager {
 
     this.modelFactory = new ModelFactory(this.assetService.getRegistry());
 
-    // 注册 Stub 策略（临时方案，用于验证流程）
+    // 注册策略（如果 renderer 可用）
+    // 如果 renderer 不可用，可以后期通过 setRenderer() 设置
     this.registerStubStrategies();
 
     this.serializer = new ProjectSerializer();
@@ -108,10 +109,13 @@ export class ObjectManager {
   // ==================== 渲染器管理 ====================
 
   /**
-   * 设置渲染器
+   * 设置渲染器并重新注册策略
+   * 在 renderer 就绪后调用，用于注册需要 renderer 的策略
    */
   public setRenderer(renderer: IRenderer): void {
     this.renderer = renderer;
+    console.log('[ObjectManager] Renderer set, re-registering strategies');
+    this.registerStubStrategies();
   }
 
   // ==================== 对象基础操作 ====================
@@ -206,7 +210,57 @@ export class ObjectManager {
 
     // 更新对象
     const updatedObject = { ...object, ...updates };
-    this.objects.set(objectId, updatedObject);
+
+    // 如果 userParams 改变，需要重新生成几何体
+    if (updates.userParams) {
+      console.log(
+        `[ObjectManager] UserParams updated for ${objectId}, regenerating geometry`,
+        {
+          oldParams: object.userParams,
+          newParams: updates.userParams,
+          mergedParams: updatedObject.userParams,
+        }
+      );
+
+      // 保存旧 mesh 的引用
+      const oldMesh = object.visual?.mesh;
+
+      // 重新生成几何体（会创建新 mesh 并赋值给 updatedObject.visual.mesh）
+      this.modelFactory.updateGeometry(updatedObject);
+
+      console.log('[ObjectManager] 🔄 准备更新渲染器中的网格');
+
+      // 从渲染器移除旧网格（使用保存的引用）
+      if (this.renderer && oldMesh) {
+        console.log('[ObjectManager] 📤 移除旧网格:', {
+          meshId: oldMesh,
+          meshType: oldMesh?.constructor?.name,
+        });
+        this.renderer.removeObject(oldMesh);
+        this.renderer.disposeObject(oldMesh);
+      }
+
+      // 添加新网格
+      if (this.renderer && updatedObject.visual?.mesh) {
+        console.log('[ObjectManager] 📥 添加新网格:', {
+          meshId: updatedObject.visual.mesh,
+          meshType: updatedObject.visual.mesh?.constructor?.name,
+        });
+        this.renderer.addObject(updatedObject.visual.mesh, {
+          interactive: true,
+          modelId: updatedObject.id,
+          name: updatedObject.name,
+        });
+      }
+
+      // 重新保存更新后的对象（包含新的 mesh）
+      this.objects.set(objectId, updatedObject);
+
+      console.log('[ObjectManager] ✅ 几何体更新完成');
+    } else {
+      // 没有 userParams 变化，直接保存
+      this.objects.set(objectId, updatedObject);
+    }
 
     // 发布事件
     this.emit('object:updated', { objectId, object: updatedObject, updates });
@@ -380,6 +434,26 @@ export class ObjectManager {
     return object;
   }
 
+  /**
+   * 创建预览对象（不添加到场景）
+   * 用于在放置前预览对象
+   */
+  public createPreviewObject(
+    assetId: string,
+    options?: Partial<SceneObjectCreateOptions>
+  ): SceneObject {
+    console.log('[ObjectManager] Creating preview object for asset:', assetId);
+
+    const object = this.modelFactory.createFromAsset(assetId, {
+      name: options?.name || `preview_${assetId}`,
+      transform: options?.transform,
+      userParams: options?.userParams || {},
+    });
+
+    console.log('[ObjectManager] Preview object created:', object);
+    return object;
+  }
+
   // ==================== 场景 I/O ====================
 
   /**
@@ -458,17 +532,27 @@ export class ObjectManager {
   }
 
   /**
-   * 注册 Stub 策略（临时方案，用于验证流程）
+   * 注册实例化策略
+   * 使用真实的 ProfileInstanceStrategy 进行型材生成
    */
   private registerStubStrategies(): void {
-    console.log('[ObjectManager] Registering stub strategies...');
+    console.log('[ObjectManager] Registering instance strategies...');
 
-    // 注册 Profile 的 Stub 策略（简单立方体）
-    this.modelFactory.registerStrategy(
-      AssetTypeEnum.PROFILE,
-      new StubProfileStrategy()
-    );
+    // 注册 Profile 策略（真实的截面拉伸）
+    if (this.renderer) {
+      this.modelFactory.registerStrategy(
+        AssetTypeEnum.PROFILE,
+        new ProfileInstanceStrategy(this.renderer)
+      );
+      console.log(
+        '[ObjectManager] ProfileInstanceStrategy registered with renderer'
+      );
+    } else {
+      console.warn(
+        '[ObjectManager] Renderer not available, ProfileInstanceStrategy not registered'
+      );
+    }
 
-    console.log('[ObjectManager] Stub strategies registered');
+    console.log('[ObjectManager] Instance strategies registered');
   }
 }

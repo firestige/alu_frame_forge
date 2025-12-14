@@ -98,6 +98,25 @@ export const CoreServiceProvider: React.FC<CoreServiceProviderProps> = ({
     console.log('[CoreServiceProvider] Core 层服务初始化完成');
   }
 
+  // 初始化 AssetService（加载预置资产）
+  React.useEffect(() => {
+    if (!servicesRef.current) return;
+
+    console.log('[CoreServiceProvider] 初始化 AssetService，加载预置资产');
+
+    servicesRef.current.assetService
+      .initialize()
+      .then(() => {
+        console.log('[CoreServiceProvider] ✅ AssetService 初始化完成');
+      })
+      .catch(error => {
+        console.error(
+          '[CoreServiceProvider] ❌ AssetService 初始化失败:',
+          error
+        );
+      });
+  }, []);
+
   // 初始化 AutoSaveService（依赖 servicesRef 创建后）
   React.useEffect(() => {
     if (autoSaveRef.current || !servicesRef.current) return;

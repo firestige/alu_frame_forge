@@ -190,16 +190,89 @@ export class PlacementController {
     // 生成预览句柄
     this.previewHandle = `preview_${Date.now()}`;
 
-    // ✅ 通过 ObjectManager 创建预览 Mesh（这是正确的依赖）
-    // TODO: 需要 ObjectManager 提供 createPreviewMesh 方法
-    // 暂时创建简单立方体（这部分后续需要通过 GeometryFactory）
-    const previewMesh = this.createTemporaryPreviewMesh();
+    // 创建预览对象 - 使用真实几何体
+    const previewOptions: SceneObjectCreateOptions = {
+      name: `preview_${asset.name}`,
+      userParams: {}, // 使用默认参数
+      machiningOps: [],
+      transform: {
+        position: { x: 0, y: 0, z: 0 },
+      },
+    };
 
-    // ✅ 通过 IRenderer 抽象接口添加预览对象
-    this.renderer.addPreviewObject(this.previewHandle, previewMesh, {
-      color: 0x00ff00,
-      opacity: 0.5,
-    });
+    try {
+      console.log('[PlacementController] 🚀 创建预览对象:', {
+        assetId: asset.id,
+        assetName: asset.name,
+        assetType: asset.type,
+      });
+
+      // 使用 ObjectManager 的公共方法创建预览对象
+      const tempObject = this.objectManager.createPreviewObject(
+        asset.id,
+        previewOptions
+      );
+
+      console.log('[PlacementController] 📦 预览对象创建结果:', {
+        objectId: tempObject.id,
+        hasMesh: !!tempObject.visual?.mesh,
+        transform: tempObject.transform,
+        userParams: tempObject.userParams,
+      });
+
+      const previewMesh = tempObject.visual?.mesh;
+
+      // 🔍 记录预览对象尺寸
+      if (previewMesh && 'geometry' in previewMesh) {
+        const geometry = (previewMesh as any).geometry;
+        if (geometry && geometry.computeBoundingBox) {
+          geometry.computeBoundingBox();
+          const bbox = geometry.boundingBox;
+          if (bbox) {
+            const size = {
+              x: bbox.max.x - bbox.min.x,
+              y: bbox.max.y - bbox.min.y,
+              z: bbox.max.z - bbox.min.z,
+            };
+            console.log('[PlacementController] 📏 预览对象尺寸:', {
+              'BoundingBox(米)': bbox,
+              '尺寸(米)': size,
+              '尺寸(毫米)': {
+                x: size.x * 1000,
+                y: size.y * 1000,
+                z: size.z * 1000,
+              },
+            });
+          }
+        }
+      }
+
+      if (!previewMesh) {
+        console.error(
+          '[PlacementController] ❌ 预览对象没有mesh，使用后备立方体'
+        );
+        const fallbackMesh = this.createTemporaryPreviewMesh();
+        this.renderer.addPreviewObject(this.previewHandle, fallbackMesh, {
+          color: 0x00ff00,
+          opacity: 0.5,
+        });
+      } else {
+        console.log('[PlacementController] Adding preview mesh to renderer');
+        // 使用真实的几何体作为预览
+        this.renderer.addPreviewObject(this.previewHandle, previewMesh, {
+          color: 0x00ff00,
+          opacity: 0.5,
+        });
+      }
+    } catch (error) {
+      console.error('[PlacementController] Error creating preview:', error);
+      // 如果失败，使用简单立方体
+      const fallbackMesh = this.createTemporaryPreviewMesh();
+      this.renderer.addPreviewObject(this.previewHandle, fallbackMesh, {
+        color: 0x00ff00,
+        opacity: 0.5,
+      });
+    }
 
     // 发布状态变更事件
     publishState('state:placement:started', { asset });

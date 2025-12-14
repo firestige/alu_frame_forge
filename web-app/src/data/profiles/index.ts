@@ -2,6 +2,12 @@
 export { series20Profiles } from './20-series';
 export { series30Profiles } from './30-series';
 
+// 重新导出自动生成的型材数据
+export {
+  profile2020Asset,
+  profile2020Normalized,
+} from './generated/2020-profile';
+
 // 导入用于聚合
 import { series20Profiles } from './20-series';
 import { series30Profiles } from './30-series';

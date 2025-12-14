@@ -52,6 +52,49 @@ export interface Vector2 {
  */
 export type ColorHex = number;
 
+// ==================== 几何与材质 ====================
+
+/**
+ * 拉伸网格参数
+ */
+export interface ExtrusionParams {
+  /** 形状定义（抽象类型） */
+  shape: unknown; // 运行时是 IShape，但为避免循环依赖，使用 unknown
+
+  /** 拉伸长度 */
+  length: number;
+
+  /** 目标截面尺寸(mm) - 用于自动缩放和居中SVG坐标 */
+  targetSize?: number;
+
+  /** 材质属性（抽象类型） */
+  material: unknown; // 运行时是 MaterialProperties
+
+  /** 变换（可选） */
+  transform?: {
+    position?: Vector3;
+    rotation?: Euler;
+    scale?: Vector3;
+  };
+
+  /** 用户数据（用于标识） */
+  userData?: Record<string, unknown>;
+}
+
+/**
+ * 网格句柄（抽象表示）
+ */
+export interface MeshHandle {
+  /** 原生对象（由渲染器具体实现） */
+  nativeObject: unknown;
+
+  /** 几何体句柄（用于资源释放） */
+  geometryHandle?: unknown;
+
+  /** 材质句柄（用于资源释放） */
+  materialHandle?: unknown;
+}
+
 // ==================== 相机视角控制 ====================
 
 /**
@@ -271,6 +314,13 @@ export interface IRenderer {
   enableAxesHelper(size?: number): void;
 
   // ==================== 场景对象管理 ====================
+
+  /**
+   * 创建拉伸网格
+   * @param params - 拉伸参数
+   * @returns 网格句柄
+   */
+  createExtrudedMesh(params: ExtrusionParams): MeshHandle;
 
   /**
    * 添加对象到场景
@@ -620,6 +670,25 @@ export interface ITransformController {
    * 销毁控制器，释放资源
    */
   dispose(): void;
+}
+
+/**
+ * 调试信息接口
+ */
+export interface RendererDebugInfo {
+  camera: {
+    position: Vector3;
+    target: Vector3;
+    fov: number;
+    near: number;
+    far: number;
+  };
+  orbitControls?: {
+    enabled: boolean;
+    minDistance: number;
+    maxDistance: number;
+    enableDamping: boolean;
+  };
 }
 
 /**

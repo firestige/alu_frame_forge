@@ -66,12 +66,12 @@
 
 ## 🧠 方法论文档（methodology/）
 
-| 文档                                                                  | 用途                          | 更新日期   |
-| --------------------------------------------------------------------- | ----------------------------- | ---------- |
-| [README.md](./methodology/README.md)                                  | 方法论文档导航                | 2025-12-07 |
-| [ProjectAnalysis.md](./methodology/ProjectAnalysis.md)                | 项目价值分析                  | 2025-12-07 |
-| [HumanAICollaboration.md](./methodology/HumanAICollaboration.md)      | 协作规范详解                  | 2025-12-07 |
-| [CaseStudyTemplate.md](./methodology/CaseStudyTemplate.md)            | 案例提取模板                  | 2025-12-07 |
+| 文档                                                             | 用途           | 更新日期   |
+| ---------------------------------------------------------------- | -------------- | ---------- |
+| [README.md](./methodology/README.md)                             | 方法论文档导航 | 2025-12-07 |
+| [ProjectAnalysis.md](./methodology/ProjectAnalysis.md)           | 项目价值分析   | 2025-12-07 |
+| [HumanAICollaboration.md](./methodology/HumanAICollaboration.md) | 协作规范详解   | 2025-12-07 |
+| [CaseStudyTemplate.md](./methodology/CaseStudyTemplate.md)       | 案例提取模板   | 2025-12-07 |
 
 ---
 
@@ -112,13 +112,14 @@
 
 所有活跃文档必须包含：
 
-```markdown
+`````markdown
 # 文档标题
 
 **最后更新**: YYYY-MM-DD
 **文档版本**: X.Y（可选）
 **状态**: Active/Archived/Draft
-```text
+
+````text
 
 ### 更新规则
 
@@ -176,3 +177,9 @@ node scripts/doc-check/verify-doc-metadata.mjs
 ---
 
 **文档问题反馈**: 在 GitHub Issues 中标记 `documentation` 标签
+````
+`````
+
+```
+
+```

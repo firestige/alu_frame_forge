@@ -23,12 +23,13 @@ export class CameraController {
 
   constructor(container: HTMLElement, config?: CameraConfig) {
     // 创建透视相机
+    // 家具场景：near=0.001m(1mm), far=100m 以适配真实比例的家具尺寸
     const aspect = container.clientWidth / container.clientHeight;
     this.camera = new THREE.PerspectiveCamera(
       config?.fov || 75,
       aspect,
-      config?.near || 0.1,
-      config?.far || 1000
+      config?.near || 0.001, // 1mm，可以近距离观察小零件
+      config?.far || 100 // 100m，足够大的场景
     );
 
     // 设置初始位置
@@ -341,7 +342,7 @@ export class CameraController {
 
   /**
    * 获取对象包围盒
-   * @param objectId 对象ID（存储在 userData.id 中）
+   * @param objectId 对象ID（存储在 userData.modelId 中）
    */
   getObjectBoundingBox(objectId: string): BoundingBox | null {
     if (!this.scene) {
@@ -352,12 +353,13 @@ export class CameraController {
     // 查找对象
     let foundObject: THREE.Object3D | null = null;
     this.scene.traverse(child => {
-      if (child.userData?.id === objectId) {
+      if (child.userData?.modelId === objectId) {
         foundObject = child;
       }
     });
 
     if (!foundObject) {
+      console.log('[CameraController] Object not found:', objectId);
       return null;
     }
 

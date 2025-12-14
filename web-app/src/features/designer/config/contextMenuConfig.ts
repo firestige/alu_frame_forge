@@ -5,6 +5,15 @@ import type { MenuAction, MenuContext } from '../types/contextMenu';
  */
 export const OBJECT_CONTEXT_MENU: MenuAction[] = [
   {
+    id: 'edit-parameters',
+    label: '编辑参数',
+    icon: '⚙️',
+    command: 'command:model:editParameters',
+    payload: (ctx: MenuContext) => ctx.objectId,
+    shortcut: 'E',
+  },
+  { separator: true },
+  {
     id: 'properties',
     label: '属性',
     icon: '✏️',

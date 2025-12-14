@@ -1,7 +1,7 @@
 # 铝型材框架设计器 - 架构设计文档
 
 **文档版本**: 2.0（模块化版本）  
-**最后更新**: 2025-11-21  
+**最后更新**: 2025-12-15  
 **维护者**: AI Copilot  
 **文档状态**: Active
 
@@ -18,13 +18,14 @@
 
 ### 设计文档索引
 
-| 文档                                                | 描述           | 主要内容                                                      |
-| --------------------------------------------------- | -------------- | ------------------------------------------------------------- |
-| [CoreArchitecture.md](./design/CoreArchitecture.md) | 核心架构设计   | 分层架构、CoreServiceProvider、事件驱动、策略模式、双模型系统 |
-| [UIDesign.md](./design/UIDesign.md)                 | UI/UX 设计系统 | 主题系统、Framer Motion、组件库、响应式布局、无障碍设计       |
-| [StateManagement.md](./design/StateManagement.md)   | 状态管理策略   | Context Provider、Zustand、usePersistentState、同步策略       |
-| [StorageSystem.md](./design/StorageSystem.md)       | 存储与持久化   | AutoSaveService、三层持久化、SceneIO、queryService            |
-| [RenderingSystem.md](./design/RenderingSystem.md)   | 渲染系统设计   | 渲染器抽象、Three.js 实现、RenderSyncService                  |
+| 文档                                                                  | 描述           | 主要内容                                                      |
+| --------------------------------------------------------------------- | -------------- | ------------------------------------------------------------- |
+| [CoreArchitecture.md](./design/CoreArchitecture.md)                   | 核心架构设计   | 分层架构、CoreServiceProvider、事件驱动、策略模式、双模型系统 |
+| [UIDesign.md](./design/UIDesign.md)                                   | UI/UX 设计系统 | 主题系统、Framer Motion、组件库、响应式布局、无障碍设计       |
+| [StateManagement.md](./design/StateManagement.md)                     | 状态管理策略   | Context Provider、Zustand、usePersistentState、同步策略       |
+| [StorageSystem.md](./design/StorageSystem.md)                         | 存储与持久化   | AutoSaveService、三层持久化、SceneIO、queryService            |
+| [RenderingSystem.md](./design/RenderingSystem.md)                     | 渲染系统设计   | 渲染器抽象、Three.js 实现、RenderSyncService                  |
+| [CrossSectionNormalization.md](./design/CrossSectionNormalization.md) | 截面归一化系统 | SVG 路径标注、归一化数据格式、交互式编辑器、混合存储策略      |
 
 ### 快速导航
 
@@ -34,6 +35,7 @@
 - **处理状态管理？** → 阅读 [StateManagement.md](./design/StateManagement.md)
 - **实现数据持久化？** → 阅读 [StorageSystem.md](./design/StorageSystem.md)
 - **集成渲染器？** → 阅读 [RenderingSystem.md](./design/RenderingSystem.md)
+- **处理 SVG 截面标注？** → 阅读 [CrossSectionNormalization.md](./design/CrossSectionNormalization.md)
 
 ---
 
@@ -514,17 +516,114 @@ npm run test:e2e:ui            # 打开 Playwright UI
 
 ---
 
-## 9. 未来扩展
+## 9. 型材系统
 
-### 9.1 计划中的功能
+**最后更新**: 2025-12-15
 
+### 9.1 系统概述
+
+型材系统是本项目的核心功能，负责将欧标铝型材截面数据转换为可渲染的 3D 对象。
+
+**完成状态**: ✅ 已完成 (100%) | **测试覆盖**: 76 tests
+
+### 9.2 核心组件
+
+**ProfileInstanceStrategy** (`src/core/object/strategies/ProfileInstanceStrategy.ts`)
+
+- SVG Path 解析（支持外轮廓 + 多孔洞）
+- 面积对比选择正确的绕向
+- 孔洞侧壁生成和合并
+
+**NormalizedCrossSection** (`src/core/asset/types/profile.ts`)
+
+- 统一的数据格式
+- 运行时验证（路径闭合性）
+
+**AssetService** (`src/core/asset/AssetService.ts`)
+
+- SVG → NormalizedCrossSection 转换
+- 数据契约验证
+
+### 9.3 参数化编辑
+
+- ✅ NumberInput - 支持单位、约束、键盘微调
+- ✅ ParameterEditDialog - 对话框编辑
+- ✅ PropertyPanel - 内联编辑
+
+### 9.4 相关文档
+
+- [DataFlowArchitecture-Final.md](./methodology/case-studies/DataFlowArchitecture-Final.md)
+- [DevelopLog-2025-12-15.md](./DevelopLog-2025-12-15.md)
+
+---
+
+## 10. 连接件与紧固件系统
+
+**最后更新**: 2025-12-15
+
+### 10.1 系统概述
+
+连接件与紧固件系统是约束系统验证的前置条件。
+
+**当前状态**: 🚧 进行中 (P1 优先级)
+
+**优先级提升原因**: 系统完整性优先于可视化效果
+
+### 10.2 核心架构决策
+
+#### 功能性简化模型策略
+
+**核心思想**: 视觉可以简化，功能数据必须精确
+
+- Visual Layer: 简化几何体（性能优化）
+- Functional Layer: 精确数据（约束计算）
+
+#### STUB 数据策略
+
+**核心思想**: 接口先行、占位数据、渐进完善
+
+- 明确标注 🔴 STUB
+- 注明精度等级（± 2mm）
+- 文件命名：`*.stub.ts` / `*.real.ts`
+
+### 10.3 最小实现集
+
+1. **L型角件 40x40** - 适配 2020 型材
+2. **M5 螺栓 20mm** - 用于连接件固定
+
+### 10.4 依赖关系
+
+```
+Task #6: 型材系统 (✅)
+   ↓
+Task #13 Phase 1-5: 约束系统 Core 层 (✅)
+   ↓
+Task #14: 连接件/紧固件系统 (🚧 P1)
+   ↓
+Task #13 Phase 6: 约束系统 UI 层 (⏳)
+```
+
+### 10.5 相关文档
+
+- [AnchorConstraintSystem.md](./_temp/AnchorConstraintSystem.md)
+- [TODO.md](../TODO.md) - Task #14
+- [DevelopLog-2025-12-15.md](./DevelopLog-2025-12-15.md)
+
+---
+
+## 11. 未来扩展
+
+### 11.1 计划中的功能
+
+- [ ] **连接件系统扩展** - T型角件、转角件等
+- [ ] **紧固件系统扩展** - T型螺母、顶丝等
+- [ ] **加工操作系统** - 打孔、切角、攻丝
+- [ ] **约束系统 UI 层** - Gizmo 可视化
 - [ ] **多人协作** - WebSocket 实时同步
-- [ ] **工程导出** - BOM 表、切割清单、装配图
-- [ ] **参数化约束** - 智能尺寸约束系统
-- [ ] **材质库** - 真实材质渲染
-- [ ] **插件系统** - 支持第三方扩展
+- [ ] **工程导出** - BOM 表、切割清单
+- [ ] **插件系统** - 第三方扩展
 
-### 9.2 技术演进
+### 11.2 技术演进
 
 - [ ] **渲染器切换** - 支持 WebGPU
 - [ ] **状态机** - XState 管理复杂交互

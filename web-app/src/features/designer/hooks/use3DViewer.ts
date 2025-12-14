@@ -19,12 +19,12 @@ export function use3DViewer(options: ViewerOptions) {
   const {
     containerRef,
     backgroundColor = '#222222',
-    cameraPosition = { x: 5, y: 5, z: 5 },
+    cameraPosition = { x: 0.8, y: 0.8, z: 0.8 }, // 约1.4m距离 + 45° FOV，适合观察50cm型材
     orbitControls = {
       enableDamping: true,
       dampingFactor: 0.05,
-      minDistance: 2,
-      maxDistance: 20,
+      minDistance: 0.005, // 0.005m (5mm) - 可以推近到极近距离观察细节
+      maxDistance: 10, // 10m - 适合家具场景的最大观察距离
     },
   } = options;
 
@@ -54,9 +54,9 @@ export function use3DViewer(options: ViewerOptions) {
       backgroundColor,
       enableShadow: true,
       camera: {
-        fov: 75,
-        near: 0.1,
-        far: 1000,
+        fov: 45, // 45° FOV - 更小的视野角让对象看起来更大（zoom in效果）
+        near: 0.001, // 1mm - 适配家具场景
+        far: 100, // 100m - 适配家具场景
         position: cameraPosition,
       },
       orbitControls: {
@@ -67,6 +67,28 @@ export function use3DViewer(options: ViewerOptions) {
 
     setRenderer(newRenderer);
     console.log('[use3DViewer] ✅ 渲染器创建成功');
+
+    // 🔍 使用调试接口获取摄像机和控制器状态
+    const debugInfo = newRenderer.getDebugInfo();
+    const distance = Math.sqrt(
+      debugInfo.camera.position.x ** 2 +
+        debugInfo.camera.position.y ** 2 +
+        debugInfo.camera.position.z ** 2
+    );
+
+    console.log('[use3DViewer] 📷 摄像机实际状态:', {
+      位置: debugInfo.camera.position,
+      观察目标: debugInfo.camera.target,
+      '距离原点(米)': distance.toFixed(2),
+      'FOV(度)': debugInfo.camera.fov,
+      'near(米)': debugInfo.camera.near,
+      'far(米)': debugInfo.camera.far,
+    });
+
+    console.log(
+      '[use3DViewer] 🎮 OrbitControls实际状态:',
+      debugInfo.orbitControls
+    );
 
     // 添加网格和坐标轴辅助器
     newRenderer.enableGridHelper(10, 10);

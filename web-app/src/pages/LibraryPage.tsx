@@ -31,8 +31,8 @@ const LibraryPageContent: React.FC = () => {
       id: profile.id,
       name: profile.name,
       description: profile.description || '',
-      svg: profile.crossSection.svgPath || '', // 从 crossSection 中获取 svg 路径
-      series: profile.crossSection.width,
+      svg: profile.crossSection.outerPath || '', // 使用新格式 outerPath
+      series: profile.crossSection.dimensions.width, // 使用新格式 dimensions.width
     }));
     setAssets(allAssets);
   }, [assetService, setAssets]);

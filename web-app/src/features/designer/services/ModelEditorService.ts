@@ -1,5 +1,6 @@
 import type { ObjectManager, SceneObject } from '@/core/object';
 import { designerEventBus } from '@/core/services/eventBus';
+import { onCommand, publishState } from '@/core/services/eventBus';
 
 /**
  * 模型编辑服务（重构后 - 纯业务逻辑）
@@ -17,10 +18,27 @@ export class ModelEditorService {
 
   constructor(objectManager: ObjectManager) {
     this.objectManager = objectManager;
+    this.setupCommandListeners();
   }
 
   /**
-   * 编辑对象参数
+   * 注册命令监听器
+   */
+  private setupCommandListeners(): void {
+    onCommand('command:model:editParameters', this.handleEditParametersCommand);
+  }
+
+  /**
+   * 处理编辑参数命令（通过事件总线）
+   */
+  private handleEditParametersCommand = (objectId: string): void => {
+    // 发布状态，通知 UI 层打开参数编辑对话框
+    publishState('state:model:editParametersRequested', { objectId });
+  };
+
+  /**
+   * 编辑对象参数（保留用于向后兼容）
+   * @deprecated 建议使用 command:model:editParameters 命令代替
    */
   public editModel(objectId: string): void {
     const obj = this.objectManager.getObject(objectId);

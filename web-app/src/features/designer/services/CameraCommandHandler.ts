@@ -59,6 +59,16 @@ export class CameraCommandHandler {
         true
       );
     });
+
+    // 聚焦到对象（使用objectId）
+    onCommand('command:camera:focusObject', ({ objectId }) => {
+      this.cameraService.focusOnObject(objectId);
+    });
+
+    // 释放聚焦
+    onCommand('command:camera:resetFocus', () => {
+      this.cameraService.resetFocus(true);
+    });
   }
 
   private registerKeyboardShortcuts(): void {

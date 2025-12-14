@@ -73,6 +73,13 @@ export class RaycasterService {
         currentObj = currentObj.parent;
       }
 
+      console.log('[RaycasterService] Hit object:', {
+        'hit.object.uuid': hit.object.uuid,
+        'hit.object.userData': hit.object.userData,
+        'found modelId': modelId,
+        'will use': modelId || hit.object.uuid,
+      });
+
       return {
         handle: modelId || hit.object.uuid,
         point: {
