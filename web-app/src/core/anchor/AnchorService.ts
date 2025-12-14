@@ -1,16 +1,16 @@
 /**
  * AnchorService - 锚点管理服务
- * 
+ *
  * 职责：
  * 1. 生成并维护场景对象的锚点集合
  * 2. 提供高效的锚点查询（最近锚点、范围查询）
  * 3. 响应对象变换时更新锚点位置
- * 
+ *
  * 设计要点：
  * - 锚点数据存储在 AnchorService 的 Map 中（不再使用 mesh.userData）
  * - 锚点从 SceneObject.compute 模型生成（不依赖 Three.js）
  * - 提供回调机制向上报告状态（符合单向依赖）
- * 
+ *
  * @module core/anchor
  */
 
@@ -39,7 +39,7 @@ export class AnchorService {
 
   /**
    * 为场景对象生成锚点
-   * 
+   *
    * @param sceneObject - 场景对象
    * @returns 生成的锚点数组
    */
@@ -51,15 +51,15 @@ export class AnchorService {
       case 'profile':
         anchors.push(...this.generateProfileAnchors(sceneObject));
         break;
-      
+
       case 'connector':
         anchors.push(...this.generateConnectorAnchors(sceneObject));
         break;
-      
+
       case 'fastener':
         // 紧固件通常不需要锚点
         break;
-      
+
       default:
         console.warn(`Unknown asset type: ${sceneObject.assetType}`);
     }
@@ -77,7 +77,7 @@ export class AnchorService {
 
   /**
    * 生成型材锚点
-   * 
+   *
    * @private
    */
   private generateProfileAnchors(sceneObject: SceneObject): AnchorPoint[] {
@@ -123,7 +123,7 @@ export class AnchorService {
       { x: -10, y: 10, face: 'corner-tl' },
     ];
 
-    cornerOffsets.forEach((offset) => {
+    cornerOffsets.forEach(offset => {
       // 前端角点
       anchors.push({
         id: `${sceneObject.id}-${offset.face}-front`,
@@ -188,7 +188,7 @@ export class AnchorService {
 
   /**
    * 生成连接件锚点
-   * 
+   *
    * @private
    */
   private generateConnectorAnchors(sceneObject: SceneObject): AnchorPoint[] {
@@ -209,7 +209,7 @@ export class AnchorService {
 
   /**
    * 更新对象变换后的锚点位置
-   * 
+   *
    * @param objectId - 对象 ID
    * @param newTransform - 新的变换
    */
@@ -229,7 +229,7 @@ export class AnchorService {
     const deltaY = newTransform.position.y;
     const deltaZ = newTransform.position.z;
 
-    anchors.forEach((anchor) => {
+    anchors.forEach(anchor => {
       // 简化：假设锚点相对位置不变，只更新基准点
       // TODO: 实现完整的矩阵变换
       anchor.position.x += deltaX;
@@ -245,7 +245,7 @@ export class AnchorService {
 
   /**
    * 查找最近的锚点
-   * 
+   *
    * @param worldPos - 世界坐标位置
    * @param options - 查询选项
    * @returns 最近的锚点及距离，如果无匹配则返回 null
@@ -303,7 +303,7 @@ export class AnchorService {
 
   /**
    * 范围查询：获取指定半径内的所有锚点
-   * 
+   *
    * @param worldPos - 世界坐标位置
    * @param radius - 搜索半径
    * @param options - 查询选项
@@ -349,7 +349,7 @@ export class AnchorService {
 
   /**
    * 获取指定对象的所有锚点
-   * 
+   *
    * @param objectId - 对象 ID
    * @returns 锚点数组，如果不存在则返回空数组
    */
@@ -359,7 +359,7 @@ export class AnchorService {
 
   /**
    * 移除对象的锚点
-   * 
+   *
    * @param objectId - 对象 ID
    */
   removeAnchors(objectId: string): void {

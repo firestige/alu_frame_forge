@@ -69,19 +69,21 @@ describe('AnchorService', () => {
       expect(anchors.length).toBeGreaterThan(10);
 
       // 检查端点锚点
-      const endAnchors = anchors.filter((a) => a.type === AnchorType.PROFILE_END);
+      const endAnchors = anchors.filter(a => a.type === AnchorType.PROFILE_END);
       expect(endAnchors).toHaveLength(2);
       expect(endAnchors[0].id).toBe('profile-1-end-front');
       expect(endAnchors[1].id).toBe('profile-1-end-back');
 
       // 检查角点锚点
       const cornerAnchors = anchors.filter(
-        (a) => a.type === AnchorType.PROFILE_CORNER
+        a => a.type === AnchorType.PROFILE_CORNER
       );
       expect(cornerAnchors).toHaveLength(8); // 4个角 × 2端
 
       // 检查吸附点
-      const snapAnchors = anchors.filter((a) => a.type === AnchorType.PROFILE_SNAP);
+      const snapAnchors = anchors.filter(
+        a => a.type === AnchorType.PROFILE_SNAP
+      );
       expect(snapAnchors.length).toBeGreaterThan(0);
     });
 
@@ -106,9 +108,19 @@ describe('AnchorService', () => {
             crossSection: '',
             length: 1000,
             machiningOps: [],
-            material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+            material: {
+              type: 'metal',
+              density: 2700,
+              youngsModulus: 69000,
+              poissonsRatio: 0.33,
+            },
           },
-          material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+          material: {
+            type: 'metal',
+            density: 2700,
+            youngsModulus: 69000,
+            poissonsRatio: 0.33,
+          },
           connections: [],
           mass: 1,
         },
@@ -145,9 +157,19 @@ describe('AnchorService', () => {
             crossSection: '',
             length: 1000,
             machiningOps: [],
-            material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+            material: {
+              type: 'metal',
+              density: 2700,
+              youngsModulus: 69000,
+              poissonsRatio: 0.33,
+            },
           },
-          material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+          material: {
+            type: 'metal',
+            density: 2700,
+            youngsModulus: 69000,
+            poissonsRatio: 0.33,
+          },
           connections: [],
           mass: 1,
         },
@@ -182,9 +204,19 @@ describe('AnchorService', () => {
             crossSection: '',
             length: 1000,
             machiningOps: [],
-            material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+            material: {
+              type: 'metal',
+              density: 2700,
+              youngsModulus: 69000,
+              poissonsRatio: 0.33,
+            },
           },
-          material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+          material: {
+            type: 'metal',
+            density: 2700,
+            youngsModulus: 69000,
+            poissonsRatio: 0.33,
+          },
           connections: [],
           mass: 1,
         },
@@ -258,9 +290,19 @@ describe('AnchorService', () => {
             crossSection: '',
             length: 1000,
             machiningOps: [],
-            material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+            material: {
+              type: 'metal',
+              density: 2700,
+              youngsModulus: 69000,
+              poissonsRatio: 0.33,
+            },
           },
-          material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+          material: {
+            type: 'metal',
+            density: 2700,
+            youngsModulus: 69000,
+            poissonsRatio: 0.33,
+          },
           connections: [],
           mass: 1,
         },
@@ -274,7 +316,7 @@ describe('AnchorService', () => {
       const results = service.findAnchorsInRadius({ x: 0, y: 0, z: 0 }, 50);
 
       expect(results.length).toBeGreaterThan(0);
-      results.forEach((result) => {
+      results.forEach(result => {
         expect(result.distance).toBeLessThanOrEqual(50);
       });
     });
@@ -283,7 +325,9 @@ describe('AnchorService', () => {
       const results = service.findAnchorsInRadius({ x: 0, y: 0, z: 0 }, 100);
 
       for (let i = 1; i < results.length; i++) {
-        expect(results[i].distance).toBeGreaterThanOrEqual(results[i - 1].distance);
+        expect(results[i].distance).toBeGreaterThanOrEqual(
+          results[i - 1].distance
+        );
       }
     });
   });
@@ -310,9 +354,19 @@ describe('AnchorService', () => {
             crossSection: '',
             length: 1000,
             machiningOps: [],
-            material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+            material: {
+              type: 'metal',
+              density: 2700,
+              youngsModulus: 69000,
+              poissonsRatio: 0.33,
+            },
           },
-          material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+          material: {
+            type: 'metal',
+            density: 2700,
+            youngsModulus: 69000,
+            poissonsRatio: 0.33,
+          },
           connections: [],
           mass: 1,
         },
@@ -349,9 +403,19 @@ describe('AnchorService', () => {
             crossSection: '',
             length: 1000,
             machiningOps: [],
-            material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+            material: {
+              type: 'metal',
+              density: 2700,
+              youngsModulus: 69000,
+              poissonsRatio: 0.33,
+            },
           },
-          material: { type: 'metal', density: 2700, youngsModulus: 69000, poissonsRatio: 0.33 },
+          material: {
+            type: 'metal',
+            density: 2700,
+            youngsModulus: 69000,
+            poissonsRatio: 0.33,
+          },
           connections: [],
           mass: 1,
         },

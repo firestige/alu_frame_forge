@@ -1,6 +1,6 @@
 /**
  * ThreeGeometryAdapter 集成测试
- * 
+ *
  * 验证抽象几何到 Three.js 几何的转换
  */
 

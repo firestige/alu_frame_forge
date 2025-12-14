@@ -1,18 +1,18 @@
 /**
  * ConstraintService - 约束管理服务
- * 
+ *
  * 职责：
  * 1. 管理约束集合（添加、删除、查询）
  * 2. 提供约束求解接口
  * 3. 验证约束可行性
  * 4. 检测约束冲突
- * 
+ *
  * 设计要点：
  * - 约束数据从 SceneObject.compute 模型获取
  * - 使用 AnchorService 进行锚点查询
  * - 通过回调向上报告状态
  * - 不直接依赖渲染器（Three.js）
- * 
+ *
  * @module core/constraint
  */
 
@@ -59,7 +59,7 @@ export class ConstraintService {
 
   /**
    * 添加约束
-   * 
+   *
    * @param constraint - 约束对象
    * @returns 是否成功添加
    */
@@ -90,7 +90,7 @@ export class ConstraintService {
 
   /**
    * 移除约束
-   * 
+   *
    * @param constraintId - 约束 ID
    * @returns 是否成功移除
    */
@@ -106,7 +106,7 @@ export class ConstraintService {
 
   /**
    * 获取约束
-   * 
+   *
    * @param constraintId - 约束 ID
    * @returns 约束对象，如果不存在则返回 undefined
    */
@@ -116,7 +116,7 @@ export class ConstraintService {
 
   /**
    * 获取对象相关的所有约束
-   * 
+   *
    * @param objectId - 对象 ID
    * @returns 约束数组
    */
@@ -134,7 +134,7 @@ export class ConstraintService {
 
   /**
    * 获取所有约束
-   * 
+   *
    * @returns 约束数组
    */
   getAllConstraints(): Constraint[] {
@@ -143,7 +143,7 @@ export class ConstraintService {
 
   /**
    * 启用/禁用约束
-   * 
+   *
    * @param constraintId - 约束 ID
    * @param enabled - 是否启用
    */
@@ -156,7 +156,7 @@ export class ConstraintService {
 
   /**
    * 求解约束
-   * 
+   *
    * @param changedObjectId - 发生变化的对象 ID
    * @param proposedTransform - 提议的变换
    * @returns 求解结果
@@ -172,7 +172,7 @@ export class ConstraintService {
 
     // 获取相关约束
     const relevantConstraints = this.getConstraintsByObject(changedObjectId)
-      .filter((c) => c.enabled)
+      .filter(c => c.enabled)
       .sort((a, b) => b.priority - a.priority); // 按优先级降序
 
     if (relevantConstraints.length === 0) {
@@ -260,7 +260,7 @@ export class ConstraintService {
 
   /**
    * 应用约束修正
-   * 
+   *
    * @private
    */
   private applyConstraint(
@@ -269,7 +269,10 @@ export class ConstraintService {
       position: Vector3;
       rotation: { x: number; y: number; z: number };
     }
-  ): { position: Vector3; rotation: { x: number; y: number; z: number } } | null {
+  ): {
+    position: Vector3;
+    rotation: { x: number; y: number; z: number };
+  } | null {
     // TODO: 实现具体的约束求解逻辑
     // 当前简化：返回原始变换
     return currentTransform;
@@ -277,7 +280,7 @@ export class ConstraintService {
 
   /**
    * 验证约束
-   * 
+   *
    * @param constraint - 约束对象
    * @returns 验证结果
    */
@@ -304,7 +307,7 @@ export class ConstraintService {
 
   /**
    * 检测约束冲突
-   * 
+   *
    * @returns 冲突的约束 ID 数组
    */
   detectConflicts(): string[] {

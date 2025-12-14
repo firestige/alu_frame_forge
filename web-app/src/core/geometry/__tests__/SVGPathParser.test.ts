@@ -1,6 +1,6 @@
 /**
  * SVGPathParser 单元测试
- * 
+ *
  * 验证 SVG 路径解析功能的正确性
  */
 
@@ -16,7 +16,7 @@ describe('SVGPathParser', () => {
 
       expect(shape.curves).toHaveLength(4);
       expect(shape.isClosed).toBe(true);
-      
+
       // 验证第一条曲线（M 0 0 L 10 0）
       const curve1 = shape.curves[0];
       expect(curve1.type).toBe(CurveType.LINE);
@@ -60,7 +60,7 @@ describe('SVGPathParser', () => {
 
       expect(shape.curves).toHaveLength(3);
       expect(shape.isClosed).toBe(true);
-      
+
       const curve2 = shape.curves[1];
       expect(curve2.start).toEqual({ x: 10, y: 0 });
       expect(curve2.end).toEqual({ x: 10, y: 10 });
@@ -77,7 +77,9 @@ describe('SVGPathParser', () => {
 
     it('should throw error for invalid path', () => {
       expect(() => SVGPathParser.parse('')).toThrow('Invalid SVG path');
-      expect(() => SVGPathParser.parse(null as any)).toThrow('Invalid SVG path');
+      expect(() => SVGPathParser.parse(null as any)).toThrow(
+        'Invalid SVG path'
+      );
     });
 
     it('should handle horizontal/vertical lines', () => {
@@ -85,13 +87,13 @@ describe('SVGPathParser', () => {
       const shape = SVGPathParser.parse(svgPath);
 
       expect(shape.curves).toHaveLength(4);
-      
+
       // H 10 -> L 10 0
       expect(shape.curves[0].end).toEqual({ x: 10, y: 0 });
-      
+
       // V 10 -> L 10 10
       expect(shape.curves[1].end).toEqual({ x: 10, y: 10 });
-      
+
       // H 0 -> L 0 10
       expect(shape.curves[2].end).toEqual({ x: 0, y: 10 });
     });
