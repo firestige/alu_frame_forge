@@ -46,13 +46,64 @@
 
 ## P1 - 高优先级（本周完成）
 
-### 5. 实现 ProfileInstanceStrategy（真实型材生成）
+### 5. 参数化编辑能力（属性面板 + 对话框）
 
-**状态**: ⏳ 待执行
+**状态**: ⏳ 进行中
+
+**优先级**: P0（核心功能）
+
+**描述**: 实现型材长度等参数的交互式编辑，支持 CAD 风格的参数修改体验。
+
+**详细方案**: 见分析报告（2025-12-15）
+
+**MVP 范围**（当前阶段）:
+
+- [ ] **PropertyPanel 参数编辑**（P0）
+  - [ ] NumberInput 组件（支持 min/max/step/unit）
+  - [ ] PropertyEditor 通用编辑器
+  - [ ] 集成到 PropertyPanel，userParams 可编辑
+  - [ ] 连接 ObjectManager.updateUserParams
+
+- [ ] **右键菜单参数对话框**（P1）
+  - [ ] Dialog 模态对话框组件（基于 Headless UI）
+  - [ ] ParameterEditDialog 参数编辑对话框
+  - [ ] 上下文菜单添加"编辑参数"菜单项
+  - [ ] 替换 ModelEditorService 的 prompt() 实现
+
+**技术要求**:
+
+- 遵守分层架构：UI → Features → Core
+- 使用 EventBus 命令系统（command:model:updateUserParams）
+- 基于 Tailwind CSS + Framer Motion
+- 支持参数约束验证（来自 ProfileAsset.lengthConstraints）
+
+**STUB 特性**（未来迭代，当前不实现）:
+
+- 🔲 **二步放置交互**（P2 - 未来迭代）
+  - ExtrusionGizmo（端面拖拽手柄 + 尺寸标注）
+  - TwoStepPlacementController（定位 → 设置长度）
+  - LengthInputOverlay（浮动数值输入）
+  - AxisConstraint（沿轴向约束拖拽）
+  - 预计工作量：4-5 天
+  - 详细设计：见 doc/\_temp/ParametricGeometryGeneration.md
+
+- 🔲 Slider 滑块输入（快速调整）
+- 🔲 UnitInput 单位转换（mm/cm/m）
+- 🔲 参数依赖关系处理（如宽度变化时高度联动）
+
+**待讨论问题**:
+
+- [ ] 参数验证失败时的用户反馈方式？（Toast vs 行内错误提示）
+- [ ] 是否需要"撤销"按钮恢复修改？（Ctrl+Z vs 对话框取消）
+- [ ] 实时预览 vs 确认后更新？（性能考量）
+
+---
+
+### 6. 实现 ProfileInstanceStrategy（真实型材生成）
+
+**状态**: ✅ 已完成
 
 **优先级**: P1（高优先级）
-
-**前置条件**: StubProfileStrategy 验证通过
 
 **描述**: 实现真实的型材截面拉伸逻辑，替换当前的 Stub 策略。
 

@@ -38,8 +38,11 @@ export interface NormalizedCrossSection {
    * - 必须是闭合路径（以 Z 结束）
    * - 坐标单位：mm
    * - 原点：根据 dimensions.origin 确定
+   * - **路径方向：逆时针 (CCW)**（Three.js ExtrudeGeometry 标准）
+   *   - 确保法向量向外
+   *   - 面积计算为正值
    *
-   * @example "M0,0 L20,0 L20,20 L0,20 Z"
+   * @example "M0,0 L20,0 L20,20 L0,20 Z"  // 逆时针绘制
    */
   outerPath: string;
 
@@ -51,8 +54,11 @@ export interface NormalizedCrossSection {
    * - 每个孔洞必须是闭合路径
    * - 坐标系与 outerPath 一致
    * - 孔洞必须完全位于 outerPath 内部（验证时检查）
+   * - **路径方向：顺时针 (CW)**（与外轮廓相反）
+   *   - 确保孔洞法向量向内
+   *   - 与 outerPath 方向相反以正确挖空
    *
-   * @example ["M8,8 L12,8 L12,12 L8,12 Z"]
+   * @example ["M8,8 L8,12 L12,12 L12,8 Z"]  // 顺时针绘制（与外轮廓相反）
    */
   holes: string[];
 

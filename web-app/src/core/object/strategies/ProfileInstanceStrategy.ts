@@ -219,15 +219,23 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     const profileAsset = asset as ProfileAsset;
     const length = sceneObject.userParams.length as number;
 
-    // 1. 解析 SVG 路径（使用契约数据）
-    const shape = SVGPathParser.parse(profileAsset.crossSection.outerPath);
+    // 1. 解析 SVG 路径（使用契约数据，包含孔洞处理）
+    const shape = this.parseSVGWithHoles(
+      profileAsset.crossSection.outerPath,
+      profileAsset.crossSection.holes
+    );
 
-    // 2. 转换材质属性
+    console.log('[ProfileInstanceStrategy] 🔄 updateGeometry - 解析形状完成:', {
+      curves: shape.curves?.length,
+      holes: shape.holes?.length,
+    });
+
+    // 2. 转换材质属性（与创建时保持一致）
     const materialProps: MaterialProperties = {
       type: 'metal',
-      color: 0x999999,
-      metalness: 0.9,
-      roughness: 0.3,
+      color: 0xd4d4d4, // 明亮的铝合金银色
+      metalness: 0.8,
+      roughness: 0.2,
     };
 
     // 3. 创建拉伸参数
@@ -246,6 +254,12 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
     // 4. 重新生成渲染网格
     const meshHandle = this.renderer.createExtrudedMesh(extrusionParams);
     const newMesh = meshHandle.nativeObject;
+
+    console.log('[ProfileInstanceStrategy] 🔄 updateGeometry - 新网格已生成:', {
+      objectId: sceneObject.id,
+      length,
+      meshType: newMesh?.constructor?.name,
+    });
 
     // 更新视觉模型
     sceneObject.visual.mesh = newMesh;
@@ -269,11 +283,25 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
   }
 
   /**
-   * 使用 SVGLoader 解析 SVG 路径并正确处理孔洞方向
+   * 解析 SVG 路径（适配 Three.js 渲染器）
    *
-   * @param outerPath - 外轮廓SVG路径
-   * @param holes - 孔洞SVG路径数组
-   * @returns IShape 对象（直接传递给 ThreeGeometryAdapter）
+   * 职责：
+   * - 接收抽象层数据（AssetService 已验证闭合性）
+   * - 转换为 Three.js 特定的数据结构
+   * - 验证并修正渲染器特定的方向要求
+   *
+   * Three.js 要求：
+   * - 外轮廓和孔洞的环绕方向必须相反
+   * - 使用 ShapeUtils.area() 判断方向（正/负）
+   *
+   * 为什么需要运行时验证？
+   * - SVGLoader.toShapes(isCCW) 的行为不稳定
+   * - 同样的 path data 可能产生不同方向的结果
+   * - 抽象层只保证闭合，不保证渲染器特定要求
+   *
+   * @param outerPath - 外轮廓SVG路径（抽象层保证闭合）
+   * @param holes - 孔洞SVG路径数组（抽象层保证闭合）
+   * @returns IShape 对象（传递给 ThreeGeometryAdapter）
    */
   private parseSVGWithHoles(outerPath: string, holes: string[]): IShape {
     // 构建完整的 SVG 字符串
@@ -292,27 +320,19 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
       throw new Error('SVG parsing failed: no paths found');
     }
 
-    // 获取第一个路径（外轮廓）
-    const outerPathData = svgData.paths[0];
+    // ========== 外轮廓：尝试两种方向，选择面积更大的 ==========
+    const outerSvgPath = svgData.paths[0];
+    const shapesAsCCW = outerSvgPath.toShapes(true);
+    const shapesAsCW = outerSvgPath.toShapes(false);
 
-    // 尝试两种方向
-    const shapesAsCCW = outerPathData.toShapes(true); // 逆时针为外轮廓
-    const shapesAsCW = outerPathData.toShapes(false); // 顺时针为外轮廓
-
-    console.log('[ProfileInstanceStrategy] 🔍 Shape方向测试:', {
-      CCW_shapes: shapesAsCCW.length,
-      CW_shapes: shapesAsCW.length,
-    });
-
-    // 使用面积判断哪个是外轮廓（外轮廓面积应该更大）
-    let shape: any;
+    let shape: THREE.Shape;
     if (shapesAsCCW.length > 0 && shapesAsCW.length > 0) {
       const areaCCW = THREE.ShapeUtils.area(shapesAsCCW[0].getPoints());
       const areaCW = THREE.ShapeUtils.area(shapesAsCW[0].getPoints());
 
-      console.log('[ProfileInstanceStrategy] 📐 面积对比:', {
-        CCW: Math.abs(areaCCW),
-        CW: Math.abs(areaCW),
+      console.log('[ProfileInstanceStrategy] 📐 外轮廓面积对比:', {
+        CCW: Math.abs(areaCCW).toFixed(2),
+        CW: Math.abs(areaCW).toFixed(2),
       });
 
       // 选择面积的绝对值更大的作为外轮廓
@@ -326,33 +346,39 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
       throw new Error('Failed to extract outer shape from SVG');
     }
 
-    console.log('[ProfileInstanceStrategy] ✅ 外轮廓解析成功:', {
+    const outerArea = THREE.ShapeUtils.area(shape.getPoints());
+    console.log('[ProfileInstanceStrategy] ✅ 外轮廓解析完成:', {
       curves: shape.curves?.length,
-      area: THREE.ShapeUtils.area(shape.getPoints()),
+      area: outerArea.toFixed(2),
+      direction: outerArea > 0 ? 'CCW' : 'CW',
     });
 
-    // 清空已有的孔洞（toShapes可能自动添加了错误的）
+    // 清空 toShapes 自动添加的孔洞
     shape.holes = [];
 
-    // 手动添加孔洞（从 svgData.paths 获取）
+    // ========== 孔洞：验证方向，确保与外轮廓相反 ==========
     if (svgData.paths.length > 1) {
-      const outerArea = THREE.ShapeUtils.area(shape.getPoints());
-
       for (let i = 1; i < svgData.paths.length; i++) {
-        const holePathData = svgData.paths[i];
-        const holeShapes = holePathData.toShapes(true);
+        const holePath = svgData.paths[i];
+        const holeShapes = holePath.toShapes(true);
 
         if (holeShapes.length > 0) {
           const hole = holeShapes[0];
           const holeArea = THREE.ShapeUtils.area(hole.getPoints());
 
-          console.log(`[ProfileInstanceStrategy] 🔍 孔洞 ${i} 面积:`, holeArea);
+          console.log(`[ProfileInstanceStrategy] 🔍 孔洞 ${i}:`, {
+            curves: hole.curves?.length,
+            area: Math.abs(holeArea).toFixed(2),
+            direction: holeArea > 0 ? 'CCW' : 'CW',
+          });
 
-          // 确保孔洞方向与外轮廓相反
+          // 验证方向：孔洞必须与外轮廓相反
+          // 如果 area 符号相同，说明方向相同，需要反转
           if (holeArea > 0 === outerArea > 0) {
             console.log(
-              `[ProfileInstanceStrategy]   ⚠️ 孔洞方向与外轮廓相同，需要反转`
+              `[ProfileInstanceStrategy] ⚠️ 孔洞 ${i} 方向与外轮廓相同，需要反转`
             );
+
             // 反转孔洞方向
             hole.curves.reverse();
             hole.curves.forEach((curve: any) => {
@@ -362,12 +388,11 @@ export class ProfileInstanceStrategy implements InstanceStrategy {
                 curve.v2 = temp;
               }
             });
+
+            console.log(`[ProfileInstanceStrategy] ✅ 孔洞 ${i} 方向已反转`);
           }
 
           shape.holes.push(hole);
-          console.log(`[ProfileInstanceStrategy] ✅ 添加孔洞 ${i}:`, {
-            curves: hole.curves?.length,
-          });
         }
       }
     }

@@ -20,6 +20,8 @@ import { SCENE_CONTEXT_MENU } from '../config/sceneContextMenuConfig';
 import { onState, sendCommand } from '@/core/services/eventBus';
 import { useSelectionState } from '../hooks/useSelectionState';
 import { useDesignerObjects } from '../hooks/useDesignerObjects';
+import { ParameterEditDialog } from './components/ParameterEditDialog';
+import { useCoreServices } from '@/core/CoreServiceProvider';
 
 import type { IRenderer } from '@/core/renderer';
 
@@ -49,12 +51,22 @@ export interface DesignerPageUIProps {
  * - 不管理项目加载逻辑（父组件职责）
  */
 const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
+  // ==================== 0. Core Services ====================
+
+  const { objectManager } = useCoreServices();
+
   // ==================== 1. UI 状态（持久化）- 必须最先声明 ====================
 
   // 侧边栏折叠状态（预留）
   const [sidebarCollapsed] = usePersistentState(
     'designer.sidebarCollapsed',
     false
+  );
+
+  // 参数编辑对话框状态
+  const [paramEditDialogOpen, setParamEditDialogOpen] = React.useState(false);
+  const [editingObjectId, setEditingObjectId] = React.useState<string | null>(
+    null
   );
 
   // ==================== 2. 3D 容器和 Renderer ====================
@@ -125,7 +137,46 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
     renderer
   );
 
-  // ==================== 10. 快捷键：F键聚焦选中对象 ====================
+  // ==================== 10. 参数编辑对话框 ====================
+
+  // 监听编辑参数请求
+  React.useEffect(() => {
+    const unsubscribe = onState(
+      'state:model:editParametersRequested',
+      (data: { objectId: string }) => {
+        setEditingObjectId(data.objectId);
+        setParamEditDialogOpen(true);
+      }
+    );
+    return unsubscribe;
+  }, []);
+
+  // 获取正在编辑的对象
+  const editingObject = editingObjectId
+    ? objectManager.getObject(editingObjectId)
+    : null;
+  const editingAsset = editingObject
+    ? objectManager.getAsset(editingObject.assetId)
+    : undefined;
+
+  // 处理参数编辑确认
+  const handleParamEditConfirm = (
+    updatedParams: Record<string, number | string | boolean>
+  ) => {
+    if (editingObjectId) {
+      objectManager.updateUserParams(editingObjectId, updatedParams);
+    }
+    setParamEditDialogOpen(false);
+    setEditingObjectId(null);
+  };
+
+  // 处理参数编辑取消
+  const handleParamEditCancel = () => {
+    setParamEditDialogOpen(false);
+    setEditingObjectId(null);
+  };
+
+  // ==================== 11. 快捷键：F键聚焦选中对象 ====================
 
   const { selectedIds } = useSelectionState();
   const objects = useDesignerObjects();
@@ -187,6 +238,17 @@ const DesignerPageUI: React.FC<DesignerPageUIProps> = ({ onRendererReady }) => {
                 ...contextMenu.metadata,
               }}
               onClose={closeContextMenu}
+            />
+          )}
+
+          {/* 参数编辑对话框 */}
+          {editingObject && (
+            <ParameterEditDialog
+              open={paramEditDialogOpen}
+              onClose={handleParamEditCancel}
+              object={editingObject}
+              asset={editingAsset}
+              onConfirm={handleParamEditConfirm}
             />
           )}
         </div>

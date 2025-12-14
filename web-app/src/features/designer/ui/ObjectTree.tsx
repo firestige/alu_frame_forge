@@ -25,7 +25,7 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
   const handleContextMenu = (
     e: React.MouseEvent,
     objectId: string,
-    isVisible: boolean,
+    isVisible: boolean
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -49,7 +49,11 @@ const ObjectTree: React.FC<ObjectTreeProps> = ({
                 key={object.id}
                 onClick={() => onSelectObject(object.id)}
                 onContextMenu={e =>
-                  handleContextMenu(e, object.id, object.visual?.isVisible ?? true)
+                  handleContextMenu(
+                    e,
+                    object.id,
+                    object.visual?.isVisible ?? true
+                  )
                 }
                 className={`
                   group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer

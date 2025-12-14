@@ -8,6 +8,7 @@
  */
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { IShape, ICurve } from '@/core/geometry/types';
 import { CurveType } from '@/core/geometry/types';
 
@@ -313,7 +314,7 @@ export class ThreeGeometryAdapter {
   static createSimplifiedExtrudeGeometry(
     shape: THREE.Shape,
     length: number
-  ): THREE.ExtrudeGeometry {
+  ): THREE.BufferGeometry {
     // 单位转换：length 参数为 mm，转换为 m
     const MM_TO_M = 0.001;
     const depthInMeters = length * MM_TO_M;
@@ -325,7 +326,126 @@ export class ThreeGeometryAdapter {
       curveSegments: 8, // 减少曲线细分（默认 12）
     };
 
-    return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    const baseGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+    // 如果有孔洞，需要手动添加孔洞侧壁
+    if (shape.holes && shape.holes.length > 0) {
+      console.log(
+        '[ThreeGeometryAdapter] 🔧 生成孔洞侧壁，孔洞数量:',
+        shape.holes.length
+      );
+
+      const geometries: THREE.BufferGeometry[] = [baseGeometry];
+
+      for (const hole of shape.holes) {
+        try {
+          // 为每个孔洞创建侧壁几何体
+          const holeWallGeometry = this.createHoleWallGeometry(
+            hole,
+            depthInMeters,
+            extrudeSettings.curveSegments || 8
+          );
+          geometries.push(holeWallGeometry);
+        } catch (error) {
+          console.error('[ThreeGeometryAdapter] ❌ 生成孔洞侧壁失败:', error);
+        }
+      }
+
+      // 合并所有几何体
+      const mergedGeometry = mergeGeometries(geometries);
+      if (!mergedGeometry) {
+        console.error(
+          '[ThreeGeometryAdapter] ❌ 几何体合并失败，返回基础几何体'
+        );
+        return baseGeometry;
+      }
+
+      // 清理旧几何体
+      geometries.forEach(g => g.dispose());
+
+      return mergedGeometry;
+    }
+
+    return baseGeometry;
+  }
+
+  /**
+   * 创建孔洞侧壁几何体
+   * @private
+   */
+  private static createHoleWallGeometry(
+    hole: THREE.Path,
+    depth: number,
+    curveSegments: number
+  ): THREE.BufferGeometry {
+    // 获取孔洞路径上的点
+    const points = hole.getPoints(curveSegments);
+
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
+
+    // 为每条边创建四边形（两个三角形）
+    const numPoints = points.length;
+
+    for (let i = 0; i < numPoints; i++) {
+      const p1 = points[i];
+      const p2 = points[(i + 1) % numPoints];
+
+      // 计算边的方向和法向量
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const edgeLength = Math.sqrt(dx * dx + dy * dy);
+
+      // 法向量指向孔洞内部（顺时针方向）
+      const nx = dy / edgeLength;
+      const ny = -dx / edgeLength;
+
+      // 当前四边形的四个顶点索引
+      const baseIndex = i * 4;
+
+      // 顶点位置：前表面两个点 + 后表面两个点
+      // 前表面
+      positions.push(p1.x, p1.y, 0);
+      positions.push(p2.x, p2.y, 0);
+      // 后表面
+      positions.push(p1.x, p1.y, depth);
+      positions.push(p2.x, p2.y, depth);
+
+      // 法向量（四个顶点共享同一个法向量）
+      for (let j = 0; j < 4; j++) {
+        normals.push(nx, ny, 0);
+      }
+
+      // UV 坐标
+      const uStep = i / numPoints;
+      const uStepNext = (i + 1) / numPoints;
+      uvs.push(uStep, 0); // 前表面左下
+      uvs.push(uStepNext, 0); // 前表面右下
+      uvs.push(uStep, 1); // 后表面左上
+      uvs.push(uStepNext, 1); // 后表面右上
+
+      // 索引：两个三角形构成四边形
+      // 第一个三角形：0 -> 1 -> 2
+      indices.push(baseIndex, baseIndex + 1, baseIndex + 2);
+      // 第二个三角形：1 -> 3 -> 2
+      indices.push(baseIndex + 1, baseIndex + 3, baseIndex + 2);
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(positions, 3)
+    );
+    geometry.setAttribute(
+      'normal',
+      new THREE.Float32BufferAttribute(normals, 3)
+    );
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(indices);
+
+    return geometry;
   }
 
   /**
@@ -338,7 +458,7 @@ export class ThreeGeometryAdapter {
   static createPreciseExtrudeGeometry(
     shape: THREE.Shape,
     length: number
-  ): THREE.ExtrudeGeometry {
+  ): THREE.BufferGeometry {
     // 单位转换：length 参数为 mm，转换为 m
     const MM_TO_M = 0.001;
     const depthInMeters = length * MM_TO_M;
@@ -350,7 +470,40 @@ export class ThreeGeometryAdapter {
       curveSegments: 24, // 高细分
     };
 
-    return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    const baseGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+
+    // 如果有孔洞，需要手动添加孔洞侧壁
+    if (shape.holes && shape.holes.length > 0) {
+      const geometries: THREE.BufferGeometry[] = [baseGeometry];
+
+      for (const hole of shape.holes) {
+        try {
+          const holeWallGeometry = this.createHoleWallGeometry(
+            hole,
+            depthInMeters,
+            extrudeSettings.curveSegments || 24
+          );
+          geometries.push(holeWallGeometry);
+        } catch (error) {
+          console.error(
+            '[ThreeGeometryAdapter] ❌ 生成高精度孔洞侧壁失败:',
+            error
+          );
+        }
+      }
+
+      const mergedGeometry = mergeGeometries(geometries);
+      if (!mergedGeometry) {
+        console.error(
+          '[ThreeGeometryAdapter] ❌ 高精度几何体合并失败，返回基础几何体'
+        );
+        return baseGeometry;
+      }
+      geometries.forEach(g => g.dispose());
+      return mergedGeometry;
+    }
+
+    return baseGeometry;
   }
 
   /**

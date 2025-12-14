@@ -1,6 +1,9 @@
 import * as React from 'react';
 import type { SceneObject } from '@/core/object/types/scene-object';
 import type { PropertyUpdateHandler, TransformPropertyPath } from '../models';
+import { useCoreServices } from '@/core/CoreServiceProvider';
+import { PropertyEditor } from './components/PropertyEditor';
+import { getParameterConstraint } from '../utils/parameterConstraints';
 
 interface PropertyPanelProps {
   object: SceneObject | null;
@@ -11,6 +14,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   object,
   onUpdateProperty,
 }) => {
+  const { objectManager } = useCoreServices();
   const [editingValues, setEditingValues] = React.useState<
     Record<string, string>
   >({});
@@ -48,6 +52,21 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     if (!isNaN(value)) {
       onUpdateProperty(property, value);
     }
+  };
+
+  /**
+   * 处理用户参数更新
+   */
+  const handleUserParamChange = (
+    paramName: string,
+    value: number | string | boolean
+  ) => {
+    if (!object) return;
+
+    console.log(`[PropertyPanel] Updating userParam: ${paramName} = ${value}`);
+
+    // 调用 ObjectManager.updateUserParams
+    objectManager.updateUserParams(object.id, { [paramName]: value });
   };
 
   const PropertyInput: React.FC<{
@@ -175,13 +194,24 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         {object.userParams && Object.keys(object.userParams).length > 0 && (
           <div>
             <div className="text-xs text-slate-400 mb-2 font-medium">参数</div>
-            <div className="space-y-1.5 text-xs">
-              {Object.entries(object.userParams).map(([key, value]) => (
-                <div key={key} className="flex justify-between">
-                  <span className="text-slate-400">{key}:</span>
-                  <span className="text-white">{String(value)}</span>
-                </div>
-              ))}
+            <div className="space-y-2">
+              {Object.entries(object.userParams).map(([key, value]) => {
+                // 获取资产对象
+                const asset = objectManager.getAsset(object.assetId);
+
+                // 获取参数约束
+                const constraint = getParameterConstraint(asset, key);
+
+                return (
+                  <PropertyEditor
+                    key={key}
+                    paramName={key}
+                    value={value}
+                    constraint={constraint}
+                    onChange={newValue => handleUserParamChange(key, newValue)}
+                  />
+                );
+              })}
             </div>
           </div>
         )}

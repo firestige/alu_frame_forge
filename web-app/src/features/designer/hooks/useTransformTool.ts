@@ -24,13 +24,13 @@ export function useTransformTool(): void {
     'select' | 'translate' | 'rotate' | 'scale'
   >('select');
   const [selectedObjectIds, setSelectedObjectIds] = React.useState<string[]>(
-    [],
+    []
   );
 
   // 监听工具切换命令
   React.useEffect(() => {
     const handleToolChange = (
-      tool: 'select' | 'translate' | 'rotate' | 'scale',
+      tool: 'select' | 'translate' | 'rotate' | 'scale'
     ): void => {
       setSelectedTool(tool);
       publishState('state:tool:changed', tool);

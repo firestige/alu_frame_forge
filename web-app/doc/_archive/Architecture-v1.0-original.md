@@ -374,7 +374,7 @@ class RenderSyncService {
   }
 
   private setupEventListeners(): void {
-    this.objectManager.on('object:added', (obj) => {
+    this.objectManager.on('object:added', obj => {
       this.renderer.addObject(obj.visual.mesh); // ✅ 未来添加的对象正常
     });
   }
@@ -391,8 +391,8 @@ class RenderSyncService {
   constructor(objectManager: ObjectManager, renderer: IRenderer) {
     this.objectManager = objectManager;
     this.renderer = renderer;
-    this.setupEventListeners();      // ✅ 监听未来事件
-    this.syncExistingObjects();      // 🆕 同步已存在对象
+    this.setupEventListeners(); // ✅ 监听未来事件
+    this.syncExistingObjects(); // 🆕 同步已存在对象
   }
 
   /**
@@ -401,11 +401,15 @@ class RenderSyncService {
    */
   private syncExistingObjects(): void {
     const allObjects = this.objectManager.getAllObjects();
-    console.log(`[RenderSyncService] Syncing ${allObjects.length} existing objects`);
+    console.log(
+      `[RenderSyncService] Syncing ${allObjects.length} existing objects`
+    );
 
-    allObjects.forEach((object) => {
+    allObjects.forEach(object => {
       if (!object.visual?.mesh) {
-        console.warn(`[RenderSyncService] Object ${object.id} has no mesh, skipping`);
+        console.warn(
+          `[RenderSyncService] Object ${object.id} has no mesh, skipping`
+        );
         return;
       }
 
@@ -433,13 +437,13 @@ class RenderSyncService {
 
   // 未来事件监听（与之前相同）
   private setupEventListeners(): void {
-    this.objectManager.on('object:added', (obj) => {
+    this.objectManager.on('object:added', obj => {
       if (!obj.visual?.mesh) return;
       this.renderer.addObject(obj.visual.mesh);
       this.objectToMesh.set(obj.id, obj.visual.mesh.uuid);
     });
 
-    this.objectManager.on('object:removed', (obj) => {
+    this.objectManager.on('object:removed', obj => {
       const meshId = this.objectToMesh.get(obj.id);
       if (meshId) {
         this.renderer.removeObject(meshId);
@@ -569,13 +573,13 @@ tests/
 
 **技术栈**：
 
-| 工具                      | 用途                       | 配置文件              |
-| ------------------------- | -------------------------- | --------------------- |
-| Vitest 4.0.9              | 单元测试运行器             | `vitest.config.ts`    |
-| @testing-library/react    | React 组件测试             | -                     |
-| jsdom                     | 浏览器环境模拟             | `vitest.config.ts`    |
-| Playwright                | E2E 测试（Chromium+Firefox）| `playwright.config.ts`|
-| @vitest/coverage-v8       | 代码覆盖率报告             | `vitest.config.ts`    |
+| 工具                   | 用途                         | 配置文件               |
+| ---------------------- | ---------------------------- | ---------------------- |
+| Vitest 4.0.9           | 单元测试运行器               | `vitest.config.ts`     |
+| @testing-library/react | React 组件测试               | -                      |
+| jsdom                  | 浏览器环境模拟               | `vitest.config.ts`     |
+| Playwright             | E2E 测试（Chromium+Firefox） | `playwright.config.ts` |
+| @vitest/coverage-v8    | 代码覆盖率报告               | `vitest.config.ts`     |
 
 **覆盖率目标**：
 
@@ -611,7 +615,7 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
       - run: npm run test:coverage
-      - uses: codecov/codecov-action@v4  # 上传覆盖率
+      - uses: codecov/codecov-action@v4 # 上传覆盖率
 
   e2e-tests:
     runs-on: ubuntu-latest
@@ -720,12 +724,12 @@ test('should navigate between pages', async ({ page }) => {
 
 **工具链**：
 
-| 工具                      | 用途                       | 配置文件                      |
-| ------------------------- | -------------------------- | ----------------------------- |
-| markdownlint-cli2         | Markdown 格式检查          | `.markdownlint-cli2.jsonc`    |
-| cspell                    | 拼写检查（支持中英文）      | `cspell.json`                 |
-| verify-doc-metadata.mjs   | 自定义元信息校验           | `scripts/doc-check/`          |
-| lychee-action             | 链接有效性检查             | `.github/workflows/doc-check.yml`|
+| 工具                    | 用途                   | 配置文件                          |
+| ----------------------- | ---------------------- | --------------------------------- |
+| markdownlint-cli2       | Markdown 格式检查      | `.markdownlint-cli2.jsonc`        |
+| cspell                  | 拼写检查（支持中英文） | `cspell.json`                     |
+| verify-doc-metadata.mjs | 自定义元信息校验       | `scripts/doc-check/`              |
+| lychee-action           | 链接有效性检查         | `.github/workflows/doc-check.yml` |
 
 **npm 脚本**：
 
@@ -761,7 +765,7 @@ const requiredFields = ['标题', '最后更新', '维护者', '标签'];
 function validateMetadata(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const match = content.match(/^---\n([\s\S]+?)\n---/);
-  
+
   if (!match) {
     throw new Error(`${filePath}: 缺少元信息块`);
   }
@@ -804,7 +808,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: npm ci
-      - run: npm run doc:check  # ❌ 任何检查失败则阻止 PR 合并
+      - run: npm run doc:check # ❌ 任何检查失败则阻止 PR 合并
 
       - name: Check Links
         uses: lycheeverse/lychee-action@v1
@@ -851,21 +855,24 @@ jobs:
 **文档版本管理标准**：
 
 ```markdown
-<!-- 每次更新文档时，必须修改"最后更新"字段 -->
----
+## <!-- 每次更新文档时，必须修改"最后更新"字段 -->
+
 标题: Architecture Design
-最后更新: 2025-11-17  ← 🔴 修改此字段
-版本: 1.3.0           ← 🟡 主版本号变更时修改
+最后更新: 2025-11-17 ← 🔴 修改此字段
+版本: 1.3.0 ← 🟡 主版本号变更时修改
+
 ---
 
 ## 变更日志（Changelog）
 
 ### v1.3.0 (2025-11-17)
+
 - 新增 RenderSyncService 初始化同步机制
 - 新增测试体系和文档质量保障章节
 - 更新技术栈和架构图
 
 ### v1.2.0 (2025-11-15)
+
 - 新增 CoreServiceProvider 应用级服务容器
 - 新增 AutoSaveService 自动保存服务
 ```
@@ -880,6 +887,7 @@ jobs:
 ---
 
 ### 3.5 Library 模块
+
 - `ModelCreationService`: 模型创建服务
 - `ModelInteractionService`: 交互服务（选择、高亮、上下文菜单）
 - `ModelEditorService`: 编辑服务（属性修改、变换）

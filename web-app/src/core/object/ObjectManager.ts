@@ -210,33 +210,60 @@ export class ObjectManager {
 
     // 更新对象
     const updatedObject = { ...object, ...updates };
-    this.objects.set(objectId, updatedObject);
-
-    // 发布事件
-    this.emit('object:updated', { objectId, object: updatedObject, updates });
 
     // 如果 userParams 改变，需要重新生成几何体
     if (updates.userParams) {
       console.log(
-        `[ObjectManager] UserParams updated for ${objectId}, regenerating geometry`
+        `[ObjectManager] UserParams updated for ${objectId}, regenerating geometry`,
+        {
+          oldParams: object.userParams,
+          newParams: updates.userParams,
+          mergedParams: updatedObject.userParams,
+        }
       );
+
+      // 保存旧 mesh 的引用
+      const oldMesh = object.visual?.mesh;
+
+      // 重新生成几何体（会创建新 mesh 并赋值给 updatedObject.visual.mesh）
       this.modelFactory.updateGeometry(updatedObject);
 
-      // 从渲染器移除旧网格
-      if (this.renderer && object.visual?.mesh) {
-        this.renderer.removeObject(object.visual.mesh);
-        this.renderer.disposeObject(object.visual.mesh);
+      console.log('[ObjectManager] 🔄 准备更新渲染器中的网格');
+
+      // 从渲染器移除旧网格（使用保存的引用）
+      if (this.renderer && oldMesh) {
+        console.log('[ObjectManager] 📤 移除旧网格:', {
+          meshId: oldMesh,
+          meshType: oldMesh?.constructor?.name,
+        });
+        this.renderer.removeObject(oldMesh);
+        this.renderer.disposeObject(oldMesh);
       }
 
       // 添加新网格
       if (this.renderer && updatedObject.visual?.mesh) {
+        console.log('[ObjectManager] 📥 添加新网格:', {
+          meshId: updatedObject.visual.mesh,
+          meshType: updatedObject.visual.mesh?.constructor?.name,
+        });
         this.renderer.addObject(updatedObject.visual.mesh, {
           interactive: true,
           modelId: updatedObject.id,
           name: updatedObject.name,
         });
       }
+
+      // 重新保存更新后的对象（包含新的 mesh）
+      this.objects.set(objectId, updatedObject);
+
+      console.log('[ObjectManager] ✅ 几何体更新完成');
+    } else {
+      // 没有 userParams 变化，直接保存
+      this.objects.set(objectId, updatedObject);
     }
+
+    // 发布事件
+    this.emit('object:updated', { objectId, object: updatedObject, updates });
 
     // 同步到渲染器
     if (this.renderer && object.visual) {

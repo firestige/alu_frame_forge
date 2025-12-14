@@ -379,13 +379,13 @@ UI 层监听状态 → 启用 pointer 事件监听
   screen: {
     x: number; // 屏幕 X 坐标（clientX）
     y: number; // 屏幕 Y 坐标（clientY）
-  };
+  }
   viewport: {
-    left: number;   // 容器左边距
-    top: number;    // 容器上边距
-    width: number;  // 容器宽度
+    left: number; // 容器左边距
+    top: number; // 容器上边距
+    width: number; // 容器宽度
     height: number; // 容器高度
-  };
+  }
 }
 ```
 
@@ -395,18 +395,18 @@ UI 层监听状态 → 启用 pointer 事件监听
 // 在 usePlacementInput hook 中
 const handlePointerMove = (event: PointerEvent) => {
   const rect = container.getBoundingClientRect();
-  
+
   sendCommand('command:placement:updatePointer', {
     screen: {
       x: event.clientX,
-      y: event.clientY
+      y: event.clientY,
     },
     viewport: {
       left: rect.left,
       top: rect.top,
       width: rect.width,
-      height: rect.height
-    }
+      height: rect.height,
+    },
   });
 };
 ```
@@ -656,6 +656,7 @@ onState('state:placement:started', data => {
 ```
 
 **用途**：
+
 - UI 层监听此事件，启动 DOM 事件监听
 - 显示十字光标
 - 禁用其他操作
@@ -684,6 +685,7 @@ onState('state:placement:completed', data => {
 ```
 
 **用途**：
+
 - UI 层退出放置模式
 - 恢复正常光标
 - 可选择新创建的对象
@@ -706,6 +708,7 @@ onState('state:placement:cancelled', () => {
 ```
 
 **用途**：
+
 - UI 层退出放置模式
 - 恢复正常光标
 
@@ -776,7 +779,7 @@ useEffect(() => {
   };
 
   designerEventBus.on('command:create:profile:prepare', handlePrepareProfile);
-  
+
   return () => {
     designerEventBus.off('command:create:profile:prepare', handlePrepareProfile);
   };

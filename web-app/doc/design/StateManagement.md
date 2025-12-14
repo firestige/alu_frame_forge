@@ -76,7 +76,7 @@ class ThreeTransformController {
 // ✅ Implementation 层通过回调报告
 class ThreeTransformController {
   public onDraggingChanged?: (dragging: boolean) => void;
-  
+
   private handleDragStart = () => {
     this.onDraggingChanged?.(true); // 通过回调向上报告
   };
@@ -86,9 +86,9 @@ class ThreeTransformController {
 class TransformService {
   constructor(renderer: IRenderer) {
     const controller = renderer.getTransformController();
-    
+
     // 在 Feature 层连接回调和 EventBus
-    controller.onDraggingChanged = (dragging) => {
+    controller.onDraggingChanged = dragging => {
       publishState('state:transform:draggingChanged', { dragging });
     };
   }

@@ -6,7 +6,7 @@
 
 - **日期**: 2025-12-14
 - **案例类型**: AI 协作模式 + 问题诊断方法论
-- **适用场景**: 
+- **适用场景**:
   - 集成第三方库（如 Three.js、D3.js、Babylon.js）
   - 使用不熟悉的 API（如 SVGLoader、TransformControls）
   - 复杂几何计算（如 CSG、路径算法）
@@ -19,11 +19,13 @@
 ### 失败案例 1：Gizmo 创建（历史问题）
 
 **现象**：
+
 - AI 反复使用已废弃的 TransformControls API
 - 多次尝试不同写法但始终无法运行
 - 缺少对官方文档和最新示例的参考
 
 **根因**：
+
 - AI 训练数据可能包含过时的 API 用法
 - AI 倾向于"创造性"组合 API，而不是查阅官方文档
 - 缺乏对 API 版本演化的感知
@@ -31,11 +33,13 @@
 ### 失败案例 2：SVG 路径解析（本次问题）
 
 **现象**：
+
 - AI 臆测 `SVGLoader.parse()` 为静态方法（实际需要实例化）
 - AI 尝试 `ShapePath.fromString()`（该方法不存在）
 - AI 忽略路径方向问题，导致孔洞填充错误
 
 **根因**：
+
 - AI 基于常见模式推测 API（如静态工厂方法）
 - AI 优先尝试"看起来合理"的方案，而非验证正确性
 - AI 缺少对领域特定知识的深度理解（如 SVG 缠绕数规则）
@@ -47,6 +51,7 @@
 ### 阶段 1：官网复现（建立基准）
 
 **核心原则**：
+
 - **不要让 AI 自由发挥**，明确要求"复现官方示例"
 - **使用最简环境**（如 App.tsx），避免项目架构干扰
 - **完全照抄官网代码**，确保 100% 可运行
@@ -63,11 +68,13 @@
 ```
 
 **验证标准**：
+
 - ✅ 代码可运行，无报错
 - ✅ 渲染结果与官网示例一致
 - ✅ 所有 API 用法与官方文档匹配
 
 **关键价值**：
+
 - 排除 AI 臆测的错误 API
 - 建立"已知正确"的参考基准
 - 为后续迁移提供可靠起点
@@ -75,6 +82,7 @@
 ### 阶段 2：最小验证（隔离问题）
 
 **核心原则**：
+
 - **用实际数据替换示例数据**（如 2020 型材 JSON）
 - **创建对照组**（如正方形 vs 型材）
 - **逐步增加复杂度**，每次只改变一个变量
@@ -126,7 +134,7 @@ console.log('型材面积:', THREE.ShapeUtils.area(profileShape.getPoints()));
 // 尝试 1
 const svgData = SVGLoader.parse(svgString); // ❌ 静态方法不存在
 
-// 尝试 2  
+// 尝试 2
 const shapePath = THREE.ShapePath.fromString(svgString); // ❌ 方法不存在
 ```
 
@@ -146,7 +154,7 @@ shape.closePath(); // ❌ 端面仍然缺失
 
 // AI 假设：bevel 影响端面
 const geometry = new THREE.ExtrudeGeometry(shape, {
-  bevelEnabled: false // ❌ 端面仍然缺失
+  bevelEnabled: false, // ❌ 端面仍然缺失
 });
 ```
 
@@ -170,6 +178,7 @@ const testGeometry = new THREE.ExtrudeGeometry(testSquare, { depth: 5 });
 ### 根因发现：SVG 路径方向问题
 
 **关键洞察**（人类领域知识）：
+
 - ExtrudeGeometry 使用**缠绕数规则**判断实体/空洞
 - 外轮廓和孔洞必须**方向相反**
 - 如果方向相同，孔洞被误识别为外轮廓
@@ -178,8 +187,8 @@ const testGeometry = new THREE.ExtrudeGeometry(testSquare, { depth: 5 });
 
 ```typescript
 // 测试两种方向
-const shapesAsCCW = svgData.paths[0].toShapes(true);  // 逆时针
-const shapesAsCW = svgData.paths[0].toShapes(false);   // 顺时针
+const shapesAsCCW = svgData.paths[0].toShapes(true); // 逆时针
+const shapesAsCW = svgData.paths[0].toShapes(false); // 顺时针
 
 // 计算面积
 const areaCCW = THREE.ShapeUtils.area(shapesAsCCW[0].getPoints());
@@ -195,12 +204,12 @@ shape.holes = [];
 for (let i = 1; i < svgData.paths.length; i++) {
   const hole = svgData.paths[i].toShapes(true)[0];
   const holeArea = THREE.ShapeUtils.area(hole.getPoints());
-  
+
   // 如果孔洞方向与外轮廓相同，反转方向
-  if ((holeArea > 0) === (outerArea > 0)) {
+  if (holeArea > 0 === outerArea > 0) {
     hole.curves.reverse();
   }
-  
+
   shape.holes.push(hole);
 }
 
@@ -209,12 +218,12 @@ for (let i = 1; i < svgData.paths.length; i++) {
 
 ### 方法论应用总结
 
-| 阶段 | 问题 | 方法 | 结果 |
-|-----|------|------|------|
-| API 探索 | AI 臆测静态方法 | 要求复现官网示例 | ✅ 正确 API 用法 |
-| 问题定位 | 不确定是 API 还是数据问题 | 创建正方形对照组 | ✅ 排除 API 问题 |
-| 根因分析 | AI 假设路径未闭合 | 人类补充领域知识（缠绕数规则） | ✅ 发现方向问题 |
-| 解决方案 | 如何修正孔洞方向 | 面积对比算法 + 方向反转 | ✅ 型材正常渲染 |
+| 阶段     | 问题                      | 方法                           | 结果             |
+| -------- | ------------------------- | ------------------------------ | ---------------- |
+| API 探索 | AI 臆测静态方法           | 要求复现官网示例               | ✅ 正确 API 用法 |
+| 问题定位 | 不确定是 API 还是数据问题 | 创建正方形对照组               | ✅ 排除 API 问题 |
+| 根因分析 | AI 假设路径未闭合         | 人类补充领域知识（缠绕数规则） | ✅ 发现方向问题  |
+| 解决方案 | 如何修正孔洞方向          | 面积对比算法 + 方向反转        | ✅ 型材正常渲染  |
 
 ---
 
@@ -245,12 +254,14 @@ for (let i = 1; i < svgData.paths.length; i++) {
 ### 扩展到其他场景
 
 **适用范围**：
+
 - 任何第三方图形库（D3.js、Babylon.js、Mapbox）
 - 复杂物理引擎（Cannon.js、Ammo.js）
 - 音视频处理（WebRTC、MediaRecorder）
 - CAD 数据导入（DXF、STEP 转换）
 
 **通用模式**：
+
 ```
 官网复现（建立基准）
   ↓
@@ -268,6 +279,7 @@ for (let i = 1; i < svgData.paths.length; i++) {
 ### 阶段 3：渐进迁移（保持稳定性）
 
 **核心原则**：
+
 - **小步快跑**，每次迁移一个函数或模块
 - **保留测试代码**，作为回归测试
 - **添加详细日志**，便于后续调试
@@ -309,6 +321,7 @@ static shapeToThreeShape(shape: IShape): THREE.Shape {
 ```
 
 **迁移检查清单**：
+
 - [ ] 测试代码中的函数可正常工作
 - [ ] 迁移后保持相同的输入输出
 - [ ] 添加日志验证数据流（如面积值、方向信息）
@@ -316,6 +329,7 @@ static shapeToThreeShape(shape: IShape): THREE.Shape {
 - [ ] 更新类型定义（如 IShape 接口）
 
 **关键价值**：
+
 - 避免"一次性大重构"导致的多处破坏
 - 保留测试代码作为文档和回归测试
 - 渐进式验证，降低集成风险
@@ -327,11 +341,13 @@ static shapeToThreeShape(shape: IShape): THREE.Shape {
 ### 1. **明确禁止 AI 臆测 API**
 
 **错误 Prompt**（给 AI 过多自由）：
+
 ```
 "使用 Three.js 加载 SVG 并渲染"
 ```
 
 **正确 Prompt**（明确约束）：
+
 ```
 "请严格按照 Three.js 官方文档的 SVGLoader 示例实现，
 不要使用任何文档中未提及的 API 或方法。
@@ -341,11 +357,13 @@ static shapeToThreeShape(shape: IShape): THREE.Shape {
 ### 2. **要求 AI 提供信息来源**
 
 **错误 Prompt**：
+
 ```
 "这个 API 怎么用？"
 ```
 
 **正确 Prompt**：
+
 ```
 "请提供 SVGLoader 的官方文档链接，并说明你的实现基于文档的哪一部分。
 如果没有官方文档，请明确说明你的方案来自何处（如 StackOverflow、个人推测等）。"
@@ -354,11 +372,13 @@ static shapeToThreeShape(shape: IShape): THREE.Shape {
 ### 3. **强制 AI 使用对照实验**
 
 **错误 Prompt**：
+
 ```
 "型材渲染不正确，帮我修复"
 ```
 
 **正确 Prompt**：
+
 ```
 "型材渲染有问题，请先创建一个正方形对照组。
 如果正方形渲染正常，说明问题在型材数据；
@@ -369,11 +389,13 @@ static shapeToThreeShape(shape: IShape): THREE.Shape {
 ### 4. **要求 AI 解释根本原因**
 
 **错误 Prompt**：
+
 ```
 "孔洞被填充了，帮我改一下"
 ```
 
 **正确 Prompt**：
+
 ```
 "孔洞被填充是因为什么原理？
 是 SVG 路径方向问题、缠绕数规则问题，还是 ExtrudeGeometry 的 bug？
@@ -386,13 +408,13 @@ static shapeToThreeShape(shape: IShape): THREE.Shape {
 
 ### 适用于所有复杂第三方库集成
 
-| 场景类型 | 具体案例 | 核心难点 | 适用方法 |
-|---------|---------|---------|---------|
-| **3D 图形** | Three.js、Babylon.js、WebGL | API 版本变化快、文档分散 | 官网复现 → 最小验证 |
-| **数据可视化** | D3.js、ECharts、Plotly | 数据结构复杂、配置项繁多 | 对照实验 + 逐步替换数据 |
-| **物理引擎** | Cannon.js、Ammo.js | 数学原理复杂、调试困难 | 简化场景 + 单元测试 |
-| **地图渲染** | Mapbox、Leaflet、Cesium | 坐标系统、投影算法 | 已知坐标点验证 + 渐进迁移 |
-| **音视频** | WebRTC、MediaRecorder | 异步流程、权限管理 | 最小播放器 → 逐步增加功能 |
+| 场景类型       | 具体案例                    | 核心难点                 | 适用方法                  |
+| -------------- | --------------------------- | ------------------------ | ------------------------- |
+| **3D 图形**    | Three.js、Babylon.js、WebGL | API 版本变化快、文档分散 | 官网复现 → 最小验证       |
+| **数据可视化** | D3.js、ECharts、Plotly      | 数据结构复杂、配置项繁多 | 对照实验 + 逐步替换数据   |
+| **物理引擎**   | Cannon.js、Ammo.js          | 数学原理复杂、调试困难   | 简化场景 + 单元测试       |
+| **地图渲染**   | Mapbox、Leaflet、Cesium     | 坐标系统、投影算法       | 已知坐标点验证 + 渐进迁移 |
+| **音视频**     | WebRTC、MediaRecorder       | 异步流程、权限管理       | 最小播放器 → 逐步增加功能 |
 
 ### 关键洞察
 
@@ -904,11 +926,13 @@ private static scaleShape(shape: THREE.Shape, targetSize: number): THREE.Shape {
 ---
 
 **文档版本**: 2.0（方法论提炼版）  
-**更新记录**: 
+**更新记录**:
+
 - v1.0: 具体技术细节（2025-12-14 初稿）
 - v2.0: 提炼通用方法论和 AI 协作策略（2025-12-14）
 
 **核心价值**：
+
 - ✅ 通用的 API 集成方法论（适用于所有第三方库）
 - ✅ AI 协作的约束策略（如何有效引导 AI）
 - ✅ 问题诊断的系统方法（隔离、对照、渐进）

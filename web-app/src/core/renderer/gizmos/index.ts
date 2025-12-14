@@ -18,4 +18,9 @@ export type {
   ConstraintVisualizerConfig,
 } from './ConstraintVisualizer';
 export { DimensionLabel } from './DimensionLabel';
-export type { DimensionType, DimensionStyle, DimensionLabelConfig, DimensionData } from './DimensionLabel';
+export type {
+  DimensionType,
+  DimensionStyle,
+  DimensionLabelConfig,
+  DimensionData,
+} from './DimensionLabel';

@@ -49,6 +49,7 @@
 **定义**：素材是模板或定义，描述"什么是一个 20x20 型材"或"什么是 M5 螺栓"。
 
 **特点**：
+
 - 只存储元数据和参数定义，不包含实例数据
 - 分为内置素材和用户自定义素材
 - 支持参数化定义
@@ -76,6 +77,7 @@ Asset (基类)
 **定义**：场景对象是素材的实例化，是场景中真实存在的实体。
 
 **特点**：
+
 - 包含用户参数（长度、规格等）
 - 包含变换信息（位置、旋转、缩放）
 - 支持加工操作（仅型材）
@@ -99,6 +101,7 @@ SceneObject {
 ```
 
 **设计意图**：
+
 - **渲染模型**：性能优化，使用简化几何 + LOD + 贴图
 - **计算模型**：精度优先，包含完整参数和材料属性
 
@@ -108,14 +111,15 @@ SceneObject {
 
 **类型**：
 
-| 操作类型 | 说明 | 参数示例 |
-|---------|------|---------|
-| `HOLE` | 打孔 | 孔径、深度、位置、面 |
-| `CHAMFER` | 切角 | 倒角长度、角度、边 |
-| `THREAD` | 攻丝 | 螺纹规格、深度、位置 |
-| `NOTCH` | 槽口 | 宽度、深度、长度、形状 |
+| 操作类型  | 说明 | 参数示例               |
+| --------- | ---- | ---------------------- |
+| `HOLE`    | 打孔 | 孔径、深度、位置、面   |
+| `CHAMFER` | 切角 | 倒角长度、角度、边     |
+| `THREAD`  | 攻丝 | 螺纹规格、深度、位置   |
+| `NOTCH`   | 槽口 | 宽度、深度、长度、形状 |
 
 **影响范围**：
+
 1. **FEA 计算**：孔和槽口会降低截面强度
 2. **装配约束**：螺纹孔用于连接紧固件
 3. **渲染**（可选）：可以选择在渲染中显示细节
@@ -236,15 +240,15 @@ CADExporter.export(objects, projectName)
 
 ```typescript
 export const AssetType = {
-  PROFILE: 'profile',     // 铝型材
-  FASTENER: 'fastener',   // 紧固件
+  PROFILE: 'profile', // 铝型材
+  FASTENER: 'fastener', // 紧固件
   CONNECTOR: 'connector', // 连接件
   ACCESSORY: 'accessory', // 配件
 } as const;
 
 export const AssetSource = {
-  BUILTIN: 'builtin',     // 内置
-  CUSTOM: 'custom',       // 自定义
+  BUILTIN: 'builtin', // 内置
+  CUSTOM: 'custom', // 自定义
 } as const;
 
 export const MachiningOpType = {
@@ -271,9 +275,9 @@ interface ProfileAsset extends Asset {
     momentOfInertia: { Ix: number; Iy: number };
   };
   material: {
-    name: string;           // "6063-T5"
-    yieldStrength: number;  // 160 MPa
-    density: number;        // 2700 kg/m³
+    name: string; // "6063-T5"
+    yieldStrength: number; // 160 MPa
+    density: number; // 2700 kg/m³
     elasticModulus: number; // 69000 MPa
   };
   supportedOperations: MachiningOpType[];
@@ -309,7 +313,10 @@ interface FastenerAsset extends Asset {
 ```typescript
 interface InstanceStrategy {
   canHandle(asset: AnyAsset): boolean;
-  createSceneObject(asset: AnyAsset, options: SceneObjectCreateOptions): SceneObject;
+  createSceneObject(
+    asset: AnyAsset,
+    options: SceneObjectCreateOptions
+  ): SceneObject;
   updateGeometry(sceneObject: SceneObject, asset: AnyAsset): void;
 }
 ```
@@ -329,7 +336,7 @@ class ProfileInstanceStrategy implements InstanceStrategy {
     const visualMesh = geometryFactory.createExtrudedProfile(
       asset.crossSection.svgPath,
       length,
-      true  // simplified
+      true // simplified
     );
 
     // 2. 创建计算几何（完整）
@@ -342,8 +349,8 @@ class ProfileInstanceStrategy implements InstanceStrategy {
     };
 
     // 3. 计算质量
-    const volume = asset.crossSection.area * length;  // mm³
-    const mass = asset.material.density * volume / 1e9;  // kg
+    const volume = asset.crossSection.area * length; // mm³
+    const mass = (asset.material.density * volume) / 1e9; // kg
 
     return {
       // ... SceneObject 构建
@@ -414,6 +421,7 @@ class FastenerInstanceStrategy implements InstanceStrategy {
 ```
 
 **特点**：
+
 - 体积小（只存引用 + 参数）
 - 人类可读/可编辑
 - 依赖 AssetRegistry（Asset 必须存在）
@@ -463,6 +471,7 @@ class FastenerInstanceStrategy implements InstanceStrategy {
 ```
 
 **特点**：
+
 - 自包含（包含完整几何和材料数据）
 - 适合 FEA/CAD 引擎解析
 - 体积大
@@ -474,22 +483,22 @@ class FastenerInstanceStrategy implements InstanceStrategy {
 
 ### 1. 分层清晰
 
-| 层次 | 职责 | 好处 |
-|------|------|------|
-| Asset | 素材定义 | 避免数据冗余，支持共享 |
-| SceneObject | 场景实例 | 独立管理实例状态 |
-| Strategy | 实例化逻辑 | 解耦类型特定逻辑 |
+| 层次        | 职责       | 好处                   |
+| ----------- | ---------- | ---------------------- |
+| Asset       | 素材定义   | 避免数据冗余，支持共享 |
+| SceneObject | 场景实例   | 独立管理实例状态       |
+| Strategy    | 实例化逻辑 | 解耦类型特定逻辑       |
 
 ### 2. 策略模式的优势
 
 **对比工厂模式**：
 
-| 方面 | 工厂模式 (if/switch) | 策略模式 (策略注册) |
-|------|---------------------|---------------------|
-| 扩展性 | ❌ 需修改工厂代码 | ✅ 只需添加新策略类 |
-| 单一职责 | ❌ 工厂类臃肿 | ✅ 每个策略独立 |
-| 测试性 | 🟡 需测试整个工厂 | ✅ 策略可独立测试 |
-| 运行时扩展 | ❌ 不支持 | ✅ 可动态注册策略 |
+| 方面       | 工厂模式 (if/switch) | 策略模式 (策略注册) |
+| ---------- | -------------------- | ------------------- |
+| 扩展性     | ❌ 需修改工厂代码    | ✅ 只需添加新策略类 |
+| 单一职责   | ❌ 工厂类臃肿        | ✅ 每个策略独立     |
+| 测试性     | 🟡 需测试整个工厂    | ✅ 策略可独立测试   |
+| 运行时扩展 | ❌ 不支持            | ✅ 可动态注册策略   |
 
 **代码对比**：
 
@@ -498,8 +507,10 @@ class FastenerInstanceStrategy implements InstanceStrategy {
 class ModelFactory {
   create(asset: Asset) {
     switch (asset.type) {
-      case 'profile': return createProfile(asset);
-      case 'fastener': return createFastener(asset);
+      case 'profile':
+        return createProfile(asset);
+      case 'fastener':
+        return createFastener(asset);
       // 新增类型需修改这里
     }
   }
@@ -508,11 +519,11 @@ class ModelFactory {
 // ✅ 策略模式
 class ModelFactory {
   private strategies = new Map<AssetType, Strategy>();
-  
+
   registerStrategy(type, strategy) {
     this.strategies.set(type, strategy);
   }
-  
+
   create(asset: Asset) {
     const strategy = this.strategies.get(asset.type);
     return strategy.createSceneObject(asset);
@@ -546,6 +557,7 @@ compute: {
 ```
 
 **好处**：
+
 1. **渲染性能**：简化模型支持大量对象的流畅渲染
 2. **计算精度**：完整描述保证 FEA 分析准确性
 3. **灵活切换**：可根据需要选择性更新
@@ -573,6 +585,7 @@ variants: {
 ```
 
 **好处**：
+
 - 减少模型文件数量（几百个 → 几十个）
 - 降低存储成本
 - 便于批量更新
@@ -591,15 +604,15 @@ const profileAsset: ProfileAsset = {
       min: 100,
       max: 3000,
       default: 1000,
-    }
-  }
+    },
+  },
 };
 
 // ✅ 编译时检查
-const length: number = sceneObject.userParams.length;  // OK
+const length: number = sceneObject.userParams.length; // OK
 
 // ❌ 编译时错误
-const invalid: string = sceneObject.userParams.length;  // Error!
+const invalid: string = sceneObject.userParams.length; // Error!
 ```
 
 ---
@@ -659,7 +672,7 @@ import { createHoleOperation, MachiningOpType } from '@/core/object/types';
 // 在型材上打孔
 const holeOp = createHoleOperation(100, {
   diameter: 5,
-  depth: -1,  // 通孔
+  depth: -1, // 通孔
   face: 'top',
   angle: 90,
 });
@@ -720,10 +733,7 @@ const customAsset: ProfileAsset = {
     density: 2700,
     elasticModulus: 69000,
   },
-  supportedOperations: [
-    MachiningOpType.HOLE,
-    MachiningOpType.CHAMFER,
-  ],
+  supportedOperations: [MachiningOpType.HOLE, MachiningOpType.CHAMFER],
 };
 
 // 注册到素材库
@@ -742,14 +752,14 @@ assetRegistry.register(customAsset);
 // 支持更多加工类型
 export const MachiningOpType = {
   // ... 现有类型
-  GROOVE: 'groove',        // 开槽
-  COUNTERBORE: 'counterbore',  // 沉孔
-  TAP: 'tap',              // 攻丝（锥度螺纹）
+  GROOVE: 'groove', // 开槽
+  COUNTERBORE: 'counterbore', // 沉孔
+  TAP: 'tap', // 攻丝（锥度螺纹）
 };
 
 // 加工操作预设模板
 const templates = {
-  'm5ThreadHole': createThreadOperation(0, {
+  m5ThreadHole: createThreadOperation(0, {
     spec: 'M5',
     depth: 15,
     face: 'top',
@@ -763,10 +773,10 @@ const templates = {
 class SnappingService {
   // 自动捕捉到其他对象的端点、中点
   snap(position: Vector3): Vector3;
-  
+
   // 自动对齐到轴线
   alignToAxis(position: Vector3): Vector3;
-  
+
   // 自动建立连接关系
   suggestConnections(object: SceneObject): Connection[];
 }
@@ -823,10 +833,10 @@ materialLibrary.addCustom({
 class CollaborationService {
   // 多人同时编辑
   shareProject(projectId: string): void;
-  
+
   // 冲突解决
   resolveConflict(localChanges, remoteChanges): void;
-  
+
   // 变更历史
   getHistory(): Change[];
   revertTo(changeId: string): void;
@@ -841,17 +851,20 @@ class AIAssistant {
   // 根据需求生成初步设计
   generateDesign(requirements: {
     type: '书架' | '工作台' | '框架';
-    dimensions: { width, height, depth };
+    dimensions: { width; height; depth };
     loadCapacity: number;
   }): SceneObject[];
-  
+
   // 优化现有设计
-  optimize(sceneObjects: SceneObject[], goals: {
-    minimizeWeight?: boolean;
-    maximizeStrength?: boolean;
-    minimizeCost?: boolean;
-  }): SceneObject[];
-  
+  optimize(
+    sceneObjects: SceneObject[],
+    goals: {
+      minimizeWeight?: boolean;
+      maximizeStrength?: boolean;
+      minimizeCost?: boolean;
+    }
+  ): SceneObject[];
+
   // 检测问题
   detectIssues(sceneObjects: SceneObject[]): Issue[];
 }
@@ -868,9 +881,9 @@ class BOMGenerator {
         { name: 'M5x20 螺栓', quantity: 16, unitPrice: 0.5 },
         // ...
       ],
-      totalCost: 120.50,
-      estimatedWeight: 3.2,  // kg
-      machiningCost: 35.00,
+      totalCost: 120.5,
+      estimatedWeight: 3.2, // kg
+      machiningCost: 35.0,
     };
   }
 }
