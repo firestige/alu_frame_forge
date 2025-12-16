@@ -1,8 +1,8 @@
 import { AssetRegistry } from './AssetRegistry';
 import type {
   ProfileAsset,
-  ConnectorAsset,
-  FastenerAsset,
+  ConnectorAssetV2,
+  FastenerAssetV2,
   AnyAsset,
   NormalizedCrossSection,
 } from './types/asset';
@@ -79,6 +79,10 @@ export class AssetService {
         console.log('[AssetService] ✅ 已加载预置资产: profile-2020');
       }
 
+      // 加载连接件和紧固件
+      await this.loadConnectorAssets();
+      await this.loadFastenerAssets();
+
       // 未来可以遍历 profilesModule 的所有导出自动注册
       // Object.values(profilesModule).forEach(asset => {
       //   if (asset && typeof asset === 'object' && 'id' in asset) {
@@ -87,6 +91,36 @@ export class AssetService {
       // });
     } catch (error) {
       console.error('[AssetService] ❌ 加载预置资产失败:', error);
+    }
+  }
+
+  /**
+   * 加载连接件资产
+   */
+  private async loadConnectorAssets(): Promise<void> {
+    try {
+      const { connectorLBracket2020 } = await import(
+        '@/data/connectors/l-bracket-2020.stub'
+      );
+      this.registerAsset(connectorLBracket2020);
+      console.log('[AssetService] ✅ 已加载连接件资产: l-bracket-2020');
+    } catch (error) {
+      console.error('[AssetService] ❌ 加载连接件资产失败:', error);
+    }
+  }
+
+  /**
+   * 加载紧固件资产
+   */
+  private async loadFastenerAssets(): Promise<void> {
+    try {
+      const { fastenerISO4014M5x20 } = await import(
+        '@/data/fasteners/iso4014-m5x20.stub'
+      );
+      this.registerAsset(fastenerISO4014M5x20);
+      console.log('[AssetService] ✅ 已加载紧固件资产: iso4014-m5x20');
+    } catch (error) {
+      console.error('[AssetService] ❌ 加载紧固件资产失败:', error);
     }
   }
 
@@ -159,15 +193,15 @@ export class AssetService {
   /**
    * 获取所有连接件
    */
-  getAllConnectors(): ConnectorAsset[] {
-    return this.registry.getByType(AssetType.CONNECTOR) as ConnectorAsset[];
+  getAllConnectors(): ConnectorAssetV2[] {
+    return this.registry.getByType(AssetType.CONNECTOR) as ConnectorAssetV2[];
   }
 
   /**
    * 获取所有紧固件
    */
-  getAllFasteners(): FastenerAsset[] {
-    return this.registry.getByType(AssetType.FASTENER) as FastenerAsset[];
+  getAllFasteners(): FastenerAssetV2[] {
+    return this.registry.getByType(AssetType.FASTENER) as FastenerAssetV2[];
   }
 
   // ==================== 通用查询 ====================
