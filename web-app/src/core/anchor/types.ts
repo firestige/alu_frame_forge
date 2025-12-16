@@ -58,7 +58,13 @@ export interface AnchorPoint {
     holeSpec?: {
       diameter: number;
       depth: number;
-      threadSpec?: string;
+      threadSpec?: {
+        standard: string;
+        designation: string;
+        pitch: number;
+        toleranceClass?: string;
+        threadType?: 'coarse' | 'fine';
+      };
     };
 
     /** T-slot 规格 */

@@ -101,9 +101,7 @@ describe('Scenario A: 双型材 + L 角件装配', () => {
     expect(horizontalFace!.metadata?.matingRule).toBe('mate:profile-end');
 
     // 检查垂直板后面
-    const verticalFace = faceAnchors.find(a =>
-      a.id.includes('vertical-back')
-    );
+    const verticalFace = faceAnchors.find(a => a.id.includes('vertical-back'));
     expect(verticalFace).toBeDefined();
     expect(verticalFace!.axis).toEqual({ x: 0, y: 0, z: -1 });
   });
@@ -334,5 +332,142 @@ describe('Scenario A: 双型材 + L 角件装配', () => {
     console.log(`  - 连接件孔锚点: ${connectorHoles.length}`);
     console.log(`  - 连接件面锚点: ${connectorFaces.length}`);
     console.log('  - 世界坐标变换: 正确');
+  });
+
+  it('should correctly transform anchors with rotation', () => {
+    // 测试旋转变换：L 角件绕 Z 轴旋转 90 度
+    const rotatedConnector: SceneObject = {
+      id: 'connector-rotated',
+      name: 'L-Bracket Rotated',
+      assetId: connectorLBracket2020.id,
+      assetSource: 'builtin',
+      assetType: 'connector',
+      transform: {
+        position: { x: 100, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 90, order: 'XYZ' }, // 绕 Z 轴旋转 90 度
+        scale: { x: 1, y: 1, z: 1 },
+      },
+      userParams: {},
+      machiningOps: [],
+      visual: { mesh: null, isVisible: true },
+      compute: {
+        geometry: {
+          type: 'connector',
+          connectorData: connectorLBracket2020.functional,
+        },
+        material: {
+          type: 'metal',
+          density: 2700,
+          youngsModulus: 69000,
+          poissonsRatio: 0.33,
+        },
+        connections: [],
+        mass: 0.05,
+      },
+      metadata: { createdAt: new Date(), updatedAt: new Date() },
+    };
+
+    const anchors = anchorService.generateAnchors(rotatedConnector);
+
+    // 验证孔位置经过旋转变换
+    const holeAnchors = anchors.filter(
+      a => a.type === AnchorType.CONNECTOR_HOLE
+    );
+    expect(holeAnchors).toHaveLength(6);
+
+    // 验证一个具体孔的旋转变换
+    // 原始 localPosition: { x: -10, y: 0, z: 10 }
+    // 绕 Z 轴旋转 90 度后: { x: 0, y: -10, z: 10 }
+    // 加上平移 (100, 0, 0): { x: 100, y: -10, z: 10 }
+    const hole_h1 = holeAnchors.find(a => a.id.includes('hole-h1'));
+    expect(hole_h1).toBeDefined();
+    expect(hole_h1!.position.x).toBeCloseTo(100, 1);
+    expect(hole_h1!.position.y).toBeCloseTo(-10, 1);
+    expect(hole_h1!.position.z).toBeCloseTo(10, 1);
+
+    // 验证孔轴向也经过旋转
+    // 原始 axis: { x: 0, y: 1, z: 0 }
+    // 绕 Z 轴旋转 90 度后: { x: -1, y: 0, z: 0 }
+    expect(hole_h1!.axis.x).toBeCloseTo(-1, 2);
+    expect(hole_h1!.axis.y).toBeCloseTo(0, 2);
+    expect(hole_h1!.axis.z).toBeCloseTo(0, 2);
+
+    // 验证接触面法向也经过旋转
+    const faceAnchors = anchors.filter(
+      a => a.type === AnchorType.CONNECTOR_FACE
+    );
+    const horizontalFace = faceAnchors.find(a =>
+      a.id.includes('horizontal-bottom')
+    );
+    expect(horizontalFace).toBeDefined();
+    // 原始法向: { x: 0, y: -1, z: 0 }
+    // 绕 Z 轴旋转 90 度后: { x: 1, y: 0, z: 0 }
+    expect(horizontalFace!.axis.x).toBeCloseTo(1, 2);
+    expect(horizontalFace!.axis.y).toBeCloseTo(0, 2);
+    expect(horizontalFace!.axis.z).toBeCloseTo(0, 2);
+
+    console.log('✅ 旋转变换验证通过');
+  });
+
+  it('should preserve full threadSpec in hole anchor metadata', () => {
+    const connectorObject: SceneObject = {
+      id: 'connector-spec-test',
+      name: 'L-Bracket ThreadSpec Test',
+      assetId: connectorLBracket2020.id,
+      assetSource: 'builtin',
+      assetType: 'connector',
+      transform: {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+        scale: { x: 1, y: 1, z: 1 },
+      },
+      userParams: {},
+      machiningOps: [],
+      visual: { mesh: null, isVisible: true },
+      compute: {
+        geometry: {
+          type: 'connector',
+          connectorData: connectorLBracket2020.functional,
+        },
+        material: {
+          type: 'metal',
+          density: 2700,
+          youngsModulus: 69000,
+          poissonsRatio: 0.33,
+        },
+        connections: [],
+        mass: 0.05,
+      },
+      metadata: { createdAt: new Date(), updatedAt: new Date() },
+    };
+
+    const anchors = anchorService.generateAnchors(connectorObject);
+    const threadedHoles = anchors.filter(
+      a =>
+        a.type === AnchorType.CONNECTOR_HOLE &&
+        a.metadata?.holeRole === 'threaded'
+    );
+
+    expect(threadedHoles.length).toBeGreaterThan(0);
+
+    // 验证 threadSpec 保留完整结构
+    const firstThreadedHole = threadedHoles[0];
+    expect(firstThreadedHole.metadata?.holeSpec?.threadSpec).toBeDefined();
+    
+    const threadSpec = firstThreadedHole.metadata!.holeSpec!.threadSpec!;
+    expect(threadSpec).toHaveProperty('standard');
+    expect(threadSpec).toHaveProperty('designation');
+    expect(threadSpec).toHaveProperty('pitch');
+    expect(threadSpec).toHaveProperty('toleranceClass');
+    expect(threadSpec).toHaveProperty('threadType');
+    
+    // 验证具体值
+    expect(threadSpec.standard).toBe('ISO');
+    expect(threadSpec.designation).toBe('M5');
+    expect(threadSpec.pitch).toBe(0.8);
+    expect(threadSpec.toleranceClass).toBe('6H');
+    expect(threadSpec.threadType).toBe('coarse');
+
+    console.log('✅ ThreadSpec 完整结构验证通过');
   });
 });

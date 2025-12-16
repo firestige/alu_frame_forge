@@ -208,8 +208,8 @@ export class AnchorService {
       return anchors;
     }
 
-    const connectorData =
-      compute.geometry.connectorData as unknown as ConnectorComputeData;
+    const connectorData = compute.geometry
+      .connectorData as unknown as ConnectorComputeData;
 
     // 1. 生成孔锚点
     connectorData.holes?.forEach(hole => {
@@ -229,9 +229,7 @@ export class AnchorService {
           holeSpec: {
             diameter: hole.diameter,
             depth: hole.depth,
-            threadSpec: hole.threadSpec
-              ? `${hole.threadSpec.designation}`
-              : undefined,
+            threadSpec: hole.threadSpec,
           },
           holeRole: hole.role as
             | 'threaded'
@@ -266,30 +264,85 @@ export class AnchorService {
   }
 
   /**
-   * 局部坐标转世界坐标（简化版：仅平移）
-   * TODO: 实现完整的矩阵变换（含旋转）
+   * 局部坐标转世界坐标
+   * 应用旋转和平移变换
    */
   private transformLocalToWorld(
     localPos: Vector3,
     transform: { position: Vector3; rotation?: any; scale?: Vector3 }
   ): Vector3 {
+    // 应用旋转（如果存在）
+    let transformedPos = { ...localPos };
+    
+    if (transform.rotation) {
+      const { x: rx, y: ry, z: rz } = transform.rotation;
+      transformedPos = this.applyEulerRotation(localPos, rx, ry, rz);
+    }
+    
+    // 应用平移
     return {
-      x: transform.position.x + localPos.x,
-      y: transform.position.y + localPos.y,
-      z: transform.position.z + localPos.z,
+      x: transform.position.x + transformedPos.x,
+      y: transform.position.y + transformedPos.y,
+      z: transform.position.z + transformedPos.z,
     };
   }
 
   /**
-   * 局部轴向转世界轴向（简化版：暂不支持旋转）
-   * TODO: 实现完整的旋转矩阵变换
+   * 局部轴向转世界轴向
+   * 应用旋转变换（轴向不受平移影响）
    */
   private transformAxisToWorld(
     localAxis: Vector3,
     transform: { position: Vector3; rotation?: any; scale?: Vector3 }
   ): Vector3 {
-    // 当前简化：假设无旋转，直接返回局部轴向
-    return { ...localAxis };
+    if (!transform.rotation) {
+      return { ...localAxis };
+    }
+    
+    const { x: rx, y: ry, z: rz } = transform.rotation;
+    return this.applyEulerRotation(localAxis, rx, ry, rz);
+  }
+
+  /**
+   * 应用欧拉角旋转（XYZ顺序）
+   * @param v 输入向量
+   * @param rx X轴旋转角度（度）
+   * @param ry Y轴旋转角度（度）
+   * @param rz Z轴旋转角度（度）
+   */
+  private applyEulerRotation(
+    v: Vector3,
+    rx: number,
+    ry: number,
+    rz: number
+  ): Vector3 {
+    // 转换为弧度
+    const toRad = Math.PI / 180;
+    const rxRad = rx * toRad;
+    const ryRad = ry * toRad;
+    const rzRad = rz * toRad;
+
+    // X轴旋转矩阵
+    const cosX = Math.cos(rxRad);
+    const sinX = Math.sin(rxRad);
+    let x = v.x;
+    let y = v.y * cosX - v.z * sinX;
+    let z = v.y * sinX + v.z * cosX;
+
+    // Y轴旋转矩阵
+    const cosY = Math.cos(ryRad);
+    const sinY = Math.sin(ryRad);
+    const tempX = x * cosY + z * sinY;
+    z = -x * sinY + z * cosY;
+    x = tempX;
+
+    // Z轴旋转矩阵
+    const cosZ = Math.cos(rzRad);
+    const sinZ = Math.sin(rzRad);
+    const finalX = x * cosZ - y * sinZ;
+    const finalY = x * sinZ + y * cosZ;
+
+    return { x: finalX, y: finalY, z };
   }
 
   /**
