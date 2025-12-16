@@ -2,7 +2,7 @@
 
 > 铝型材框架设计器（Alu Frame Forge）完整文档导航
 
-**最后更新**: 2025-12-07
+**最后更新**: 2025-12-16
 
 ---
 
@@ -38,6 +38,7 @@
 | [StateManagement.md](./design/StateManagement.md)   | Context Provider、Zustand、usePersistentState     | 2025-11-21 |
 | [StorageSystem.md](./design/StorageSystem.md)       | AutoSaveService、三层持久化、SceneIO              | 2025-11-21 |
 | [RenderingSystem.md](./design/RenderingSystem.md)   | 渲染器抽象、Three.js 实现、RenderSyncService      | 2025-11-21 |
+| [ConnectorFastenerSystem.md](./design/ConnectorFastenerSystem.md) | 连接件/紧固件子系统数据契约、实例化策略骨架与验收验证场景 | 2025-12-16 |
 
 ---
 
