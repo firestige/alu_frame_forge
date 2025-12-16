@@ -15,7 +15,7 @@
 
 1. 定义严格的数据契约（视觉/功能分离、STUB 精度规则）。
 2. 提供可在场景图中实例化的策略骨架，并向既有服务暴露锚点几何。
-3. 给出示例资产（40×40 L 型角件、M5×20 螺栓）及验证场景，证明求解器可锁定真实装配。
+3. 给出示例资产（2020 系列 L 型角件、M5×20 螺栓）及验证场景，证明求解器可锁定真实装配。
 4. 建立覆盖锚点提取、约束求解、视觉/计算一致性的测试矩阵。
 
 ---
@@ -116,6 +116,43 @@
 - 头部注释：`/** 🔴 STUB DATA - 精度 ±2mm，待替换为真实规格 */`
 - 视觉 primitives 使用中心坐标系（mm）
 - 功能数据需注明测量来源（示例：「假设距边缘 5mm，参考 80/20 #4112 数据表」）
+
+### 4.4 紧固件规格目录与视觉策略（新增决策）
+
+- **只支持预置标准件**：紧固件全部来源于内建规格目录，按照 `标准 + 尺寸代码 + 材质` 组合（如 `ISO4014-M5x20-8.8`）。不开放用户上传模型，避免校验和兼容性负担。
+- **Catalog 数据结构**：
+  ```ts
+  interface FastenerSpecCatalogEntry {
+    key: 'ISO4014-M5x20-8.8';
+    standard: 'ISO4014';
+    sizeCode: 'M5';
+    length: 20;
+    headType: 'hex' | 'socket' | 'slotted' | 'phillips' | 'torx';
+    headWidth: number; // across flats or diameter
+    headHeight: number;
+    shankDiameter: number;
+    threadPitch: number;
+    threadLength: number;
+    driveType?: 'hex' | 'slot' | 'cross' | 'torx';
+    tolerance: { length: number; diameter: number };
+  }
+  ```
+- **FastenerAsset 扩展**：资产引用 catalog entry (`specKey`) 并补充兼容性语义，如 `compatibleProfiles`, `recommendedConnectorFamilies`, `material`, `finish`。资产层生成视觉 primitives 与 `functional` 字段（`threadSpec`, `clampRange`, `torqueRecommendations`）。
+- **视觉表现原则**：视觉模型只需帮助用户辨识头型与驱动方式，使用 box/cylinder/凹槽 primitives 组合即可（例如内六角=圆柱头 + 六边形凹槽，一字/十字=在头面上减 boolean 体，T 型螺帽=扁平盒体 + 导向突起）。目标精度 ±10%，追求形态可辨而非尺寸严丝合缝。
+- **Compute 层准确性**：`SceneObject.compute.fastener` 保存来自 catalog 的真实尺寸（螺杆直径、螺纹有效长、头部包络、threadAxis、clampRange、torqueLimit 等），供 AnchorService、ConstraintManager、未来干涉/FEA 使用。Visual 与 Compute 相互独立：即便视觉简化，也能依赖 compute 数据完成高精度分析。
+- **扩展路径**：当需要更高保真视觉或仿真数据时，只需追加新的 catalog 字段（如 `headProfileVertices`、`preloadForce`）。策略与文档保持双模型接口不变。
+
+### 4.5 连接件规格策略与定制扩展
+
+- **双轨模型**：
+  1. **标准库轨道**：与紧固件类似，维护 `ConnectorSpecCatalogEntry`（示例字段：`id`, `family`, `profileSeries`, `wings`, `thickness`, `holePattern`, `supportedFasteners`, `mass`）。资产层引用 catalog 并生成 primitives + 功能数据，适合 L 型角件、三维角码、端面连接块等常见部件。
+  2. **参数化定制轨道**：对于“在标准基础上微调孔距/翼长/开槽”的需求，提供受控参数模板。用户通过 UI 只输入若干标量，由系统重新生成 visual/compute 数据，确保锚点与质量属性仍可推导。
+- **完全自定义导入（Future）**：考虑到后续要实现干涉检测、辅助装配和 FEA，必须在早期定义导入要求：
+  - 允许上传轻量化几何（GLB/STEP → 预处理）但必须附带结构化 metadata：`contactFaces`, `holes`, `slides`, `massProperties`。没有这些数据的模型无法参与锚点/约束求解。
+  - 导入流程需提供质量校验（法向统一、孔径范围、兼容紧固件列表）。文档需描述最小可行字段，以便未来实现时直接复用。
+- **短期实现策略**：当前迭代暂不实现自由导入，但 `ConnectorAsset.functional` 与 `SceneObject.compute.connector` 已按可扩展 Schema 设计（数组形式 + 可选字段）。新增导入方式只需按照 Schema 写入对应数据即可，不影响现有标准件。
+- **视觉/功能关系**：即使视觉层是“占位符”，Compute 层必须保持准确，才能在未来切换到干涉检测和辅助装配模式。标准与定制轨道共用同一 Compute Schema，避免后续做迁移。
+- **导入流程决策**：未来若开放自定义连接件导入，新增的只是一个“数据转换组件”：负责解析用户几何/元数据 → 产出符合 `ConnectorAsset` Schema 的 `visual.primitives` 与 `functional`（孔、面、massProperties 等）。转换成功后直接走既有 AssetRegistry / ModelFactory / Strategy / AnchorService 流程，无需重写核心层。
 
 ---
 

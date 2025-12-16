@@ -8,6 +8,11 @@ import type {
 } from './enums';
 import type { ParameterDefinitions } from './parameters';
 import type { NormalizedCrossSection } from '../contract/ProfileCrossSectionContract';
+import type {
+  ConnectorAsset as ConnectorAssetV2,
+  FastenerAsset as FastenerAssetV2,
+} from './connector';
+import type { FastenerAsset as FastenerAssetV3 } from './fastener';
 
 /**
  * 素材基础接口
@@ -202,9 +207,16 @@ export interface AccessoryAsset extends Asset {
 /**
  * 素材联合类型
  * 包含所有素材类型
+ * 
+ * 注意：FastenerAsset 和 ConnectorAsset 有新旧两个版本
+ * - 旧版本（FastenerAsset/ConnectorAsset）：基于模型变体的简化实现
+ * - 新版本（FastenerAssetV3/ConnectorAssetV2）：基于双模型体系的完整实现
+ * 当前同时保留两个版本以支持渐进式迁移
  */
 export type AnyAsset =
   | ProfileAsset
   | FastenerAsset
   | ConnectorAsset
+  | FastenerAssetV3
+  | ConnectorAssetV2
   | AccessoryAsset;

@@ -1,6 +1,12 @@
 import type { AssetSource, AssetType } from '../../asset/types/enums';
 import type { MachiningOperation } from './machining';
 import type { MaterialProperties } from '../../asset/types/asset';
+import type {
+  ConnectorHole,
+  ContactFace,
+  SlideChannel,
+} from '../../asset/types/connector';
+import type { ThreadSpec } from '../../asset/types/fastener';
 
 /**
  * 三维向量
@@ -116,12 +122,78 @@ export interface MeshGeometry {
 }
 
 /**
+ * 连接件功能数据（Compute 层）
+ * 精确的孔位、接触面、滑槽等信息
+ */
+export interface ConnectorComputeData {
+  /** 孔列表 */
+  holes: ConnectorHole[];
+  /** 接触面列表 */
+  contactFaces: ContactFace[];
+  /** 滑槽列表 */
+  slides?: SlideChannel[];
+  /** 质量 (kg) */
+  mass: number;
+  /** 质心位置（局部坐标） */
+  centerOfMass?: Vector3;
+}
+
+/**
+ * 计算几何 - 连接件
+ * 双模型体系中的 Compute 层表示
+ */
+export interface ConnectorComputeGeometry {
+  type: 'connector';
+  /** 连接件功能数据 */
+  connectorData: ConnectorComputeData;
+}
+
+/**
+ * 紧固件功能数据（Compute 层）
+ * 精确的螺纹规格、夹紧参数等信息
+ */
+export interface FastenerComputeData {
+  /** 螺纹规格 */
+  threadSpec: ThreadSpec;
+  /** 螺纹轴线（局部坐标，单位向量） */
+  threadAxis: Vector3;
+  /** 紧固件总长度 (mm) */
+  length: number;
+  /** 可用夹紧长度区间 (mm) */
+  clampRange: [number, number];
+  /** 头部包络（用于干涉检测） */
+  headClearanceVolume?: {
+    type: 'cylinder' | 'hexPrism' | 'box';
+    size: number;
+    height: number;
+  };
+  /** 有效啮合深度 (mm) */
+  engagementDepth: number;
+  /** 扭矩限制 (N·m) */
+  torqueLimit?: number;
+  /** 预紧力 (N) */
+  preloadForce?: number;
+}
+
+/**
+ * 计算几何 - 紧固件
+ * 双模型体系中的 Compute 层表示
+ */
+export interface FastenerComputeGeometry {
+  type: 'fastener';
+  /** 紧固件功能数据 */
+  fastenerData: FastenerComputeData;
+}
+
+/**
  * 计算几何联合类型
  */
 export type ComputeGeometry =
   | ExtrudedProfileGeometry
   | ParametricFastenerGeometry
   | ParametricConnectorGeometry
+  | ConnectorComputeGeometry
+  | FastenerComputeGeometry
   | MeshGeometry;
 
 /**
