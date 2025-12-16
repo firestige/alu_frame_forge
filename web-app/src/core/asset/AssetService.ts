@@ -114,10 +114,19 @@ export class AssetService {
    */
   private async loadFastenerAssets(): Promise<void> {
     try {
-      const { fastenerISO4014M5x20 } = await import(
-        '@/data/fasteners/iso4014-m5x20.stub'
-      );
-      this.registerAsset(fastenerISO4014M5x20);
+      const [fastenerM5x16, fastenerM5x20] = await Promise.all([
+        import('@/data/fasteners/iso4014-m5x16.stub').then(
+          mod => mod.fastenerISO4014M5x16
+        ),
+        import('@/data/fasteners/iso4014-m5x20.stub').then(
+          mod => mod.fastenerISO4014M5x20
+        ),
+      ]);
+
+      this.registerAsset(fastenerM5x16);
+      console.log('[AssetService] ✅ 已加载紧固件资产: iso4014-m5x16');
+
+      this.registerAsset(fastenerM5x20);
       console.log('[AssetService] ✅ 已加载紧固件资产: iso4014-m5x20');
     } catch (error) {
       console.error('[AssetService] ❌ 加载紧固件资产失败:', error);

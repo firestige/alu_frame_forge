@@ -1,8 +1,8 @@
 /**
  * 2020 系列 L 型角件 STUB 资产
- * 
+ *
  * 🔴 STUB DATA - 精度 ±2mm，仅用于验证双模型体系
- * 
+ *
  * 参考数据：
  * - 80/20 #4112 角件（近似）
  * - 材质：铝合金 6063-T5
@@ -19,11 +19,11 @@ export const connectorLBracket2020: ConnectorAssetV2 = {
   type: AssetType.CONNECTOR,
   source: AssetSource.BUILTIN,
   description: '2020系列L型角件，40×40×5mm，铝合金，用于90度直角连接',
-  
+
   connectorType: 'l-bracket',
   compatibleSeries: ['2020'],
   recommendedFasteners: ['ISO4014-M5x16-8.8', 'ISO4014-M5x20-8.8'],
-  
+
   // Visual: 简化 primitives（两个矩形板）
   visual: {
     type: 'simplified',
@@ -62,7 +62,7 @@ export const connectorLBracket2020: ConnectorAssetV2 = {
       },
     ],
   },
-  
+
   // Functional: 精确的孔位、接触面、质量等
   functional: {
     // 接触面定义（用于面面约束）
@@ -88,7 +88,7 @@ export const connectorLBracket2020: ConnectorAssetV2 = {
         surfaceType: 'plane',
       },
     ],
-    
+
     // 孔定义
     holes: [
       // 水平板孔（型材附着）- M5 螺纹孔
@@ -124,7 +124,7 @@ export const connectorLBracket2020: ConnectorAssetV2 = {
         },
         matingHints: ['fastener:M5'],
       },
-      
+
       // 垂直板孔（型材附着）- M5 螺纹孔
       {
         id: 'hole-v1',
@@ -158,34 +158,34 @@ export const connectorLBracket2020: ConnectorAssetV2 = {
         },
         matingHints: ['fastener:M5'],
       },
-      
+
       // 紧固件通孔（用于连接两个板）
       {
         id: 'hole-corner-1',
         role: 'fastener-pass-through',
-        localPosition: { x: -10, y: 10, z: 10 },
+        localPosition: { x: -10, y: 0, z: -20 },
         axis: { x: 0, y: 1, z: 0 },
-        diameter: 5.5, // 留出间隙
+        diameter: 5.5, // 留出间隙，穿过交叠区
         depth: -1,
         matingHints: ['fastener:M5:pass-through'],
       },
       {
         id: 'hole-corner-2',
         role: 'fastener-pass-through',
-        localPosition: { x: 10, y: 10, z: 10 },
+        localPosition: { x: 10, y: 0, z: -20 },
         axis: { x: 0, y: 1, z: 0 },
         diameter: 5.5,
         depth: -1,
         matingHints: ['fastener:M5:pass-through'],
       },
     ],
-    
+
     // 质量（估算）
     mass: 0.05, // kg (50g)
-    
+
     // 质心位置（近似中心）
     centerOfMass: { x: 0, y: 10, z: -10 },
-    
+
     // 材料属性
     material: {
       name: 'Aluminum 6063-T5',
@@ -193,7 +193,7 @@ export const connectorLBracket2020: ConnectorAssetV2 = {
       yieldStrength: 145, // MPa
     },
   },
-  
+
   metadata: {
     manufacturer: 'Generic',
     partNumber: 'L-BRACKET-2020',
