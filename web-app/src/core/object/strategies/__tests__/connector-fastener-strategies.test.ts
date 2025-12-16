@@ -101,7 +101,9 @@ describe('ConnectorInstanceStrategy', () => {
     expect(sceneObject.compute.geometry.type).toBe('connector');
     if (sceneObject.compute.geometry.type === 'connector') {
       expect(sceneObject.compute.geometry.connectorData.holes).toHaveLength(1);
-      expect(sceneObject.compute.geometry.connectorData.contactFaces).toHaveLength(1);
+      expect(
+        sceneObject.compute.geometry.connectorData.contactFaces
+      ).toHaveLength(1);
       expect(sceneObject.compute.geometry.connectorData.mass).toBe(0.05);
     }
 
@@ -133,13 +135,13 @@ describe('ConnectorInstanceStrategy', () => {
       userParams: {},
     });
 
-    const oldUpdatedAt = sceneObject.metadata.updatedAt;
+    const oldUpdatedAt = new Date(0);
+    sceneObject.metadata.updatedAt = oldUpdatedAt;
 
-    // 等待一点时间确保时间戳不同
-    setTimeout(() => {
-      strategy.updateGeometry(sceneObject, asset);
-      expect(sceneObject.metadata.updatedAt).not.toBe(oldUpdatedAt);
-    }, 10);
+    strategy.updateGeometry(sceneObject, asset);
+    expect(sceneObject.metadata.updatedAt.getTime()).toBeGreaterThan(
+      oldUpdatedAt.getTime()
+    );
   });
 });
 
@@ -277,11 +279,12 @@ describe('FastenerInstanceStrategy', () => {
       userParams: {},
     });
 
-    const oldUpdatedAt = sceneObject.metadata.updatedAt;
+    const oldUpdatedAt = new Date(0);
+    sceneObject.metadata.updatedAt = oldUpdatedAt;
 
-    setTimeout(() => {
-      strategy.updateGeometry(sceneObject, asset);
-      expect(sceneObject.metadata.updatedAt).not.toBe(oldUpdatedAt);
-    }, 10);
+    strategy.updateGeometry(sceneObject, asset);
+    expect(sceneObject.metadata.updatedAt.getTime()).toBeGreaterThan(
+      oldUpdatedAt.getTime()
+    );
   });
 });

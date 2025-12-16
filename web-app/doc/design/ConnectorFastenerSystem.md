@@ -22,12 +22,12 @@
 
 ## 2. 范围与非目标
 
-| 范围内事项                                                | 范围外事项                                |
-| --------------------------------------------------------- | ----------------------------------------- |
-| `ConnectorAsset` / `FastenerAsset` 及其依赖类型的数据契约 | 连接件/紧固件 UI 编辑工具                 |
-| 实例化策略骨架（仅使用基础几何体）                        | 高模 CAD 网格或制造导出                   |
-| STUB 规范与首批样例资产                                   | 完整的连接件目录                          |
-| 验证场景及期望求解器行为                                  | Gizmo / 可视化层（Task #13 Phase 6 负责） |
+| 范围内事项                                                    | 范围外事项                                |
+| ------------------------------------------------------------- | ----------------------------------------- |
+| `ConnectorAssetV2` / `FastenerAssetV2` 及其依赖类型的数据契约 | 连接件/紧固件 UI 编辑工具                 |
+| 实例化策略骨架（仅使用基础几何体）                            | 高模 CAD 网格或制造导出                   |
+| STUB 规范与首批样例资产                                       | 完整的连接件目录                          |
+| 验证场景及期望求解器行为                                      | Gizmo / 可视化层（Task #13 Phase 6 负责） |
 
 ---
 
@@ -64,7 +64,7 @@
 关键原则：
 
 - **视觉 / 功能分离**：视觉模型仅由简化 primitives 组成；功能模型保存孔、接触面、滑槽、螺纹轴等权威位姿，供计算层消费。
-- **后向兼容**：ObjectManager、AnchorService、ConstraintService 直接消费，无需改签名。
+- **统一使用 V2 资产**：仅保留双模型体系的 `ConnectorAssetV2` / `FastenerAssetV2`，不再维护旧版本。
 - **策略注册**：通过 `ModelFactory` 注册，沿用 `ProfileInstanceStrategy` 的扩展机制。
 
 ---
@@ -73,7 +73,7 @@
 
 ### 4.1 连接件资产族
 
-- `ConnectorAsset`
+- `ConnectorAssetV2`
   - 身份：id、name、connectorType、compatibleSeries[]、material
   - `visual`: `ConnectorVisualModel`
     - `type`: `"simplified" | "customMesh"`（MVP 仅使用 simplified）
@@ -98,7 +98,7 @@
 
 ### 4.2 紧固件资产族
 
-- `FastenerAsset`
+- `FastenerAssetV2`
   - 身份：id、name、fastenerType（bolt/nut/screw/t-nut）
   - `visual`: 简化 primitives（杆体圆柱 + 头部棱柱）
   - `functional`
@@ -137,7 +137,7 @@
     tolerance: { length: number; diameter: number };
   }
   ```
-- **FastenerAsset 扩展**：资产引用 catalog entry (`specKey`) 并补充兼容性语义，如 `compatibleProfiles`, `recommendedConnectorFamilies`, `material`, `finish`。资产层生成视觉 primitives 与 `functional` 字段（`threadSpec`, `clampRange`, `torqueRecommendations`）。
+- **FastenerAssetV2 扩展**：资产引用 catalog entry (`specKey`) 并补充兼容性语义，如 `compatibleProfiles`, `recommendedConnectorFamilies`, `material`, `finish`。资产层生成视觉 primitives 与 `functional` 字段（`threadSpec`, `clampRange`, `torqueRecommendations`）。
 - **视觉表现原则**：视觉模型只需帮助用户辨识头型与驱动方式，使用 box/cylinder/凹槽 primitives 组合即可（例如内六角=圆柱头 + 六边形凹槽，一字/十字=在头面上减 boolean 体，T 型螺帽=扁平盒体 + 导向突起）。目标精度 ±10%，追求形态可辨而非尺寸严丝合缝。
 - **Compute 层准确性**：`SceneObject.compute.fastener` 保存来自 catalog 的真实尺寸（螺杆直径、螺纹有效长、头部包络、threadAxis、clampRange、torqueLimit 等），供 AnchorService、ConstraintManager、未来干涉/FEA 使用。Visual 与 Compute 相互独立：即便视觉简化，也能依赖 compute 数据完成高精度分析。
 - **扩展路径**：当需要更高保真视觉或仿真数据时，只需追加新的 catalog 字段（如 `headProfileVertices`、`preloadForce`）。策略与文档保持双模型接口不变。
@@ -152,7 +152,7 @@
   - 导入流程需提供质量校验（法向统一、孔径范围、兼容紧固件列表）。文档需描述最小可行字段，以便未来实现时直接复用。
 - **短期实现策略**：当前迭代暂不实现自由导入，但 `ConnectorAsset.functional` 与 `SceneObject.compute.connector` 已按可扩展 Schema 设计（数组形式 + 可选字段）。新增导入方式只需按照 Schema 写入对应数据即可，不影响现有标准件。
 - **视觉/功能关系**：即使视觉层是“占位符”，Compute 层必须保持准确，才能在未来切换到干涉检测和辅助装配模式。标准与定制轨道共用同一 Compute Schema，避免后续做迁移。
-- **导入流程决策**：未来若开放自定义连接件导入，新增的只是一个“数据转换组件”：负责解析用户几何/元数据 → 产出符合 `ConnectorAsset` Schema 的 `visual.primitives` 与 `functional`（孔、面、massProperties 等）。转换成功后直接走既有 AssetRegistry / ModelFactory / Strategy / AnchorService 流程，无需重写核心层。
+- **导入流程决策**：未来若开放自定义连接件导入，新增的只是一个“数据转换组件”：负责解析用户几何/元数据 → 产出符合 `ConnectorAssetV2` Schema 的 `visual.primitives` 与 `functional`（孔、面、massProperties 等）。转换成功后直接走既有 AssetRegistry / ModelFactory / Strategy / AnchorService 流程，无需重写核心层。
 
 ---
 
@@ -202,7 +202,7 @@
 
 ### 5.1 资产注册
 
-1. STUB module exports `ConnectorAsset`/`FastenerAsset` objects.
+1. STUB module exports `ConnectorAssetV2`/`FastenerAssetV2` objects.
 2. AssetService `loadBuiltinAssets()` (or dedicated `loadConnectorAssets()`) registers them into `AssetRegistry`.
 3. Library UI queries AssetService to display new assets.
 

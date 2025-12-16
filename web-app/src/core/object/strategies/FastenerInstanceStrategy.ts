@@ -58,7 +58,8 @@ export class FastenerInstanceStrategy implements InstanceStrategy {
         clampRange: fastenerAsset.functional.clampRange,
         headClearanceVolume: fastenerAsset.functional.headClearanceVolume,
         engagementDepth: fastenerAsset.functional.engagementDepth,
-        torqueLimit: fastenerAsset.functional.torqueRecommendations?.[0]?.torque,
+        torqueLimit:
+          fastenerAsset.functional.torqueRecommendations?.[0]?.torque,
       },
     };
 
@@ -113,8 +114,7 @@ export class FastenerInstanceStrategy implements InstanceStrategy {
     sceneObject.visual.mesh = newMesh;
 
     // 更新 compute geometry
-    const computeGeom = sceneObject.compute
-      .geometry as FastenerComputeGeometry;
+    const computeGeom = sceneObject.compute.geometry as FastenerComputeGeometry;
     computeGeom.fastenerData = {
       threadSpec: fastenerAsset.functional.threadSpec,
       threadAxis: fastenerAsset.functional.threadAxis || { x: 0, y: 0, z: 1 },

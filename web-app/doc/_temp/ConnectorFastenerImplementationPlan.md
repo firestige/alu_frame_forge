@@ -7,14 +7,14 @@
 
 ## 1. 阶段划分
 
-| 阶段              | 目标                                                                                                                | 主要输出                                           |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| P0 设计冻结       | 完成架构/数据决策、验收范围、测试策略                                                                               | 已完成：设计文档、双模型衔接说明、标准 vs 定制策略 |
-| P1 数据结构落地   | 在 `core/asset/types` 内新增 `ConnectorAsset`、`FastenerAsset`、`ConnectorHole`、`ContactFace`、`ThreadSpec` 等接口 | TypeScript 类型 + 单元测试草稿                     |
-| P2 策略骨架       | 新增 `ConnectorInstanceStrategy`、`FastenerInstanceStrategy`（仅 primitives + compute 占位）并注册至 `ModelFactory` | 策略类、注册代码、最小 smoke test                  |
-| P3 STUB & Catalog | 建立 `src/data/connectors/*`、`src/data/fasteners/*` STUB 资产；导入 `fastenerSpecCatalog`、`connectorSpecCatalog`  | 至少：2020 L 型角件、ISO4014 M5×20；文档示例同步   |
-| P4 锚点/约束联调  | AnchorService 识别连接件孔/面锚点；编写示例场景脚本验证约束求解                                                     | Vitest 集成测试 + 场景 A 剧本                      |
-| P5 可选扩展       | 评估参数化定制、导入转换器 PoC                                                                                      | 决策记录/Prototype                                 |
+| 阶段              | 目标                                                                                                                    | 主要输出                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| P0 设计冻结       | 完成架构/数据决策、验收范围、测试策略                                                                                   | 已完成：设计文档、双模型衔接说明、标准 vs 定制策略 |
+| P1 数据结构落地   | 在 `core/asset/types` 内新增 `ConnectorAssetV2`、`FastenerAssetV2`、`ConnectorHole`、`ContactFace`、`ThreadSpec` 等接口 | TypeScript 类型 + 单元测试草稿                     |
+| P2 策略骨架       | 新增 `ConnectorInstanceStrategy`、`FastenerInstanceStrategy`（仅 primitives + compute 占位）并注册至 `ModelFactory`     | 策略类、注册代码、最小 smoke test                  |
+| P3 STUB & Catalog | 建立 `src/data/connectors/*`、`src/data/fasteners/*` STUB 资产；导入 `fastenerSpecCatalog`、`connectorSpecCatalog`      | 至少：2020 L 型角件、ISO4014 M5×20；文档示例同步   |
+| P4 锚点/约束联调  | AnchorService 识别连接件孔/面锚点；编写示例场景脚本验证约束求解                                                         | Vitest 集成测试 + 场景 A 剧本                      |
+| P5 可选扩展       | 评估参数化定制、导入转换器 PoC                                                                                          | 决策记录/Prototype                                 |
 
 ---
 
@@ -23,8 +23,8 @@
 ### 2.1 类型与数据层
 
 1. **定义核心类型**（`core/asset/types`）
-   - `ConnectorAsset`, `ConnectorFunctionalData`, `ConnectorHole`, `ContactFace`, `SlideChannel`
-   - `FastenerAsset`, `FastenerFunctionalData`, `FastenerSpecCatalogEntry`, `ThreadSpec`
+   - `ConnectorAssetV2`, `ConnectorFunctionalData`, `ConnectorHole`, `ContactFace`, `SlideChannel`
+   - `FastenerAssetV2`, `FastenerFunctionalData`, `FastenerSpecCatalogEntry`, `ThreadSpec`
    - `SceneObject.compute.connector/fastener` 扩展接口
 2. **更新 AssetRegistry**
    - 支持加载 connector/fastener 资产集合
@@ -35,10 +35,11 @@
 ### 2.2 策略实现
 
 1. `ConnectorInstanceStrategy`
-   - 输入：`ConnectorAsset`
+   - 输入：`ConnectorAssetV2`
    - 输出：`SceneObject` (visual primitives 转换 → RenderSyncService；functional → compute)
    - 调用 `AnchorService.registerFromSceneObject`
 2. `FastenerInstanceStrategy`
+   - 输入：`FastenerAssetV2`
    - 生成简化视觉（杆体、头部、驱动凹槽占位）
    - compute 写入 `threadAxis`, `clampRange`, `headClearanceVolume`
 3. `ModelFactory` 注册 & Feature 层冒烟测试
