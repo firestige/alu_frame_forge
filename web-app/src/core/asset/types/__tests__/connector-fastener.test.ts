@@ -1,13 +1,13 @@
 /**
  * 连接件和紧固件类型定义单元测试
- * 
+ *
  * 测试类型守卫、类型约束和数据结构完整性
  */
 
 import { describe, it, expect } from 'vitest';
 import type {
-  ConnectorAsset,
-  FastenerAsset,
+  ConnectorAssetV2,
+  FastenerAssetV2,
   ConnectorHole,
   ContactFace,
   ThreadSpec,
@@ -21,8 +21,8 @@ import type {
 import { AssetType, AssetSource } from '@/core/asset/types';
 
 describe('Connector Types', () => {
-  it('should create valid ConnectorAsset', () => {
-    const asset: ConnectorAsset = {
+  it('should create valid ConnectorAssetV2', () => {
+    const asset: ConnectorAssetV2 = {
       id: 'connector.l_bracket.2020',
       name: 'L型角件 2020',
       type: AssetType.CONNECTOR,
@@ -98,8 +98,8 @@ describe('Connector Types', () => {
 });
 
 describe('Fastener Types', () => {
-  it('should create valid FastenerAsset', () => {
-    const asset: FastenerAsset = {
+  it('should create valid FastenerAssetV2', () => {
+    const asset: FastenerAssetV2 = {
       id: 'fastener.iso4014.m5x20',
       name: 'ISO4014 六角头螺栓 M5×20',
       type: AssetType.FASTENER,
@@ -293,7 +293,7 @@ describe('SceneObject Integration', () => {
 
 describe('Type Guards', () => {
   it('should distinguish connector from fastener assets', () => {
-    const connector: ConnectorAsset = {
+    const connector: ConnectorAssetV2 = {
       id: 'c1',
       name: 'Connector',
       type: AssetType.CONNECTOR,
@@ -304,7 +304,7 @@ describe('Type Guards', () => {
       functional: { contactFaces: [], holes: [], mass: 0.05 },
     };
 
-    const fastener: FastenerAsset = {
+    const fastener: FastenerAssetV2 = {
       id: 'f1',
       name: 'Fastener',
       type: AssetType.FASTENER,

@@ -1,6 +1,6 @@
 /**
  * 连接件资产类型定义
- * 
+ *
  * 按照双模型体系设计：
  * - Visual: 简化 primitives 用于渲染
  * - Functional: 完整的孔位、接触面、滑槽等几何数据
@@ -181,24 +181,24 @@ export interface ConnectorFunctionalData {
 /**
  * 连接件资产（新版本，符合双模型体系）
  */
-export interface ConnectorAsset extends Asset {
+export interface ConnectorAssetV2 extends Asset {
   type: typeof AssetType.CONNECTOR;
-  
+
   /** 连接件具体类型 */
   connectorType: ConnectorType;
-  
+
   /** 兼容的型材系列（如 ["2020", "3030"]） */
   compatibleSeries: string[];
-  
+
   /** 推荐使用的紧固件规格 */
   recommendedFasteners?: string[];
-  
+
   /** 视觉模型 */
   visual: ConnectorVisualModel;
-  
+
   /** 功能数据 */
   functional: ConnectorFunctionalData;
-  
+
   /** 元数据 */
   metadata?: {
     manufacturer?: string;

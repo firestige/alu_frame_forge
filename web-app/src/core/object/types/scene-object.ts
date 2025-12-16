@@ -5,8 +5,8 @@ import type {
   ConnectorHole,
   ContactFace,
   SlideChannel,
+  ThreadSpec,
 } from '../../asset/types/connector';
-import type { ThreadSpec } from '../../asset/types/fastener';
 
 /**
  * 三维向量

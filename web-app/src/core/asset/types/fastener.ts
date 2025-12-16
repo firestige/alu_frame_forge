@@ -1,6 +1,6 @@
 /**
  * 紧固件资产类型定义
- * 
+ *
  * 按照双模型体系设计：
  * - Visual: 简化 primitives（杆体 + 头部 + 驱动凹槽）
  * - Functional: 精确的螺纹规格、夹紧参数、头部包络
@@ -70,49 +70,49 @@ export type DriveType = (typeof DriveType)[keyof typeof DriveType];
 
 /**
  * 紧固件规格目录条目
- * 
+ *
  * 来自标准规范（ISO/DIN/ANSI 等），记录所有静态几何尺寸
  */
 export interface FastenerSpecCatalogEntry {
   /** 唯一键，格式：标准-尺寸-材质，如 "ISO4014-M5x20-8.8" */
   key: string;
-  
+
   /** 标准（如 "ISO4014", "DIN933" 等） */
   standard: string;
-  
+
   /** 尺寸代码（如 "M5", "M6" 等） */
   sizeCode: string;
-  
+
   /** 长度 (mm) */
   length: number;
-  
+
   /** 头部类型 */
   headType: HeadType;
-  
+
   /** 头部宽度（对边距或直径，mm） */
   headWidth: number;
-  
+
   /** 头部高度 (mm) */
   headHeight: number;
-  
+
   /** 杆径 (mm) */
   shankDiameter: number;
-  
+
   /** 螺纹螺距 (mm) */
   threadPitch: number;
-  
+
   /** 螺纹有效长度 (mm) */
   threadLength: number;
-  
+
   /** 驱动方式 */
   driveType?: DriveType;
-  
+
   /** 公差 */
   tolerance: {
     length: number;
     diameter: number;
   };
-  
+
   /** 材质等级（如 "8.8", "10.9" 等） */
   gradeClass?: string;
 }
@@ -174,28 +174,28 @@ export interface TorqueRecommendation {
 export interface FastenerFunctionalData {
   /** 螺纹规格 */
   threadSpec: ThreadSpec;
-  
+
   /** 紧固件总长度 (mm) */
   length: number;
-  
+
   /** 头部高度 (mm) */
   headHeight: number;
-  
+
   /** 头部宽度（对边距或直径，mm） */
   headWidth: number;
-  
+
   /** 通孔直径 (mm) - 用于配合检查 */
   passThroughDiameter: number;
-  
+
   /** 有效啮合深度 (mm) - 最小螺纹啮合长度 */
   engagementDepth: number;
-  
+
   /** 可用夹紧长度区间 (mm) */
   clampRange: [number, number];
-  
+
   /** 扭矩推荐值 */
   torqueRecommendations?: TorqueRecommendation[];
-  
+
   /** 头部包络体积（用于干涉检测） */
   headClearanceVolume?: {
     /** 包络类型 */
@@ -205,10 +205,10 @@ export interface FastenerFunctionalData {
     /** 包络高度 (mm) */
     height: number;
   };
-  
+
   /** 螺纹轴线（局部坐标，单位向量） */
   threadAxis?: Vector3;
-  
+
   /** 材料属性 */
   material?: {
     name: string;
@@ -220,33 +220,33 @@ export interface FastenerFunctionalData {
 /**
  * 紧固件资产（新版本，符合双模型体系）
  */
-export interface FastenerAsset extends Asset {
+export interface FastenerAssetV2 extends Asset {
   type: typeof AssetType.FASTENER;
-  
+
   /** 紧固件具体类型 */
   fastenerType: FastenerType;
-  
+
   /** 规格目录键（引用 FastenerSpecCatalogEntry） */
   specKey: string;
-  
+
   /** 材质 */
   material: string;
-  
+
   /** 表面处理（如 "zinc", "black-oxide" 等） */
   finish?: string;
-  
+
   /** 兼容的型材系列 */
   compatibleProfiles?: string[];
-  
+
   /** 推荐配合的连接件族 */
   recommendedConnectorFamilies?: string[];
-  
+
   /** 视觉模型 */
   visual: FastenerVisualModel;
-  
+
   /** 功能数据 */
   functional: FastenerFunctionalData;
-  
+
   /** 元数据 */
   metadata?: {
     manufacturer?: string;
@@ -258,7 +258,7 @@ export interface FastenerAsset extends Asset {
 
 /**
  * 紧固件规格目录
- * 
+ *
  * 按标准组织的静态规格数据
  */
 export interface FastenerSpecCatalog {
