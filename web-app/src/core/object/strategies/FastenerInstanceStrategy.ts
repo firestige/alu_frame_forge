@@ -1,42 +1,28 @@
+/**
+ * FastenerInstanceStrategy - V2 版本
+ *
+ * 基于双模型体系（Visual Primitives + Functional Compute Data）
+ * 从 FastenerAssetV2 生成 SceneObject
+ */
+
 import type { InstanceStrategy } from './InstanceStrategy';
-import type { FastenerAsset, AnyAsset } from '../../asset/types/asset';
+import type { AnyAsset, FastenerAssetV2 } from '../../asset/types/asset';
 import type {
   SceneObject,
   SceneObjectCreateOptions,
-  ParametricFastenerGeometry,
+  FastenerComputeGeometry,
 } from '../types/scene-object';
 import { AssetType } from '../../asset/types/enums';
 
 /**
- * 紧固件实例化策略
- * 负责将紧固件素材转换为场景对象
+ * 紧固件实例化策略（V2 - 双模型体系）
  *
- * 核心逻辑：
- * 1. 根据用户参数选择合适的模型变体
- * 2. 加载基础 3D 模型并进行参数化调整（如长度）
- * 3. 生成 FEA 参数（不需要完整几何）
- *
- * 注意：紧固件采用双模型系统
- * - 渲染：简化的 GLB 模型 + 贴图
- * - 计算：参数化描述（diameter, length, material 等）
+ * 职责：
+ * 1. Visual: 将 FastenerVisualModel.primitives 转换为 Three.js mesh（占位）
+ * 2. Compute: 将 FastenerFunctionalData 转换为 FastenerComputeGeometry
+ * 3. 生成 threadAxis, clampRange, headClearanceVolume 等计算数据
  */
 export class FastenerInstanceStrategy implements InstanceStrategy {
-  /**
-   * 模型加载器的引用
-   * 用于加载和调整 GLB/GLTF 模型
-   */
-  private modelLoader: {
-    loadModel: (path: string) => Promise<unknown>;
-    adjustModelLength: (model: unknown, length: number) => unknown;
-  };
-
-  constructor(modelLoader: {
-    loadModel: (path: string) => Promise<unknown>;
-    adjustModelLength: (model: unknown, length: number) => unknown;
-  }) {
-    this.modelLoader = modelLoader;
-  }
-
   canHandle(asset: AnyAsset): boolean {
     return asset.type === AssetType.FASTENER;
   }
@@ -51,34 +37,28 @@ export class FastenerInstanceStrategy implements InstanceStrategy {
       );
     }
 
-    const fastenerAsset = asset as FastenerAsset;
+    const fastenerAsset = asset as FastenerAssetV2;
 
-    // 根据参数选择变体
-    const variantKey = this.selectVariant(fastenerAsset, options.userParams);
-    const variant = fastenerAsset.variants[variantKey];
-
-    if (!variant) {
-      throw new Error(
-        `No suitable variant found for parameters: ${JSON.stringify(options.userParams)}`
-      );
-    }
-
-    // 生成唯一 ID
     const id = this.generateId();
 
-    // 加载基础模型（这里需要异步处理，实际使用时可能需要改为同步或返回 Promise）
-    // 为了简化，这里假设模型已经预加载或使用占位符
-    const visualMesh = this.createPlaceholderMesh(variant.baseModel);
+    // Visual: 从 primitives 创建简化 mesh（占位）
+    const visualMesh = this.createVisualFromPrimitives(fastenerAsset);
 
-    // 生成 FEA 参数
-    const feaParams = fastenerAsset.computeParamsMap(options.userParams);
-
-    // 创建计算几何
-    const computeGeometry: ParametricFastenerGeometry = {
-      type: 'parametric_fastener',
-      params: {
-        fastenerType: fastenerAsset.family,
-        ...feaParams,
+    // Compute: 构建 FastenerComputeGeometry
+    const computeGeometry: FastenerComputeGeometry = {
+      type: 'fastener',
+      fastenerData: {
+        threadSpec: fastenerAsset.functional.threadSpec,
+        threadAxis: fastenerAsset.functional.threadAxis || {
+          x: 0,
+          y: 0,
+          z: 1,
+        },
+        length: fastenerAsset.functional.length,
+        clampRange: fastenerAsset.functional.clampRange,
+        headClearanceVolume: fastenerAsset.functional.headClearanceVolume,
+        engagementDepth: fastenerAsset.functional.engagementDepth,
+        torqueLimit: fastenerAsset.functional.torqueRecommendations?.[0]?.torque,
       },
     };
 
@@ -99,7 +79,7 @@ export class FastenerInstanceStrategy implements InstanceStrategy {
         scale: options.transform?.scale || { x: 1, y: 1, z: 1 },
       },
       userParams: options.userParams,
-      machiningOps: [], // 紧固件不支持加工操作
+      machiningOps: [],
       visual: {
         mesh: visualMesh,
         isVisible: true,
@@ -107,13 +87,12 @@ export class FastenerInstanceStrategy implements InstanceStrategy {
       compute: {
         geometry: computeGeometry,
         connections: [],
-        // 紧固件质量通常很小，可以从数据库查询或忽略
-        mass: 0.01,
       },
       metadata: {
         createdAt: new Date(),
         updatedAt: new Date(),
-        variantKey, // 存储变体键以便后续更新
+        fastenerType: fastenerAsset.fastenerType,
+        specKey: fastenerAsset.specKey,
       },
     };
 
@@ -127,63 +106,38 @@ export class FastenerInstanceStrategy implements InstanceStrategy {
       );
     }
 
-    const fastenerAsset = asset as FastenerAsset;
+    const fastenerAsset = asset as FastenerAssetV2;
 
-    // 重新选择变体
-    const variantKey = this.selectVariant(
-      fastenerAsset,
-      sceneObject.userParams
-    );
-    const variant = fastenerAsset.variants[variantKey];
+    // 更新 visual mesh
+    const newMesh = this.createVisualFromPrimitives(fastenerAsset);
+    sceneObject.visual.mesh = newMesh;
 
-    if (!variant) {
-      console.warn(`No suitable variant found, skipping update`);
-      return;
-    }
-
-    // 如果变体改变，需要重新加载模型
-    if (sceneObject.metadata.variantKey !== variantKey) {
-      const newMesh = this.createPlaceholderMesh(variant.baseModel);
-      sceneObject.visual.mesh = newMesh;
-      sceneObject.metadata.variantKey = variantKey;
-    }
-
-    // 更新 FEA 参数
-    const feaParams = fastenerAsset.computeParamsMap(sceneObject.userParams);
+    // 更新 compute geometry
     const computeGeom = sceneObject.compute
-      .geometry as ParametricFastenerGeometry;
-    computeGeom.params = {
-      fastenerType: fastenerAsset.family,
-      ...feaParams,
+      .geometry as FastenerComputeGeometry;
+    computeGeom.fastenerData = {
+      threadSpec: fastenerAsset.functional.threadSpec,
+      threadAxis: fastenerAsset.functional.threadAxis || { x: 0, y: 0, z: 1 },
+      length: fastenerAsset.functional.length,
+      clampRange: fastenerAsset.functional.clampRange,
+      headClearanceVolume: fastenerAsset.functional.headClearanceVolume,
+      engagementDepth: fastenerAsset.functional.engagementDepth,
+      torqueLimit: fastenerAsset.functional.torqueRecommendations?.[0]?.torque,
     };
 
-    // 更新时间戳
     sceneObject.metadata.updatedAt = new Date();
   }
 
   /**
-   * 根据用户参数选择合适的变体
-   * 变体键通常由关键参数组合而成，如 "M5-coarse"
+   * 从 primitives 创建简化 visual mesh（占位实现）
    */
-  private selectVariant(
-    asset: FastenerAsset,
-    userParams: Record<string, unknown>
-  ): string {
-    // 简化实现：直接从参数构建变体键
-    // 实际项目中可能需要更复杂的匹配逻辑
-    const diameter = userParams.diameter as string;
-    const threadType = userParams.threadPitch as string;
-    return `${diameter}-${threadType}`;
-  }
-
-  /**
-   * 创建占位符网格
-   * 实际项目中应该异步加载真实模型
-   */
-  private createPlaceholderMesh(modelPath: string): unknown {
-    // 返回模型路径作为占位符
-    // 实际渲染器会根据路径加载模型
-    return { type: 'placeholder', path: modelPath };
+  private createVisualFromPrimitives(asset: FastenerAssetV2): unknown {
+    // 占位实现：返回 primitives 引用
+    // 实际应交由 RenderSyncService 根据 primitives 创建 Three.js Group
+    return {
+      type: 'fastener_primitives',
+      primitives: asset.visual.primitives,
+    };
   }
 
   private generateId(): string {

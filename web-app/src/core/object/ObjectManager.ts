@@ -19,6 +19,8 @@ import { ModelFactory } from './ModelFactory';
 import { ProjectSerializer } from './SceneIO';
 import type { ProjectFileFormat } from './SceneIO';
 import { ProfileInstanceStrategy } from './strategies/ProfileInstanceStrategy';
+import { ConnectorInstanceStrategy } from './strategies/ConnectorInstanceStrategy';
+import { FastenerInstanceStrategy } from './strategies/FastenerInstanceStrategy';
 import { AssetType as AssetTypeEnum } from '../asset/types/enums';
 
 /**
@@ -552,6 +554,20 @@ export class ObjectManager {
         '[ObjectManager] Renderer not available, ProfileInstanceStrategy not registered'
       );
     }
+
+    // 注册 Connector 策略（V2 - 双模型体系）
+    this.modelFactory.registerStrategy(
+      AssetTypeEnum.CONNECTOR,
+      new ConnectorInstanceStrategy()
+    );
+    console.log('[ObjectManager] ConnectorInstanceStrategy registered');
+
+    // 注册 Fastener 策略（V2 - 双模型体系）
+    this.modelFactory.registerStrategy(
+      AssetTypeEnum.FASTENER,
+      new FastenerInstanceStrategy()
+    );
+    console.log('[ObjectManager] FastenerInstanceStrategy registered');
 
     console.log('[ObjectManager] Instance strategies registered');
   }
