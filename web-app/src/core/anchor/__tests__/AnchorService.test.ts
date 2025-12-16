@@ -87,6 +87,186 @@ describe('AnchorService', () => {
       expect(snapAnchors.length).toBeGreaterThan(0);
     });
 
+    it('should generate connector anchors from holes and contact faces', () => {
+      const connectorObject: SceneObject = {
+        id: 'connector-1',
+        name: 'L-Bracket 2020',
+        assetId: 'connector.l_bracket.2020',
+        assetSource: 'builtin',
+        assetType: 'connector',
+        transform: {
+          position: { x: 100, y: 0, z: 0 },
+          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+          scale: { x: 1, y: 1, z: 1 },
+        },
+        userParams: {},
+        machiningOps: [],
+        visual: {
+          mesh: null,
+          isVisible: true,
+        },
+        compute: {
+          geometry: {
+            type: 'connector',
+            connectorData: {
+              holes: [
+                {
+                  id: 'hole-h1',
+                  role: 'threaded',
+                  localPosition: { x: -10, y: 0, z: 10 },
+                  axis: { x: 0, y: 1, z: 0 },
+                  diameter: 5,
+                  depth: -1,
+                  threadSpec: {
+                    standard: 'ISO',
+                    designation: 'M5',
+                    pitch: 0.8,
+                    toleranceClass: '6H',
+                    threadType: 'coarse',
+                  },
+                  matingHints: ['fastener:M5'],
+                },
+                {
+                  id: 'hole-h2',
+                  role: 'threaded',
+                  localPosition: { x: 10, y: 0, z: 10 },
+                  axis: { x: 0, y: 1, z: 0 },
+                  diameter: 5,
+                  depth: -1,
+                  threadSpec: {
+                    standard: 'ISO',
+                    designation: 'M5',
+                    pitch: 0.8,
+                    toleranceClass: '6H',
+                    threadType: 'coarse',
+                  },
+                  matingHints: ['fastener:M5'],
+                },
+                {
+                  id: 'hole-v1',
+                  role: 'threaded',
+                  localPosition: { x: -10, y: 10, z: -20 },
+                  axis: { x: 0, y: 0, z: -1 },
+                  diameter: 5,
+                  depth: -1,
+                  threadSpec: {
+                    standard: 'ISO',
+                    designation: 'M5',
+                    pitch: 0.8,
+                    toleranceClass: '6H',
+                    threadType: 'coarse',
+                  },
+                  matingHints: ['fastener:M5'],
+                },
+                {
+                  id: 'hole-v2',
+                  role: 'threaded',
+                  localPosition: { x: 10, y: 10, z: -20 },
+                  axis: { x: 0, y: 0, z: -1 },
+                  diameter: 5,
+                  depth: -1,
+                  threadSpec: {
+                    standard: 'ISO',
+                    designation: 'M5',
+                    pitch: 0.8,
+                    toleranceClass: '6H',
+                    threadType: 'coarse',
+                  },
+                  matingHints: ['fastener:M5'],
+                },
+                {
+                  id: 'hole-corner-1',
+                  role: 'fastener-pass-through',
+                  localPosition: { x: -10, y: 0, z: -20 },
+                  axis: { x: 0, y: 1, z: 0 },
+                  diameter: 5.5,
+                  depth: -1,
+                  matingHints: ['fastener:M5:pass-through'],
+                },
+                {
+                  id: 'hole-corner-2',
+                  role: 'fastener-pass-through',
+                  localPosition: { x: 10, y: 0, z: -20 },
+                  axis: { x: 0, y: 1, z: 0 },
+                  diameter: 5.5,
+                  depth: -1,
+                  matingHints: ['fastener:M5:pass-through'],
+                },
+              ],
+              contactFaces: [
+                {
+                  id: 'face-horizontal-bottom',
+                  normal: { x: 0, y: -1, z: 0 },
+                  origin: { x: 0, y: -2.5, z: 0 },
+                  width: 40,
+                  height: 40,
+                  matingRule: 'mate:profile-end',
+                  surfaceType: 'plane',
+                },
+                {
+                  id: 'face-vertical-back',
+                  normal: { x: 0, y: 0, z: -1 },
+                  origin: { x: 0, y: 20, z: -22.5 },
+                  width: 40,
+                  height: 40,
+                  matingRule: 'mate:profile-end',
+                  surfaceType: 'plane',
+                },
+              ],
+              slides: [],
+              mass: 0.05,
+              centerOfMass: { x: 0, y: 10, z: -10 },
+            },
+          },
+          material: {
+            type: 'metal',
+            density: 2700,
+            youngsModulus: 69000,
+            poissonsRatio: 0.33,
+          },
+          connections: [],
+          mass: 0.05,
+        },
+        metadata: {
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      };
+
+      const anchors = service.generateAnchors(connectorObject);
+
+      // 应生成 6 个孔锚点 + 2 个接触面锚点
+      expect(anchors).toHaveLength(8);
+
+      // 检查孔锚点
+      const holeAnchors = anchors.filter(
+        a => a.type === AnchorType.CONNECTOR_HOLE
+      );
+      expect(holeAnchors).toHaveLength(6);
+
+      // 检查孔锚点世界坐标转换
+      const hole1 = holeAnchors.find(a => a.id.includes('hole-h1'));
+      expect(hole1).toBeDefined();
+      expect(hole1!.position).toEqual({ x: 90, y: 0, z: 10 }); // 100 + (-10)
+
+      // 检查接触面锚点
+      const faceAnchors = anchors.filter(
+        a => a.type === AnchorType.CONNECTOR_FACE
+      );
+      expect(faceAnchors).toHaveLength(2);
+
+      // 检查接触面锚点元数据
+      const horizontalFace = faceAnchors.find(a =>
+        a.id.includes('face-horizontal-bottom')
+      );
+      expect(horizontalFace).toBeDefined();
+      expect(horizontalFace!.metadata?.faceSize).toEqual({
+        width: 40,
+        height: 40,
+      });
+      expect(horizontalFace!.metadata?.matingRule).toBe('mate:profile-end');
+    });
+
     it('should cache generated anchors', () => {
       const sceneObject: SceneObject = {
         id: 'profile-1',

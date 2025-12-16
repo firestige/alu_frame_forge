@@ -22,6 +22,7 @@ import type {
 } from './types';
 import { AnchorType as AnchorTypeEnum } from './types';
 import type { SceneObject } from '@/core/object/types/scene-object';
+import type { ConnectorComputeData } from '@/core/object/types/scene-object';
 import type { Vector3 } from '@/types';
 
 /**
@@ -193,18 +194,102 @@ export class AnchorService {
    */
   private generateConnectorAnchors(sceneObject: SceneObject): AnchorPoint[] {
     const anchors: AnchorPoint[] = [];
+    const { transform, compute } = sceneObject;
 
-    // TODO: 从 ConnectorAsset.holes 提取孔位置并生成锚点
-    // 当前简化实现：生成一个中心锚点
-    anchors.push({
-      id: `${sceneObject.id}-center`,
-      objectId: sceneObject.id,
-      type: AnchorTypeEnum.CONNECTOR,
-      position: sceneObject.transform.position,
-      axis: { x: 0, y: 1, z: 0 },
+    // 检查是否有连接件计算数据
+    if (
+      !compute?.geometry ||
+      compute.geometry.type !== 'connector' ||
+      !('connectorData' in compute.geometry)
+    ) {
+      console.warn(
+        `SceneObject ${sceneObject.id} is marked as connector but lacks connectorData`
+      );
+      return anchors;
+    }
+
+    const connectorData =
+      compute.geometry.connectorData as unknown as ConnectorComputeData;
+
+    // 1. 生成孔锚点
+    connectorData.holes?.forEach(hole => {
+      const worldPos = this.transformLocalToWorld(
+        hole.localPosition,
+        transform
+      );
+      const worldAxis = this.transformAxisToWorld(hole.axis, transform);
+
+      anchors.push({
+        id: `${sceneObject.id}-hole-${hole.id}`,
+        objectId: sceneObject.id,
+        type: AnchorTypeEnum.CONNECTOR_HOLE,
+        position: worldPos,
+        axis: worldAxis,
+        metadata: {
+          holeSpec: {
+            diameter: hole.diameter,
+            depth: hole.depth,
+            threadSpec: hole.threadSpec
+              ? `${hole.threadSpec.designation}`
+              : undefined,
+          },
+          holeRole: hole.role as
+            | 'threaded'
+            | 'fastener-pass-through'
+            | 'profile-attachment',
+        },
+      });
+    });
+
+    // 2. 生成接触面锚点
+    connectorData.contactFaces?.forEach(face => {
+      const worldPos = this.transformLocalToWorld(face.origin, transform);
+      const worldNormal = this.transformAxisToWorld(face.normal, transform);
+
+      anchors.push({
+        id: `${sceneObject.id}-face-${face.id}`,
+        objectId: sceneObject.id,
+        type: AnchorTypeEnum.CONNECTOR_FACE,
+        position: worldPos,
+        axis: worldNormal,
+        metadata: {
+          faceSize: {
+            width: face.width,
+            height: face.height,
+          },
+          matingRule: face.matingRule,
+        },
+      });
     });
 
     return anchors;
+  }
+
+  /**
+   * 局部坐标转世界坐标（简化版：仅平移）
+   * TODO: 实现完整的矩阵变换（含旋转）
+   */
+  private transformLocalToWorld(
+    localPos: Vector3,
+    transform: { position: Vector3; rotation?: any; scale?: Vector3 }
+  ): Vector3 {
+    return {
+      x: transform.position.x + localPos.x,
+      y: transform.position.y + localPos.y,
+      z: transform.position.z + localPos.z,
+    };
+  }
+
+  /**
+   * 局部轴向转世界轴向（简化版：暂不支持旋转）
+   * TODO: 实现完整的旋转矩阵变换
+   */
+  private transformAxisToWorld(
+    localAxis: Vector3,
+    transform: { position: Vector3; rotation?: any; scale?: Vector3 }
+  ): Vector3 {
+    // 当前简化：假设无旋转，直接返回局部轴向
+    return { ...localAxis };
   }
 
   /**

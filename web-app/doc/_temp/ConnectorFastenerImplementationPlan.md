@@ -11,9 +11,9 @@
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | P0 设计冻结       | 完成架构/数据决策、验收范围、测试策略                                                                                   | 已完成：设计文档、双模型衔接说明、标准 vs 定制策略 |
 | P1 数据结构落地   | 在 `core/asset/types` 内新增 `ConnectorAssetV2`、`FastenerAssetV2`、`ConnectorHole`、`ContactFace`、`ThreadSpec` 等接口 | TypeScript 类型 + 单元测试草稿                     |
-| P2 策略骨架       | 新增 `ConnectorInstanceStrategy`、`FastenerInstanceStrategy`（仅 primitives + compute 占位）并注册至 `ModelFactory`     | 策略类、注册代码、最小 smoke test                  |
-| P3 STUB & Catalog | 建立 `src/data/connectors/*`、`src/data/fasteners/*` STUB 资产；导入 `fastenerSpecCatalog`、`connectorSpecCatalog`      | 至少：2020 L 型角件、ISO4014 M5×20；文档示例同步   |
-| P4 锚点/约束联调  | AnchorService 识别连接件孔/面锚点；编写示例场景脚本验证约束求解                                                         | Vitest 集成测试 + 场景 A 剧本                      |
+| P2 策略骨架       | 新增 `ConnectorInstanceStrategy`、`FastenerInstanceStrategy`（仅 primitives + compute 占位）并注册至 `ModelFactory`     | ✅ 已完成：策略类、注册代码、最小 smoke test                  |
+| P3 STUB & Catalog | 建立 `src/data/connectors/*`、`src/data/fasteners/*` STUB 资产；导入 `fastenerSpecCatalog`、`connectorSpecCatalog`      | ✅ 已完成：2020 L 型角件、ISO4014 M5×16/M5×20；文档示例同步   |
+| P4 锚点/约束联调  | AnchorService 识别连接件孔/面锚点；编写示例场景脚本验证约束求解                                                         | ✅ 已完成：Vitest 集成测试 + 场景 A 剧本（基础锚点验证）                      |
 | P5 可选扩展       | 评估参数化定制、导入转换器 PoC                                                                                          | 决策记录/Prototype                                 |
 
 ---
@@ -55,15 +55,22 @@
 3. **加载逻辑**
    - AssetService 暴露 `loadConnectorAssets()`, `loadFastenerAssets()`
 
-### 2.4 锚点与测试
+### 2.4 锚点与测试 ✅
 
-1. AnchorService 扩展
-   - 支持 `HoleAnchor`, `FaceAnchor`, `AxisAnchor`
-   - 世界空间转换由 `Transform` 计算
-2. Constraint 场景脚本
-   - 场景 A（双型材 + L 角件 + M5 螺栓）自动化验收
-3. Vitest / Playwright 测试
-   - 核心：锚点数量、约束求解结果、视觉 Mesh 创建成功
+1. **AnchorService 扩展**（已完成）
+   - 新增 `CONNECTOR_HOLE`, `CONNECTOR_FACE` 锚点类型
+   - 实现 `generateConnectorAnchors` 从 `ConnectorComputeData` 读取孔位/接触面
+   - 局部坐标→世界坐标转换（简化版：仅平移，旋转待完善）
+   - 单元测试：验证 L-bracket 生成 6 孔 + 2 面锚点
+2. **Constraint 场景脚本**（已完成基础验证）
+   - 场景 A（双型材 + L 角件）锚点生成与坐标转换验证
+   - 测试文件：`src/core/anchor/__tests__/scenario-a.test.ts`
+   - 待补充：约束求解器集成（ConstraintService 完善后）
+3. **Vitest 测试**（已完成）
+   - ✅ 锚点数量正确（6 孔 + 2 面）
+   - ✅ 世界坐标变换正确
+   - ⏳ 视觉 Mesh 创建（待 P5 RenderSyncService 集成）
+   - ⏳ 约束求解收敛（待 ConstraintService）
 
 ### 2.5 未来扩展预留
 
@@ -96,9 +103,25 @@
 
 ---
 
-## 5. 下一步行动（短期）
+## 5. P4 完成状态
 
-1. P1：创建/更新类型文件，提交 `feat: connector-fastener types`。
-2. P2：实现策略骨架，提交 `feat: connector-fastener strategies`。
-3. P3：导入 STUB 数据 & catalog。
-4. 每阶段结束更新本文档“状态”并在主设计文档记录链接。
+**已完成**：
+- ✅ AnchorService 扩展：支持 CONNECTOR_HOLE / CONNECTOR_FACE 类型
+- ✅ 连接件锚点生成：从 ConnectorComputeData 读取孔位/接触面并转换到世界坐标
+- ✅ 单元测试：验证 L-bracket 生成 6 孔 + 2 面（`AnchorService.test.ts`）
+- ✅ 场景 A 集成测试：双型材 + L 角件装配锚点验证（`scenario-a.test.ts`）
+- ✅ 数据一致性修正：L-bracket 通孔位置、M5×16 资产补齐
+
+**待后续**：
+- ⏳ 完整矩阵变换（含旋转）实现
+- ⏳ ConstraintService 集成与求解器验证
+- ⏳ RenderSyncService 与视觉 Mesh 创建集成
+- ⏳ P5 可选扩展（参数化定制、导入转换器 PoC）
+
+## 6. 下一步行动
+
+1. ~~P1：类型文件~~ ✅
+2. ~~P2：策略骨架~~ ✅
+3. ~~P3：STUB 数据 & catalog~~ ✅
+4. ~~P4：锚点集成~~ ✅
+5. **P5（可选）**：参数化定制模板 / 导入转换器 PoC / 约束求解器完善

@@ -20,8 +20,14 @@ export enum AnchorType {
   /** 孔位置（通孔/螺纹孔） */
   HOLE = 'hole',
 
-  /** 连接件锚点 */
+  /** 连接件锚点（通用中心点） */
   CONNECTOR = 'connector',
+
+  /** 连接件孔锚点 */
+  CONNECTOR_HOLE = 'connector-hole',
+
+  /** 连接件接触面锚点 */
+  CONNECTOR_FACE = 'connector-face',
 }
 
 /**
@@ -63,6 +69,18 @@ export interface AnchorPoint {
 
     /** 沿型材轴的位置（用于滑动约束） */
     axialPosition?: number;
+
+    /** 连接件孔角色 */
+    holeRole?: 'threaded' | 'fastener-pass-through' | 'profile-attachment';
+
+    /** 接触面尺寸 */
+    faceSize?: {
+      width: number;
+      height: number;
+    };
+
+    /** 配合规则 */
+    matingRule?: string;
   };
 }
 
