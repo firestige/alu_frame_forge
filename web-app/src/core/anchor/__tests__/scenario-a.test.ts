@@ -13,6 +13,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AnchorService } from '@/core/anchor/AnchorService';
 import { AnchorType } from '@/core/anchor/types';
+import { ConstraintService } from '@/core/constraint/ConstraintService';
+import { ConstraintType, ConstraintPriority } from '@/core/constraint/types';
 import type { SceneObject } from '@/core/object/types/scene-object';
 import type { ConnectorAssetV2 } from '@/core/asset/types';
 import { connectorLBracket2020 } from '@/data/connectors/l-bracket-2020.stub';
@@ -469,5 +471,167 @@ describe('Scenario A: 双型材 + L 角件装配', () => {
     expect(threadSpec.threadType).toBe('coarse');
 
     console.log('✅ ThreadSpec 完整结构验证通过');
+  });
+
+  it('should solve point-to-point constraint between profile and connector', () => {
+    const constraintService = new ConstraintService();
+    constraintService.setAnchorService(anchorService);
+
+    // 创建第一个连接件（作为参考对象，位于原点）
+    const connectorA: SceneObject = {
+      id: 'connector-a',
+      name: 'L-Bracket A',
+      assetId: connectorLBracket2020.id,
+      assetSource: 'builtin',
+      assetType: 'connector',
+      transform: {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+        scale: { x: 1, y: 1, z: 1 },
+      },
+      userParams: {},
+      machiningOps: [],
+      visual: { mesh: null, isVisible: true },
+      compute: {
+        geometry: {
+          type: 'connector',
+          connectorData: connectorLBracket2020.functional,
+        },
+        material: {
+          type: 'metal',
+          density: 2700,
+          youngsModulus: 69000,
+          poissonsRatio: 0.33,
+        },
+        connections: [],
+        mass: 0.05,
+      },
+      metadata: { createdAt: new Date(), updatedAt: new Date() },
+    };
+
+    // 创建第二个连接件（初始位置偏移，需要通过约束对齐）
+    const connectorB: SceneObject = {
+      id: 'connector-b',
+      name: 'L-Bracket B',
+      assetId: connectorLBracket2020.id,
+      assetSource: 'builtin',
+      assetType: 'connector',
+      transform: {
+        position: { x: 100, y: 100, z: 100 }, // 初始位置故意偏移
+        rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+        scale: { x: 1, y: 1, z: 1 },
+      },
+      userParams: {},
+      machiningOps: [],
+      visual: { mesh: null, isVisible: true },
+      compute: {
+        geometry: {
+          type: 'connector',
+          connectorData: connectorLBracket2020.functional,
+        },
+        material: {
+          type: 'metal',
+          density: 2700,
+          youngsModulus: 69000,
+          poissonsRatio: 0.33,
+        },
+        connections: [],
+        mass: 0.05,
+      },
+      metadata: { createdAt: new Date(), updatedAt: new Date() },
+    };
+
+    // 生成锚点
+    const anchorsA = anchorService.generateAnchors(connectorA);
+    const anchorsB = anchorService.generateAnchors(connectorB);
+
+    // 获取第一个孔锚点
+    const holeAnchorA = anchorsA.find(
+      a => a.type === AnchorType.CONNECTOR_HOLE
+    );
+    const holeAnchorB = anchorsB.find(
+      a => a.type === AnchorType.CONNECTOR_HOLE
+    );
+
+    expect(holeAnchorA).toBeDefined();
+    expect(holeAnchorB).toBeDefined();
+
+    // 创建点对点约束
+    const constraint = {
+      id: 'constraint-1',
+      type: ConstraintType.POINT_TO_POINT,
+      priority: ConstraintPriority.HIGH,
+      objectIds: [connectorA.id, connectorB.id],
+      enabled: true,
+      objectAId: connectorA.id,
+      objectBId: connectorB.id,
+      anchorAId: holeAnchorA!.id,
+      anchorBId: holeAnchorB!.id,
+    };
+
+    // 添加约束
+    const added = constraintService.addConstraint(constraint);
+    expect(added).toBe(true);
+
+    // 记录初始位置
+    const initialPosition = { ...connectorB.transform.position };
+
+    // 执行约束求解
+    const solveResult = constraintService.solveConstraints(connectorB.id, {
+      position: connectorB.transform.position,
+      rotation: connectorB.transform.rotation,
+    });
+
+    // 验证求解成功
+    expect(solveResult.success).toBe(true);
+    expect(solveResult.conflicts.length).toBe(0);
+
+    // 获取调整后的变换
+    const adjustedTransform = solveResult.adjustedTransforms.get(connectorB.id);
+    expect(adjustedTransform).toBeDefined();
+
+    // 验证位置被调整（应该不同于初始位置）
+    const adjusted = adjustedTransform!;
+    const positionChanged =
+      Math.abs(adjusted.position.x - initialPosition.x) > 0.001 ||
+      Math.abs(adjusted.position.y - initialPosition.y) > 0.001 ||
+      Math.abs(adjusted.position.z - initialPosition.z) > 0.001;
+
+    expect(positionChanged).toBe(true);
+
+    // 计算调整后两个锚点间的距离（应该接近 0）
+    // A 的锚点位置（世界坐标）
+    const targetX = holeAnchorA!.position.x;
+    const targetY = holeAnchorA!.position.y;
+    const targetZ = holeAnchorA!.position.z;
+
+    // B 的锚点相对于 B 对象的偏移
+    const offsetX = holeAnchorB!.position.x - connectorB.transform.position.x;
+    const offsetY = holeAnchorB!.position.y - connectorB.transform.position.y;
+    const offsetZ = holeAnchorB!.position.z - connectorB.transform.position.z;
+
+    // B 调整后的锚点世界位置
+    const adjustedAnchorBX = adjusted.position.x + offsetX;
+    const adjustedAnchorBY = adjusted.position.y + offsetY;
+    const adjustedAnchorBZ = adjusted.position.z + offsetZ;
+
+    const distance = Math.sqrt(
+      Math.pow(adjustedAnchorBX - targetX, 2) +
+        Math.pow(adjustedAnchorBY - targetY, 2) +
+        Math.pow(adjustedAnchorBZ - targetZ, 2)
+    );
+
+    // 验证精度：±2mm
+    expect(distance).toBeLessThan(2.0);
+
+    console.log(`✅ 约束求解验证通过`);
+    console.log(
+      `  - 初始位置: (${initialPosition.x.toFixed(1)}, ${initialPosition.y.toFixed(1)}, ${initialPosition.z.toFixed(1)})`
+    );
+    console.log(
+      `  - 调整后位置: (${adjusted.position.x.toFixed(1)}, ${adjusted.position.y.toFixed(1)}, ${adjusted.position.z.toFixed(1)})`
+    );
+    console.log(`  - 锚点间距离: ${distance.toFixed(3)} mm (目标: <2mm)`);
+    console.log(`  - 求解耗时: ${solveResult.solveTime.toFixed(2)} ms`);
   });
 });

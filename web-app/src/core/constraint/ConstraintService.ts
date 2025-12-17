@@ -23,6 +23,9 @@ import type {
   ConstraintSolveResult,
   ConstraintValidationResult,
   ConstraintStatus,
+  PointToPointConstraint,
+  AxisAlignConstraint,
+  FixedJointConstraint,
 } from './types';
 import { ConstraintStatus as Status } from './types';
 import type { AnchorService } from '@/core/anchor/AnchorService';
@@ -273,9 +276,187 @@ export class ConstraintService {
     position: Vector3;
     rotation: { x: number; y: number; z: number };
   } | null {
-    // TODO: 实现具体的约束求解逻辑
-    // 当前简化：返回原始变换
-    return currentTransform;
+    switch (constraint.type) {
+      case 'point-to-point':
+        return this.solvePointToPoint(constraint as any, currentTransform);
+      case 'axis-align':
+        return this.solveAxisAlign(constraint as any, currentTransform);
+      case 'fixed-joint':
+        return this.solveFixedJoint(constraint as any, currentTransform);
+      default:
+        console.warn(`Unsupported constraint type: ${constraint.type}`);
+        return currentTransform;
+    }
+  }
+
+  /**
+   * 求解点对点约束
+   * 将两个锚点位置对齐
+   */
+  private solvePointToPoint(
+    constraint: PointToPointConstraint,
+    currentTransform: {
+      position: Vector3;
+      rotation: { x: number; y: number; z: number };
+    }
+  ): {
+    position: Vector3;
+    rotation: { x: number; y: number; z: number };
+  } | null {
+    if (!this.anchorService) {
+      console.warn('AnchorService not set');
+      return currentTransform;
+    }
+
+    // 获取两个锚点
+    const anchorA = this.anchorService.getAnchor(constraint.anchorAId);
+    const anchorB = this.anchorService.getAnchor(constraint.anchorBId);
+
+    if (!anchorA || !anchorB) {
+      console.warn('Anchors not found for point-to-point constraint');
+      return currentTransform;
+    }
+
+    // 计算锚点B相对于其对象的偏移
+    // anchorB.position 是世界坐标，需要转换为相对于对象的局部偏移
+    // 简化假设：锚点位置 = 对象位置 + 局部偏移
+    const offsetB = {
+      x: anchorB.position.x - currentTransform.position.x,
+      y: anchorB.position.y - currentTransform.position.y,
+      z: anchorB.position.z - currentTransform.position.z,
+    };
+
+    // 要使两个锚点重合，对象B的新位置应该是：
+    // newPosition = anchorA.position - offsetB
+    return {
+      position: {
+        x: anchorA.position.x - offsetB.x,
+        y: anchorA.position.y - offsetB.y,
+        z: anchorA.position.z - offsetB.z,
+      },
+      rotation: currentTransform.rotation,
+    };
+  }
+
+  /**
+   * 求解轴对齐约束
+   * 调整旋转使两个轴方向对齐
+   */
+  private solveAxisAlign(
+    constraint: AxisAlignConstraint,
+    currentTransform: {
+      position: Vector3;
+      rotation: { x: number; y: number; z: number };
+    }
+  ): {
+    position: Vector3;
+    rotation: { x: number; y: number; z: number };
+  } | null {
+    if (!this.anchorService) {
+      console.warn('AnchorService not set');
+      return currentTransform;
+    }
+
+    // 简化实现：计算从 axisA 到 axisB 的旋转
+    // 使用叉乘获取旋转轴，点乘获取旋转角度
+    const axisA = constraint.axisA;
+    const axisB = constraint.reverse
+      ? {
+          x: -constraint.axisB.x,
+          y: -constraint.axisB.y,
+          z: -constraint.axisB.z,
+        }
+      : constraint.axisB;
+
+    // 归一化
+    const lenA = Math.sqrt(
+      axisA.x * axisA.x + axisA.y * axisA.y + axisA.z * axisA.z
+    );
+    const lenB = Math.sqrt(
+      axisB.x * axisB.x + axisB.y * axisB.y + axisB.z * axisB.z
+    );
+
+    const normA = { x: axisA.x / lenA, y: axisA.y / lenA, z: axisA.z / lenA };
+    const normB = { x: axisB.x / lenB, y: axisB.y / lenB, z: axisB.z / lenB };
+
+    // 计算点乘（cos(angle)）
+    const dot = normA.x * normB.x + normA.y * normB.y + normA.z * normB.z;
+
+    // 如果已经对齐（点乘接近1），不做修正
+    if (Math.abs(dot - 1.0) < 0.001) {
+      return currentTransform;
+    }
+
+    // 计算叉乘（旋转轴）
+    const cross = {
+      x: normA.y * normB.z - normA.z * normB.y,
+      y: normA.z * normB.x - normA.x * normB.z,
+      z: normA.x * normB.y - normA.y * normB.x,
+    };
+
+    const crossLen = Math.sqrt(
+      cross.x * cross.x + cross.y * cross.y + cross.z * cross.z
+    );
+
+    if (crossLen < 0.001) {
+      // 轴平行或反平行，使用简化处理
+      return currentTransform;
+    }
+
+    // 旋转角度（弧度）
+    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+    // 简化：直接返回角度调整（实际应用中需要更复杂的四元数/矩阵计算）
+    // 这里仅作为占位实现
+    return {
+      position: currentTransform.position,
+      rotation: {
+        x:
+          currentTransform.rotation.x +
+          (cross.x / crossLen) * ((angle * 180) / Math.PI),
+        y:
+          currentTransform.rotation.y +
+          (cross.y / crossLen) * ((angle * 180) / Math.PI),
+        z:
+          currentTransform.rotation.z +
+          (cross.z / crossLen) * ((angle * 180) / Math.PI),
+      },
+    };
+  }
+
+  /**
+   * 求解固定连接约束
+   * 保持相对变换不变
+   */
+  private solveFixedJoint(
+    constraint: FixedJointConstraint,
+    currentTransform: {
+      position: Vector3;
+      rotation: { x: number; y: number; z: number };
+    }
+  ): {
+    position: Vector3;
+    rotation: { x: number; y: number; z: number };
+  } | null {
+    // 固定连接：保持相对变换
+    return {
+      position: {
+        x:
+          currentTransform.position.x + constraint.relativeTransform.position.x,
+        y:
+          currentTransform.position.y + constraint.relativeTransform.position.y,
+        z:
+          currentTransform.position.z + constraint.relativeTransform.position.z,
+      },
+      rotation: {
+        x:
+          currentTransform.rotation.x + constraint.relativeTransform.rotation.x,
+        y:
+          currentTransform.rotation.y + constraint.relativeTransform.rotation.y,
+        z:
+          currentTransform.rotation.z + constraint.relativeTransform.rotation.z,
+      },
+    };
   }
 
   /**

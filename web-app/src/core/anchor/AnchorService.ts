@@ -495,8 +495,22 @@ export class AnchorService {
     return this.anchorCache.get(objectId) || [];
   }
 
-  /**
-   * 移除对象的锚点
+  /**   * 通过锚点 ID 获取单个锚点
+   *
+   * @param anchorId - 锚点 ID
+   * @returns 锚点对象，如果不存在则返回 undefined
+   */
+  getAnchor(anchorId: string): AnchorPoint | undefined {
+    for (const anchors of this.anchorCache.values()) {
+      const found = anchors.find(anchor => anchor.id === anchorId);
+      if (found) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+
+  /**   * 移除对象的锚点
    *
    * @param objectId - 对象 ID
    */
