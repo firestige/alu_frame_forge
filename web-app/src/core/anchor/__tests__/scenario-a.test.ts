@@ -453,14 +453,14 @@ describe('Scenario A: 双型材 + L 角件装配', () => {
     // 验证 threadSpec 保留完整结构
     const firstThreadedHole = threadedHoles[0];
     expect(firstThreadedHole.metadata?.holeSpec?.threadSpec).toBeDefined();
-    
+
     const threadSpec = firstThreadedHole.metadata!.holeSpec!.threadSpec!;
     expect(threadSpec).toHaveProperty('standard');
     expect(threadSpec).toHaveProperty('designation');
     expect(threadSpec).toHaveProperty('pitch');
     expect(threadSpec).toHaveProperty('toleranceClass');
     expect(threadSpec).toHaveProperty('threadType');
-    
+
     // 验证具体值
     expect(threadSpec.standard).toBe('ISO');
     expect(threadSpec.designation).toBe('M5');

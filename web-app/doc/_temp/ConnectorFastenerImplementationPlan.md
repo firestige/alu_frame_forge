@@ -7,14 +7,14 @@
 
 ## 1. 阶段划分
 
-| 阶段              | 目标                                                                                                                    | 主要输出                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| P0 设计冻结       | 完成架构/数据决策、验收范围、测试策略                                                                                   | 已完成：设计文档、双模型衔接说明、标准 vs 定制策略 |
-| P1 数据结构落地   | 在 `core/asset/types` 内新增 `ConnectorAssetV2`、`FastenerAssetV2`、`ConnectorHole`、`ContactFace`、`ThreadSpec` 等接口 | TypeScript 类型 + 单元测试草稿                     |
-| P2 策略骨架       | 新增 `ConnectorInstanceStrategy`、`FastenerInstanceStrategy`（仅 primitives + compute 占位）并注册至 `ModelFactory`     | ✅ 已完成：策略类、注册代码、最小 smoke test                  |
-| P3 STUB & Catalog | 建立 `src/data/connectors/*`、`src/data/fasteners/*` STUB 资产；导入 `fastenerSpecCatalog`、`connectorSpecCatalog`      | ✅ 已完成：2020 L 型角件、ISO4014 M5×16/M5×20；文档示例同步   |
-| P4 锚点/约束联调  | AnchorService 识别连接件孔/面锚点；编写示例场景脚本验证约束求解                                                         | ✅ 已完成：Vitest 集成测试 + 场景 A 剧本（基础锚点验证）                      |
-| P5 可选扩展       | 评估参数化定制、导入转换器 PoC                                                                                          | 决策记录/Prototype                                 |
+| 阶段              | 目标                                                                                                                    | 主要输出                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| P0 设计冻结       | 完成架构/数据决策、验收范围、测试策略                                                                                   | 已完成：设计文档、双模型衔接说明、标准 vs 定制策略          |
+| P1 数据结构落地   | 在 `core/asset/types` 内新增 `ConnectorAssetV2`、`FastenerAssetV2`、`ConnectorHole`、`ContactFace`、`ThreadSpec` 等接口 | TypeScript 类型 + 单元测试草稿                              |
+| P2 策略骨架       | 新增 `ConnectorInstanceStrategy`、`FastenerInstanceStrategy`（仅 primitives + compute 占位）并注册至 `ModelFactory`     | ✅ 已完成：策略类、注册代码、最小 smoke test                |
+| P3 STUB & Catalog | 建立 `src/data/connectors/*`、`src/data/fasteners/*` STUB 资产；导入 `fastenerSpecCatalog`、`connectorSpecCatalog`      | ✅ 已完成：2020 L 型角件、ISO4014 M5×16/M5×20；文档示例同步 |
+| P4 锚点/约束联调  | AnchorService 识别连接件孔/面锚点；编写示例场景脚本验证约束求解                                                         | ✅ 已完成：Vitest 集成测试 + 场景 A 剧本（基础锚点验证）    |
+| P5 可选扩展       | 评估参数化定制、导入转换器 PoC                                                                                          | 决策记录/Prototype                                          |
 
 ---
 
@@ -106,6 +106,7 @@
 ## 5. P4 完成状态
 
 **已完成**：
+
 - ✅ AnchorService 扩展：支持 CONNECTOR_HOLE / CONNECTOR_FACE 类型
 - ✅ 连接件锚点生成：从 ConnectorComputeData 读取孔位/接触面并转换到世界坐标
 - ✅ 单元测试：验证 L-bracket 生成 6 孔 + 2 面（`AnchorService.test.ts`）
@@ -113,6 +114,7 @@
 - ✅ 数据一致性修正：L-bracket 通孔位置、M5×16 资产补齐
 
 **待后续**：
+
 - ⏳ 完整矩阵变换（含旋转）实现
 - ⏳ ConstraintService 集成与求解器验证
 - ⏳ RenderSyncService 与视觉 Mesh 创建集成

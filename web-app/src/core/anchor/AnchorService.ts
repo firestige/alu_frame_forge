@@ -273,12 +273,12 @@ export class AnchorService {
   ): Vector3 {
     // 应用旋转（如果存在）
     let transformedPos = { ...localPos };
-    
+
     if (transform.rotation) {
       const { x: rx, y: ry, z: rz } = transform.rotation;
       transformedPos = this.applyEulerRotation(localPos, rx, ry, rz);
     }
-    
+
     // 应用平移
     return {
       x: transform.position.x + transformedPos.x,
@@ -298,7 +298,7 @@ export class AnchorService {
     if (!transform.rotation) {
       return { ...localAxis };
     }
-    
+
     const { x: rx, y: ry, z: rz } = transform.rotation;
     return this.applyEulerRotation(localAxis, rx, ry, rz);
   }
