@@ -10,6 +10,7 @@ import { CameraService } from '@/core/renderer/services/CameraService';
 import { CameraCommandHandler } from '../features/designer/services/CameraCommandHandler';
 import { TransformService } from '../features/designer/services/TransformService';
 import { TransformCommandHandler } from '../features/designer/services/TransformCommandHandler';
+import { AssemblyCommandHandler } from '../features/designer/services/AssemblyCommandHandler';
 import DesignerPageUI from '../features/designer/ui/DesignerPageUI';
 import { DesignerProvider } from '../features/designer/context';
 import {
@@ -83,6 +84,7 @@ const DesignerPage: React.FC = () => {
     cameraCommandHandler: CameraCommandHandler | null;
     transformService: TransformService | null;
     transformCommandHandler: TransformCommandHandler | null;
+    assemblyCommandHandler: AssemblyCommandHandler | null;
   }>({
     creation: null,
     editor: null,
@@ -94,6 +96,7 @@ const DesignerPage: React.FC = () => {
     cameraCommandHandler: null,
     transformService: null,
     transformCommandHandler: null,
+    assemblyCommandHandler: null,
   });
 
   // 初始化不依赖 renderer 的服务
@@ -103,7 +106,20 @@ const DesignerPage: React.FC = () => {
     const creation = new ModelCreationService(coreServices.objectManager);
     const editor = new ModelEditorService(coreServices.objectManager);
 
-    setFeatureServices(prev => ({ ...prev, creation, editor }));
+    // 初始化 AssemblyCommandHandler（不依赖 renderer）
+    const assemblyCommandHandler = new AssemblyCommandHandler(
+      coreServices.objectManager,
+      coreServices.anchorService,
+      coreServices.constraintService,
+      coreServices.assetService
+    );
+
+    setFeatureServices(prev => ({ 
+      ...prev, 
+      creation, 
+      editor,
+      assemblyCommandHandler,
+    }));
 
     return () => {
       console.log('[DesignerPage] 清理 Features 层服务');

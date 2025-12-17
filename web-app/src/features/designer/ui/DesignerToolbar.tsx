@@ -7,6 +7,7 @@ import { Popover } from '@/components/Popover';
 import { CommandToolbar } from '@/components/Toolbar';
 import { TRANSFORM_TOOLBAR_CONFIG } from '../config/toolbarConfig';
 import { useCommandState } from '../hooks/useCommandState';
+import { useConstraintDraftStore } from '../stores/constraintDraftStore';
 
 // 按钮组件
 interface ToolButtonProps {
@@ -180,6 +181,17 @@ const Toolbar: React.FC<ToolbarProps> = () => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] =
     React.useState(false);
 
+  // 约束模式状态
+  const { 
+    constraintModeEnabled, 
+    drafts, 
+    activeDraftId,
+    selectedConnectorAssetId,
+    setConstraintMode,
+    setSelectedConnector,
+    clearDrafts,
+  } = useConstraintDraftStore();
+
   // 加载型材数据
   React.useEffect(() => {
     if (isProfileDropdownOpen) {
@@ -217,6 +229,39 @@ const Toolbar: React.FC<ToolbarProps> = () => {
 
   const handleResetCamera = () => {
     sendCommand('command:camera:reset', {});
+  };
+
+  // 约束模式处理
+  const handleToggleConstraintMode = () => {
+    sendCommand('command:assembly:enter-constraint-mode', {
+      enabled: !constraintModeEnabled,
+    });
+  };
+
+  const handlePlaceConnector = () => {
+    if (!activeDraftId) {
+      console.warn('[Toolbar] No active draft constraint selected');
+      return;
+    }
+    
+    if (!selectedConnectorAssetId) {
+      console.warn('[Toolbar] No connector asset selected');
+      return;
+    }
+    
+    sendCommand('command:assembly:place-connector-on-active-constraint', {
+      connectorAssetId: selectedConnectorAssetId,
+    });
+  };
+
+  const handleClearDrafts = () => {
+    clearDrafts();
+    console.log('[Toolbar] Draft constraints cleared');
+  };
+
+  const handleSelectConnector = (assetId: string) => {
+    setSelectedConnector(assetId);
+    console.log('[Toolbar] Connector selected:', assetId);
   };
 
   return (
@@ -278,9 +323,83 @@ const Toolbar: React.FC<ToolbarProps> = () => {
 
         {/* 高级功能 */}
         <ButtonGroup title="高级">
-          <ToolButton icon="🔗" label="约束" disabled />
+          <ToolButton 
+            icon="🔗" 
+            label="约束模式" 
+            onClick={handleToggleConstraintMode}
+            active={constraintModeEnabled}
+            variant={constraintModeEnabled ? 'primary' : 'default'}
+          />
           <ToolButton icon="📏" label="测量" disabled />
         </ButtonGroup>
+
+        {/* 约束操作面板（仅在约束模式下显示）*/}
+        {constraintModeEnabled && (
+          <ButtonGroup title="约束操作">
+            <div className="flex flex-col gap-2 py-1">
+              {/* 连接件选择 */}
+              <div className="flex gap-2 items-center">
+                <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                  连接件:
+                </span>
+                <select
+                  value={selectedConnectorAssetId || ''}
+                  onChange={(e) => handleSelectConnector(e.target.value)}
+                  className="px-2 py-1 text-xs bg-slate-700 text-white border border-slate-600 rounded"
+                >
+                  <option value="">选择连接件...</option>
+                  <option value="connector:l-bracket:2020-stub">
+                    L-Bracket 2020 STUB
+                  </option>
+                </select>
+              </div>
+
+              {/* 草稿约束信息 */}
+              <div className="flex gap-2 items-center">
+                <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                  草稿数: {drafts.length}
+                </span>
+                {activeDraftId && (
+                  <span className="text-[10px] text-green-400">
+                    (已选中)
+                  </span>
+                )}
+              </div>
+
+              {/* 操作按钮 */}
+              <div className="flex gap-1">
+                <button
+                  onClick={handlePlaceConnector}
+                  disabled={!activeDraftId || !selectedConnectorAssetId}
+                  className={`
+                    px-2 py-1 text-xs rounded transition-colors
+                    ${
+                      !activeDraftId || !selectedConnectorAssetId
+                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                        : 'bg-green-600 hover:bg-green-700 text-white'
+                    }
+                  `}
+                >
+                  放置
+                </button>
+                <button
+                  onClick={handleClearDrafts}
+                  disabled={drafts.length === 0}
+                  className={`
+                    px-2 py-1 text-xs rounded transition-colors
+                    ${
+                      drafts.length === 0
+                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                        : 'bg-orange-600 hover:bg-orange-700 text-white'
+                    }
+                  `}
+                >
+                  清空
+                </button>
+              </div>
+            </div>
+          </ButtonGroup>
+        )}
       </div>
     </div>
   );

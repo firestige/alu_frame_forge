@@ -173,6 +173,32 @@
 
 ---
 
+### 7. 连接件/约束 UI 接入（Toolbar 按钮当前无效）
+
+**状态**: 🚧 待执行（缺少 UI→命令→核心链路）
+
+**优先级**: P1（高优先级，打通装配闭环的前置）
+
+**目标**: 在 UI 中可添加连接件、创建约束并触发求解，形成最小可用装配闭环。
+
+**MVP 范围**:
+
+- [ ] Toolbar/右键：添加连接件（默认放置 L-Bracket 2020，调用 command:assembly:add-connector，生成 SceneObject + 锚点）
+- [ ] Toolbar/右键：创建约束（选中两个对象，使用首个锚点生成点对点约束，调用 ConstraintManager/ConstraintService 并求解）
+- [ ] 反馈机制：Console/Toast 显示约束创建与求解结果（成功/冲突）
+- [ ] 事件链路：UI → Features（Command）→ Core（Anchor/Constraint）
+- [ ] 基础测试：集成/冒烟测试覆盖命令触发与求解成功
+
+**后续扩展（非 MVP）**:
+
+- 资产选择面板（选择不同连接件/紧固件）
+- 约束类型选择对话框（点对点/轴对齐/距离）
+- 锚点选择器（显式选取锚点而非首锚点默认）
+
+**依赖**: AnchorService/ConstraintService 已可用；缺 UI/命令接线。
+
+---
+
 ### 9. 加工操作实现
 
 **状态**: ⏳ 待执行
@@ -455,7 +481,7 @@ class ConstraintService {
 
 ### 14. 连接件与紧固件系统 - 约束验证场景搭建
 
-**状态**: 🚧 进行中
+**状态**: ✅ 已完成（场景 A 约束求解 6/6 测试通过）
 
 **优先级**: P1（**从 P3 提升**，约束系统验证的前置条件）
 
@@ -466,7 +492,7 @@ class ConstraintService {
 - ✅ 型材系统完整（ProfileAsset + Strategy + 参数化编辑）
 - ✅ 锚点系统 Core 层完成（AnchorService, 11 tests）
 - ✅ 约束系统 Core 层完成（ConstraintService, 16 tests）
-- ❌ 缺少完整的验证场景
+- ✅ 场景 A 验证完成：点对点约束求解精度 0.000mm、耗时 ~0.09ms（6/6 测试通过）
 
 无法验证：
 
