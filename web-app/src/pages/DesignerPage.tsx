@@ -3,6 +3,8 @@ import { useCoreServices } from '@/core';
 import { ModelCreationService } from '../features/designer/services/ModelCreationService';
 import { ModelEditorService } from '../features/designer/services/ModelEditorService';
 import { PlacementController } from '../features/designer/services/PlacementService';
+import { SnappingService } from '../features/designer/services/SnappingSerice';
+import { TransformSnappingService } from '../features/designer/services/TransformSnappingService';
 import { RenderSyncService } from '../features/designer/services/RenderSyncService';
 import { SelectionService } from '../features/designer/services/SelectionService';
 import { BoxSelectController } from '../features/designer/services/BoxSelectController';
@@ -144,9 +146,24 @@ const DesignerPage: React.FC = () => {
       rendererRef.current
     );
 
+    // 初始化 SnappingService
+    const snappingService = new SnappingService(
+      coreServices.anchorService,
+      {
+        searchRadius: 500, // 500mm
+        snapThreshold: 100, // 100mm
+        enabled: true,
+        priority: ['endpoint', 't-slot', 'face'],
+      }
+    );
+
+    // 创建 PlacementController，传入 SnappingService
     const placement = new PlacementController(
       rendererRef.current,
-      coreServices.objectManager
+      coreServices.objectManager,
+      snappingService,
+      coreServices.anchorService,
+      coreServices.constraintService
     );
 
     // 初始化 SelectionService
@@ -178,6 +195,16 @@ const DesignerPage: React.FC = () => {
     const transformCommandHandler = new TransformCommandHandler(
       transformService
     );
+
+    // 初始化 TransformSnappingService 并集成到 TransformService
+    const transformSnappingService = new TransformSnappingService(
+      rendererRef.current,
+      snappingService,
+      coreServices.anchorService,
+      coreServices.constraintService,
+      coreServices.objectManager
+    );
+    transformService.setSnappingService(transformSnappingService);
 
     setFeatureServices(prev => ({
       ...prev,

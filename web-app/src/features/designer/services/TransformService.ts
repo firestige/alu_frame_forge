@@ -6,15 +6,18 @@
  * - 使用 RenderSyncService 获取原生渲染对象
  * - 监听 TransformCommandHandler 发来的命令
  * - 设置 ITransformController 的回调，发布状态事件到 eventBus
+ * - 集成 TransformSnappingService 实现拖拽吸附
  */
 
 import type { IRenderer } from '@/core/renderer';
 import type { RenderSyncService } from './RenderSyncService';
 import { publishState } from '@/core/services/eventBus';
+import type { TransformSnappingService } from './TransformSnappingService';
 
 export class TransformService {
   private renderer: IRenderer;
   private renderSync: RenderSyncService;
+  private snappingService: TransformSnappingService | null = null;
 
   constructor(renderer: IRenderer, renderSync: RenderSyncService) {
     this.renderer = renderer;
@@ -22,6 +25,13 @@ export class TransformService {
 
     // ✅ 设置回调函数，接收 Implementation 层的事件报告
     this.setupControllerCallbacks();
+  }
+
+  /**
+   * 设置吸附服务（可选）
+   */
+  public setSnappingService(service: TransformSnappingService): void {
+    this.snappingService = service;
   }
 
   /**
@@ -33,11 +43,36 @@ export class TransformService {
 
     // 拖拽状态变化
     controller.onDraggingChanged = (dragging: boolean) => {
+      if (dragging) {
+        // 开始拖拽
+        const objectId = controller.getAttachedObjectId();
+        if (objectId && this.snappingService) {
+          this.snappingService.startDragging(objectId);
+        }
+      } else {
+        // 结束拖拽
+        if (this.snappingService) {
+          this.snappingService.endDragging();
+        }
+      }
+
       publishState('state:transform:draggingChanged', { dragging });
+    };
+
+    // 变换中（实时吸附检测）
+    controller.onTransformChanging = data => {
+      if (this.snappingService) {
+        // TODO: 检测 Shift 键状态
+        this.snappingService.handleTransformChanging(data, false);
+      }
     };
 
     // 变换完成
     controller.onTransformCompleted = data => {
+      if (this.snappingService) {
+        this.snappingService.handleTransformCompleted(data);
+      }
+
       publishState('state:transform:completed', data);
     };
   }

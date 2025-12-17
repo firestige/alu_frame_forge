@@ -313,6 +313,61 @@ export interface IRenderer {
    */
   enableAxesHelper(size?: number): void;
 
+  // ==================== 辅助几何绘制 ====================
+
+  /**
+   * 创建辅助圆环（用于锚点高亮）
+   * @param id - 唯一标识符（用于更新和移除）
+   * @param position - 世界坐标位置
+   * @param radius - 半径（mm）
+   * @param color - 颜色（十六进制）
+   * @param options - 可选配置
+   * @returns 圆环句柄
+   */
+  createHelperCircle(
+    id: string,
+    position: Vector3,
+    radius: number,
+    color: ColorHex,
+    options?: {
+      normal?: Vector3; // 圆环法向量
+      opacity?: number; // 透明度 0-1
+      animated?: boolean; // 是否启用脉冲动画
+    }
+  ): unknown;
+
+  /**
+   * 创建辅助线条（用于连接锚点）
+   * @param id - 唯一标识符
+   * @param start - 起点世界坐标
+   * @param end - 终点世界坐标
+   * @param color - 颜色
+   * @param options - 可选配置
+   * @returns 线条句柄
+   */
+  createHelperLine(
+    id: string,
+    start: Vector3,
+    end: Vector3,
+    color: ColorHex,
+    options?: {
+      dashed?: boolean; // 是否虚线
+      opacity?: number; // 透明度
+      lineWidth?: number; // 线宽
+    }
+  ): unknown;
+
+  /**
+   * 移除辅助几何
+   * @param id - 辅助对象的唯一标识符
+   */
+  removeHelper(id: string): void;
+
+  /**
+   * 移除所有辅助几何
+   */
+  clearHelpers(): void;
+
   // ==================== 场景对象管理 ====================
 
   /**
@@ -610,6 +665,12 @@ export interface ITransformController {
    * @param dragging 是否正在拖拽
    */
   onDraggingChanged?: (dragging: boolean) => void;
+
+  /**
+   * 变换中回调（实时更新）
+   * @param data 变换数据
+   */
+  onTransformChanging?: (data: TransformData) => void;
 
   /**
    * 变换完成回调

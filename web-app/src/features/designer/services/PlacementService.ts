@@ -7,6 +7,15 @@ import type { ObjectManager } from '@/core/object/ObjectManager';
 import type { AnyAsset } from '@/core/asset/types/asset';
 import type { SceneObjectCreateOptions } from '@/core/object/types/scene-object';
 import { onCommand, offCommand, publishState } from '@/core/services/eventBus';
+import type { SnappingService, SnapResult } from './SnappingSerice';
+import type { AnchorService } from '@/core/anchor/AnchorService';
+import type { ConstraintService } from '@/core/constraint/ConstraintService';
+import {
+  ConstraintType,
+  ConstraintPriority,
+  type PointToPointConstraint,
+} from '@/core/constraint/types';
+import { toast } from '@/components/Toast';
 
 /**
  * 指针更新命令数据
@@ -19,6 +28,7 @@ export interface PointerUpdateData {
     width: number;
     height: number;
   };
+  shiftKey?: boolean; // 是否按住 Shift 键（禁用吸附）
 }
 
 /**
@@ -38,19 +48,32 @@ export interface PointerUpdateData {
 export class PlacementController {
   private renderer: IRenderer;
   private objectManager: ObjectManager;
+  private snappingService: SnappingService | null;
+  private anchorService: AnchorService | null;
+  private constraintService: ConstraintService | null;
 
   // 会话状态
   private isActive = false;
   private currentAsset: AnyAsset | null = null;
   private previewHandle: string | null = null;
   private currentPosition: { x: number; y: number; z: number } | null = null;
+  private currentSnapResult: SnapResult | null = null; // 吸附结果
 
-  /** 工作平面距离相机的距离（米） */
-  private workPlaneDistance = 10;
+  /** 工作平面距离百分比（相对于相机到焦点的距离，默认 0.5 = 50%） */
+  private workPlaneDistanceRatio = 0.5;
 
-  constructor(renderer: IRenderer, objectManager: ObjectManager) {
+  constructor(
+    renderer: IRenderer,
+    objectManager: ObjectManager,
+    snappingService?: SnappingService,
+    anchorService?: AnchorService,
+    constraintService?: ConstraintService
+  ) {
     this.renderer = renderer;
     this.objectManager = objectManager;
+    this.snappingService = snappingService || null;
+    this.anchorService = anchorService || null;
+    this.constraintService = constraintService || null;
 
     // 注册命令监听
     this.setupCommandListeners();
@@ -81,6 +104,9 @@ export class PlacementController {
       return;
     }
 
+    // 检查是否按住 Shift 键（禁用吸附）
+    const shiftPressed = data.shiftKey || false;
+
     // 动态计算工作平面
     const workPlane = this.calculateWorkPlane();
 
@@ -101,16 +127,65 @@ export class PlacementController {
 
     if (hits.length > 0) {
       const hit = hits[0];
-      this.currentPosition = hit.point;
+      let finalPosition = hit.point;
+
+      // 🎯 吸附检测
+      if (this.snappingService && this.anchorService && !shiftPressed) {
+        // 获取预览对象的锚点（从当前资产）
+        const previewAnchors = this.getPreviewAnchors();
+
+        if (previewAnchors.length > 0) {
+          const snapResult = this.snappingService.findSnap(
+            hit.point,
+            previewAnchors,
+            {
+              excludeObjects: [this.previewHandle],
+              disabled: shiftPressed,
+            }
+          );
+
+          if (snapResult) {
+            console.log('[PlacementController] 🎯 吸附触发:', {
+              distance: snapResult.distance,
+              targetAnchor: snapResult.targetAnchorId,
+              constraintType: snapResult.constraintType,
+            });
+
+            // 使用吸附位置
+            finalPosition = snapResult.snapPosition;
+            this.currentSnapResult = snapResult;
+
+            // 发布吸附状态
+            publishState('state:placement:snapStatus', {
+              isSnapped: true,
+              snapDistance: snapResult.distance,
+              targetAnchorId: snapResult.targetAnchorId,
+              targetObjectId: snapResult.targetObjectId,
+            });
+          } else {
+            this.currentSnapResult = null;
+            publishState('state:placement:snapStatus', {
+              isSnapped: false,
+              snapDistance: null,
+            });
+          }
+        }
+      } else {
+        this.currentSnapResult = null;
+        this.clearSnapHighlight();
+      }
+
+      this.currentPosition = finalPosition;
 
       console.log(
         '[PlacementController] Updated position:',
-        this.currentPosition
+        this.currentPosition,
+        this.currentSnapResult ? '(snapped)' : ''
       );
 
       // 更新预览位置
       this.renderer.updatePreviewTransform(this.previewHandle, {
-        position: hit.point,
+        position: finalPosition,
       });
     } else {
       // 如果没有命中，保持上一个有效位置
@@ -120,6 +195,55 @@ export class PlacementController {
       );
     }
   };
+
+  /**
+   * 渲染吸附高亮
+   */
+  private renderSnapHighlight(snapResult: SnapResult): void {
+    // 目标锚点：绿色圆环 + 脉冲动画
+    this.renderer.createHelperCircle(
+      'snap-target-anchor',
+      snapResult.targetAnchorPosition,
+      15, // 半径 15mm
+      0x00ff00, // 绿色
+      {
+        opacity: 0.8,
+        animated: true,
+      }
+    );
+
+    // 候选锚点：蓝色圆环
+    this.renderer.createHelperCircle(
+      'snap-candidate-anchor',
+      snapResult.snapPosition,
+      12, // 稍小半径
+      0x0088ff, // 蓝色
+      {
+        opacity: 0.6,
+      }
+    );
+
+    // 连接线：虚线
+    this.renderer.createHelperLine(
+      'snap-connection-line',
+      snapResult.targetAnchorPosition,
+      snapResult.snapPosition,
+      0xffaa00, // 橙色
+      {
+        dashed: true,
+        opacity: 0.6,
+      }
+    );
+  }
+
+  /**
+   * 清除吸附高亮
+   */
+  private clearSnapHighlight(): void {
+    this.renderer.removeHelper('snap-target-anchor');
+    this.renderer.removeHelper('snap-candidate-anchor');
+    this.renderer.removeHelper('snap-connection-line');
+  }
 
   /**
    * 处理确认命令
@@ -137,21 +261,32 @@ export class PlacementController {
 
   /**
    * 计算当前工作平面
-   * 工作平面垂直于相机视线，位于相机前方固定距离
+   * 工作平面垂直于相机视线，位于相机到焦点距离的固定百分比位置
    */
   private calculateWorkPlane(): WorkPlaneConfig {
     const camera = this.renderer.getNativeCamera() as THREE.Camera;
     const cameraPos = camera.position;
+
+    // 获取 OrbitControls 的 target（焦点）
+    const debugInfo = this.renderer.getDebugInfo();
+    const target = debugInfo.camera.target;
+    const targetPos = new THREE.Vector3(target.x, target.y, target.z);
+
+    // 计算相机到焦点的距离
+    const cameraToTargetDistance = cameraPos.distanceTo(targetPos);
+
+    // 工作平面距离 = 相机到焦点距离 × 百分比
+    const workPlaneDistance = cameraToTargetDistance * this.workPlaneDistanceRatio;
 
     // 获取相机朝向（前方向量）
     const cameraForward = new THREE.Vector3(0, 0, -1)
       .applyQuaternion(camera.quaternion)
       .normalize();
 
-    // 计算工作平面位置（相机前方 workPlaneDistance 米）
+    // 计算工作平面位置（相机前方 workPlaneDistance）
     const planePoint = cameraPos
       .clone()
-      .add(cameraForward.multiplyScalar(this.workPlaneDistance));
+      .add(cameraForward.multiplyScalar(workPlaneDistance));
 
     // 工作平面法线指向相机（与相机朝向相反）
     const planeNormal = cameraForward.clone().negate();
@@ -223,7 +358,7 @@ export class PlacementController {
       const previewMesh = tempObject.visual?.mesh;
 
       // 🔍 记录预览对象尺寸
-      if (previewMesh && 'geometry' in previewMesh) {
+      if (previewMesh && typeof previewMesh === 'object' && 'geometry' in previewMesh) {
         const geometry = (previewMesh as any).geometry;
         if (geometry && geometry.computeBoundingBox) {
           geometry.computeBoundingBox();
@@ -294,6 +429,7 @@ export class PlacementController {
       hasAsset: !!this.currentAsset,
       hasPosition: !!this.currentPosition,
       position: this.currentPosition,
+      hasSnapResult: !!this.currentSnapResult,
     });
 
     if (!this.isActive || !this.currentAsset || !this.currentPosition) {
@@ -330,7 +466,93 @@ export class PlacementController {
         this.currentAsset.id,
         options
       );
-      console.log('[PlacementController] Object created successfully');
+      console.log('[PlacementController] Object created successfully:', sceneObject.id);
+
+      // 🎯 如果有吸附信息，自动创建约束
+      if (
+        this.currentSnapResult &&
+        this.anchorService &&
+        this.constraintService
+      ) {
+        console.log('[PlacementController] 📌 创建自动约束...');
+
+        // 等待锚点生成（已在 CoreServiceProvider 中自动生成）
+        // 获取新创建对象的锚点
+        const newObjectAnchors = this.anchorService.getAnchors(sceneObject.id);
+
+        if (
+          newObjectAnchors &&
+          newObjectAnchors.length > this.currentSnapResult.candidateAnchorIndex
+        ) {
+          const newAnchor =
+            newObjectAnchors[this.currentSnapResult.candidateAnchorIndex];
+
+          try {
+            // 创建约束
+            const constraint: PointToPointConstraint = {
+              id: `constraint-${Date.now()}`,
+              type: ConstraintType.POINT_TO_POINT,
+              priority: ConstraintPriority.NORMAL,
+              objectIds: [
+                this.currentSnapResult.targetObjectId,
+                sceneObject.id,
+              ],
+              enabled: true,
+              objectAId: this.currentSnapResult.targetObjectId,
+              objectBId: sceneObject.id,
+              anchorAId: this.currentSnapResult.targetAnchorId,
+              anchorBId: newAnchor.id,
+              metadata: {
+                autoCreated: true,
+                createdAt: new Date(),
+              },
+            };
+
+            this.constraintService.addConstraint(constraint);
+            console.log('[PlacementController] ✅ 约束已创建:', constraint.id);
+
+            // 求解约束（传入新对象 ID 和其当前变换）
+            const solveResult = this.constraintService.solveConstraints(
+              sceneObject.id,
+              {
+                position: sceneObject.transform.position,
+                rotation: sceneObject.transform.rotation,
+              }
+            );
+            console.log('[PlacementController] 🔧 约束求解结果:', solveResult);
+
+            if (solveResult.success) {
+              console.log('[PlacementController] ✅ 约束求解成功，对象已自动对齐');
+
+              // Toast 通知
+              toast.success('已创建约束并自动对齐');
+
+              // 发布装配事件
+              publishState('state:assembly:constraintCreated', {
+                constraintId: constraint.id,
+                objectId: sceneObject.id,
+              });
+            } else {
+              console.warn(
+                '[PlacementController] ⚠️ 约束求解失败:',
+                solveResult.conflicts
+              );
+
+              // Toast 警告
+              toast.warning('约束求解失败，可能存在冲突');
+            }
+          } catch (error) {
+            console.error('[PlacementController] ❌ 约束创建失败:', error);
+
+            // Toast 错误
+            toast.error('约束创建失败');
+          }
+        } else {
+          console.warn(
+            '[PlacementController] ⚠️ 无法找到对应的新锚点，跳过约束创建'
+          );
+        }
+      }
 
       // 发布状态变更事件
       publishState('state:placement:completed', { modelId: sceneObject.id });
@@ -352,6 +574,9 @@ export class PlacementController {
 
     console.log('[PlacementController] Cancelling placement');
 
+    // 清除吸附高亮
+    this.clearSnapHighlight();
+
     // 发布状态变更事件
     publishState('state:placement:cancelled', undefined);
 
@@ -362,6 +587,9 @@ export class PlacementController {
    * 结束会话
    */
   private endSession(): void {
+    // 清除吸附高亮
+    this.clearSnapHighlight();
+
     // ✅ 通过 IRenderer 抽象接口移除预览对象
     if (this.previewHandle) {
       this.renderer.removePreviewObject(this.previewHandle);
@@ -372,8 +600,45 @@ export class PlacementController {
     this.isActive = false;
     this.currentAsset = null;
     this.currentPosition = null;
+    this.currentSnapResult = null;
 
     // TODO: 恢复光标样式
+  }
+
+  /**
+   * 获取预览对象的锚点（简化实现）
+   *
+   * TODO: 应该从资产定义中获取锚点模板
+   * 当前简化为：假设型材有端点锚点
+   */
+  private getPreviewAnchors(): any[] {
+    if (!this.currentAsset) return [];
+
+    // 简化实现：根据资产类型返回默认锚点
+    // 实际应该从 AssetService 获取锚点定义
+    const assetType = this.currentAsset.type;
+
+    if (assetType === 'profile') {
+      // 型材：两个端点锚点
+      return [
+        {
+          id: 'preview-anchor-front',
+          type: 'endpoint',
+          localPosition: { x: 0, y: 0, z: 0.75 }, // 假设长度1.5m，前端
+          worldPosition: { x: 0, y: 0, z: 0 },
+          objectId: 'preview',
+        },
+        {
+          id: 'preview-anchor-back',
+          type: 'endpoint',
+          localPosition: { x: 0, y: 0, z: -0.75 }, // 后端
+          worldPosition: { x: 0, y: 0, z: 0 },
+          objectId: 'preview',
+        },
+      ];
+    }
+
+    return [];
   }
 
   /**

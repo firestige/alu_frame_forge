@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { ObjectManager } from './object';
 import { AssetService } from './asset';
+import { AnchorService } from './anchor/AnchorService';
+import { ConstraintService } from './constraint/ConstraintService';
 import { designerEventBus } from './services/eventBus';
 import { AutoSaveService } from './services/AutoSaveService';
 
@@ -20,6 +22,16 @@ export interface CoreServices {
    * 资产服务 - 管理素材模板（型材、紧固件、连接件等）
    */
   assetService: AssetService;
+
+  /**
+   * 锚点服务 - 管理对象的锚点（吸附点）
+   */
+  anchorService: AnchorService;
+
+  /**
+   * 约束服务 - 管理对象之间的约束关系
+   */
+  constraintService: ConstraintService;
 
   /**
    * 事件总线 - 全局事件通信
@@ -87,10 +99,17 @@ export const CoreServiceProvider: React.FC<CoreServiceProviderProps> = ({
     // 创建 Core 层服务实例
     const objectManager = new ObjectManager();
     const assetService = new AssetService();
+    const anchorService = new AnchorService();
+    const constraintService = new ConstraintService();
+
+    // 设置 ConstraintService 对 AnchorService 的引用
+    constraintService.setAnchorService(anchorService);
 
     servicesRef.current = {
       objectManager,
       assetService,
+      anchorService,
+      constraintService,
       eventBus: designerEventBus,
       autoSave: null, // 稍后在 useEffect 中初始化
     };
@@ -115,6 +134,33 @@ export const CoreServiceProvider: React.FC<CoreServiceProviderProps> = ({
           error
         );
       });
+  }, []);
+
+  // 设置自动锚点生成（监听 object:added 事件）
+  React.useEffect(() => {
+    if (!servicesRef.current) return;
+
+    const { objectManager, anchorService, eventBus } = servicesRef.current;
+
+    console.log('[CoreServiceProvider] 设置自动锚点生成监听器');
+
+    const handleObjectAdded = (data: { object: any }) => {
+      const sceneObject = data.object;
+      console.log('[CoreServiceProvider] 对象已添加，自动生成锚点:', sceneObject.id);
+      
+      try {
+        const anchors = anchorService.generateAnchors(sceneObject);
+        console.log(`[CoreServiceProvider] ✅ 已为对象 ${sceneObject.id} 生成 ${anchors.length} 个锚点`);
+      } catch (error) {
+        console.warn(`[CoreServiceProvider] ⚠️ 锚点生成失败:`, error);
+      }
+    };
+
+    eventBus.on('object:added', handleObjectAdded);
+
+    return () => {
+      eventBus.off('object:added', handleObjectAdded);
+    };
   }, []);
 
   // 初始化 AutoSaveService（依赖 servicesRef 创建后）

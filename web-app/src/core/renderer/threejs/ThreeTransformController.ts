@@ -26,6 +26,7 @@ export class ThreeTransformController implements ITransformController {
 
   // ==================== 回调函数（向上报告）====================
   public onDraggingChanged?: (dragging: boolean) => void;
+  public onTransformChanging?: (data: TransformData) => void;
   public onTransformCompleted?: (data: TransformData) => void;
 
   constructor(
@@ -105,8 +106,27 @@ export class ThreeTransformController implements ITransformController {
       return;
     }
 
-    // 可选：实时变换回调（用于属性面板实时更新）
-    // 可以在接口中添加 onTransformChanging 回调
+    // 通过回调报告实时变换（用于吸附检测）
+    this.onTransformChanging?.({
+      objectId: this.currentObjectId,
+      transform: {
+        position: {
+          x: object.position.x,
+          y: object.position.y,
+          z: object.position.z,
+        },
+        rotation: {
+          x: object.rotation.x,
+          y: object.rotation.y,
+          z: object.rotation.z,
+        },
+        scale: {
+          x: object.scale.x,
+          y: object.scale.y,
+          z: object.scale.z,
+        },
+      },
+    });
   };
 
   /**

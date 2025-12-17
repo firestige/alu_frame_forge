@@ -173,29 +173,116 @@
 
 ---
 
-### 7. 连接件/约束 UI 接入（Toolbar 按钮当前无效）
+### 7. 智能吸附与自动约束系统（MayCAD 风格交互）
 
-**状态**: 🚧 待执行（缺少 UI→命令→核心链路）
+**状态**: 📋 方案已确认（2025-12-18）
 
-**优先级**: P1（高优先级，打通装配闭环的前置）
+**优先级**: P1（高优先级，核心交互体验）
 
-**目标**: 在 UI 中可添加连接件、创建约束并触发求解，形成最小可用装配闭环。
+**目标**: 实现放置型材时的智能吸附和自动约束创建，提供流畅的 CAD 级装配体验。
 
-**MVP 范围**:
+**核心交互流程**:
 
-- [ ] Toolbar/右键：添加连接件（默认放置 L-Bracket 2020，调用 command:assembly:add-connector，生成 SceneObject + 锚点）
-- [ ] Toolbar/右键：创建约束（选中两个对象，使用首个锚点生成点对点约束，调用 ConstraintManager/ConstraintService 并求解）
-- [ ] 反馈机制：Console/Toast 显示约束创建与求解结果（成功/冲突）
-- [ ] 事件链路：UI → Features（Command）→ Core（Anchor/Constraint）
-- [ ] 基础测试：集成/冒烟测试覆盖命令触发与求解成功
+1. **第一个型材放置**: 正常放置，无吸附
+2. **第二个型材放置**: 
+   - 拖拽预览靠近已有型材时自动吸附到锚点
+   - 显示吸附目标高亮（锚点圆环 + 虚线连接）
+   - 点击确认 → 自动创建约束 + 求解对齐
+3. **移动已有对象**: 拖拽时同样触发吸附（可选扩展）
 
-**后续扩展（非 MVP）**:
+**技术方案**（已通过架构审查）:
 
-- 资产选择面板（选择不同连接件/紧固件）
-- 约束类型选择对话框（点对点/轴对齐/距离）
-- 锚点选择器（显式选取锚点而非首锚点默认）
+**Phase 1 - 智能吸附核心（MVP）**:
 
-**依赖**: AnchorService/ConstraintService 已可用；缺 UI/命令接线。
+- [x] **SnappingService 增强** (3h) ✅ 2025-12-18
+  - `findSnap()` 方法：查询 AnchorManager，计算最佳匹配
+  - 参数：searchRadius=500mm, snapThreshold=100mm
+  - 匹配策略：优先选择能满足最多约束的锚点对
+  - 支持约束类型：点对点、轴对齐、面对齐（型材对齐常态）
+
+- [x] **PlacementController 集成** (3h) ✅ 2025-12-18
+  - 在 `handlePointerUpdate` 调用 `findSnap()`
+  - 存储 `currentSnapResult`（目标锚点、约束类型）
+  - 更新预览位置为吸附位置（带插值动画 150ms）
+  - Shift 键临时禁用吸附
+
+- [x] **自动约束创建** (2h) ✅ 2025-12-18
+  - 在 `handleConfirmCommand` 检查吸附结果
+  - 调用 `ConstraintManager.createConstraint()`
+  - 调用 `ConstraintService.solveConstraints()`
+  - 应用求解结果到对象位置
+
+- [x] **锚点注册补齐** (2h) ✅ 2025-12-18
+  - 修复 `ConnectorInstanceStrategy.createSceneObject()`
+  - 修复 `ProfileInstanceStrategy.createSceneObject()`
+  - 调用 `AnchorService.registerFromSceneObject()`
+
+**Phase 2 - 视觉反馈（增强体验）**:
+
+- [x] **锚点高亮渲染** (2h) ✅ 2025-12-18
+  - 通过 `IRenderer` 辅助几何接口绘制
+  - 吸附目标：绿色圆环 + 脉冲动画
+  - 预览锚点：蓝色圆环
+  - 锚点连线：虚线 + 距离标注
+
+- [x] **状态反馈** (1h) ✅ 2025-12-18
+  - Toast 通知："已创建约束并自动对齐"
+  - Console 输出约束求解结果
+
+**Phase 3 - 高级功能（后续）**:
+
+- [x] **拖动已有对象时吸附** ✅ 2025-12-18
+  - TransformSnappingService 集成到 TransformService
+  - 拖拽中实时检测吸附（带节流控制）
+  - 吸附高亮渲染（绿色圆环 + 虚线）
+  - 拖拽完成自动创建约束
+
+- [ ] 多锚点批量对齐（未来扩展）
+- [ ] 约束冲突可视化（未来扩展）
+- [ ] 吸附参数配置面板（未来扩展）
+
+**技术约束（架构合规性）**:
+
+- ✅ 遵守分层架构：UI → Features → Core
+- ✅ 通过 AnchorManager 查询，不直接访问 SceneObject.compute
+- ✅ 通过 IRenderer 抽象接口做渲染，不依赖 Three.js
+- ✅ 命令/状态需在 EventBus 类型映射中声明
+- ⚠️ 前置依赖：策略层必须调用 AnchorService.registerFromSceneObject()
+
+**确认参数**（2025-12-18）:
+
+- 吸附阈值：100mm ✅
+- 锚点高亮：必需 ✅
+- 约束类型：端对端对齐为主（轴对齐/面对齐）✅
+- 多锚点策略：优先满足最多约束 ✅
+- Shift 禁用吸附：支持 ✅
+
+**验收标准**:
+
+- [ ] 第二个型材靠近第一个时预览自动跳跃（阈值 100mm）
+- [ ] 锚点高亮显示（圆环 + 连线）
+- [ ] 点击确认后约束自动创建且求解成功（误差 < 1mm）
+- [ ] Shift 键可临时禁用吸附
+- [ ] 端到端测试通过，60fps 流畅预览
+
+**当前进度**: Phase 1-3 完成 ✅，智能吸附系统已全部实现
+
+**已完成功能**:
+- ✅ Phase 1: 智能吸附核心（SnappingService、自动约束创建）
+- ✅ Phase 2: 视觉反馈（锚点高亮、Toast 通知）
+- ✅ Phase 3: 拖拽吸附（TransformSnappingService、实时检测、自动约束）
+
+**下一步**:
+1. 功能测试：放置和拖拽型材，验证吸附和约束创建
+2. 性能优化（如需要）
+3. 多锚点批量对齐、约束冲突可视化等高级功能（按需实现）
+
+**预计工作量**: 13-15 小时（约 2 天） - 已完成
+
+**参考文档**: 
+- [doc/design/CoreArchitecture.md](./doc/design/CoreArchitecture.md)
+- [doc/_temp/AnchorConstraintSystem.md](./doc/_temp/AnchorConstraintSystem.md)
+- [doc/design/ConnectorFastenerSystem.md](./doc/design/ConnectorFastenerSystem.md)
 
 ---
 

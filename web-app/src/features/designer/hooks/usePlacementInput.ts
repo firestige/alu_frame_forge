@@ -40,6 +40,7 @@ export function usePlacementInput(
           width: rect.width,
           height: rect.height,
         },
+        shiftKey: event.shiftKey, // 传递 Shift 键状态
       });
     },
     [isPlacementActive, containerRef]

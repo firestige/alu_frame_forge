@@ -184,6 +184,141 @@ export class ThreeRenderer implements IRenderer {
     this.sceneManager.addAxesHelper(size);
   }
 
+  // ==================== 辅助几何绘制 ====================
+
+  private helperObjects = new Map<string, THREE.Object3D>();
+
+  createHelperCircle(
+    id: string,
+    position: Vector3,
+    radius: number,
+    color: ColorHex,
+    options?: {
+      normal?: Vector3;
+      opacity?: number;
+      animated?: boolean;
+    }
+  ): unknown {
+    // 移除旧的辅助对象
+    this.removeHelper(id);
+
+    const geometry = new THREE.RingGeometry(
+      radius * 0.8,
+      radius,
+      32
+    );
+    const material = new THREE.MeshBasicMaterial({
+      color: color,
+      opacity: options?.opacity ?? 0.8,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthTest: false,
+    });
+
+    const circle = new THREE.Mesh(geometry, material);
+    circle.position.set(position.x, position.y, position.z);
+
+    // 根据法向量旋转圆环
+    if (options?.normal) {
+      const normal = new THREE.Vector3(
+        options.normal.x,
+        options.normal.y,
+        options.normal.z
+      );
+      const up = new THREE.Vector3(0, 0, 1);
+      const quaternion = new THREE.Quaternion();
+      quaternion.setFromUnitVectors(up, normal.normalize());
+      circle.quaternion.copy(quaternion);
+    }
+
+    // 脉冲动画
+    if (options?.animated) {
+      const originalScale = 1;
+      const animate = () => {
+        if (!this.helperObjects.has(id)) return;
+        const time = Date.now() * 0.002;
+        const scale = originalScale + Math.sin(time) * 0.1;
+        circle.scale.set(scale, scale, 1);
+        requestAnimationFrame(animate);
+      };
+      animate();
+    }
+
+    this.helperObjects.set(id, circle);
+    this.sceneManager.getScene().add(circle);
+    return circle;
+  }
+
+  createHelperLine(
+    id: string,
+    start: Vector3,
+    end: Vector3,
+    color: ColorHex,
+    options?: {
+      dashed?: boolean;
+      opacity?: number;
+      lineWidth?: number;
+    }
+  ): unknown {
+    // 移除旧的辅助对象
+    this.removeHelper(id);
+
+    const points = [
+      new THREE.Vector3(start.x, start.y, start.z),
+      new THREE.Vector3(end.x, end.y, end.z),
+    ];
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = options?.dashed
+      ? new THREE.LineDashedMaterial({
+          color: color,
+          opacity: options?.opacity ?? 0.6,
+          transparent: true,
+          dashSize: 10,
+          gapSize: 5,
+          linewidth: options?.lineWidth ?? 1,
+          depthTest: false,
+        })
+      : new THREE.LineBasicMaterial({
+          color: color,
+          opacity: options?.opacity ?? 0.6,
+          transparent: true,
+          linewidth: options?.lineWidth ?? 1,
+          depthTest: false,
+        });
+
+    const line = options?.dashed
+      ? new THREE.Line(geometry, material)
+      : new THREE.Line(geometry, material);
+
+    if (options?.dashed) {
+      line.computeLineDistances();
+    }
+
+    this.helperObjects.set(id, line);
+    this.sceneManager.getScene().add(line);
+    return line;
+  }
+
+  removeHelper(id: string): void {
+    const helper = this.helperObjects.get(id);
+    if (helper) {
+      this.sceneManager.getScene().remove(helper);
+      if (helper instanceof THREE.Mesh || helper instanceof THREE.Line) {
+        helper.geometry.dispose();
+        if (helper.material instanceof THREE.Material) {
+          helper.material.dispose();
+        }
+      }
+      this.helperObjects.delete(id);
+    }
+  }
+
+  clearHelpers(): void {
+    this.helperObjects.forEach((_, id) => this.removeHelper(id));
+    this.helperObjects.clear();
+  }
+
   // ==================== 场景对象管理 ====================
 
   /**

@@ -46,9 +46,11 @@ export type DesignerCommandEvents = {
       width: number;
       height: number;
     };
+    shiftKey?: boolean; // 是否按住 Shift 键（禁用吸附）
   };
   'command:placement:confirm': void;
   'command:placement:cancel': void;
+  'command:placement:toggleSnapping': { enabled: boolean }; // 切换吸附开关
 
   // 相机命令
   'command:camera:reset': { animated?: boolean };
@@ -146,6 +148,14 @@ export type DesignerStateEvents = {
   'state:placement:started': { asset: AnyAsset };
   'state:placement:completed': { modelId: string };
   'state:placement:cancelled': void;
+  'state:placement:snapStatus': {
+    // 吸附状态
+    isSnapped: boolean;
+    snapDistance: number | null;
+    targetAnchorId?: string;
+    targetObjectId?: string;
+  };
+  'state:placement:snappingToggled': { enabled: boolean };
 
   // UI 通知事件（业务层 → UI 层）
   'ui:selection:clear': { deletedObjectId?: string; reason?: string };
@@ -185,6 +195,41 @@ export type DesignerStateEvents = {
       rotation: Vector3;
       scale: Vector3;
     };
+  };
+
+  // 锚点状态事件
+  'state:anchor:updated': {
+    objectId: string;
+    anchorCount: number;
+    timestamp: number;
+  };
+  'state:anchor:nearestFound': {
+    anchor: any; // AnchorPoint
+    distance: number;
+    timestamp: number;
+  };
+
+  // 约束状态事件
+  'state:constraint:added': {
+    constraintId: string;
+    type: string;
+    objectIds: string[];
+    timestamp: number;
+  };
+  'state:constraint:removed': {
+    constraintId: string;
+    timestamp: number;
+  };
+  'state:constraint:solved': {
+    success: boolean;
+    constraintId?: string;
+    timestamp: number;
+  };
+
+  // 装配状态事件
+  'state:assembly:constraintCreated': {
+    constraintId: string;
+    objectId: string;
   };
 };
 
