@@ -1,6 +1,6 @@
 /**
  * Assembly Command Handler Integration Tests
- * 
+ *
  * Tests the end-to-end flow of constraint draft creation and connector placement:
  * - Draft constraint creation from two objects
  * - Connector placement with constraint solving
@@ -28,7 +28,7 @@ describe('AssemblyCommandHandler', () => {
     assetService = new AssetService();
     anchorService = new AnchorService();
     constraintService = new ConstraintService(anchorService);
-    
+
     // ObjectManager requires assetService in constructor
     objectManager = new ObjectManager(undefined, assetService);
 
@@ -102,7 +102,9 @@ describe('AssemblyCommandHandler', () => {
       assemblyHandler['handleEnterConstraintMode']({ enabled: true });
 
       // Verify enabled
-      expect(useConstraintDraftStore.getState().constraintModeEnabled).toBe(true);
+      expect(useConstraintDraftStore.getState().constraintModeEnabled).toBe(
+        true
+      );
     });
 
     it('should clear drafts when disabling constraint mode', () => {
@@ -132,28 +134,36 @@ describe('AssemblyCommandHandler', () => {
   describe('Draft Constraint Creation', () => {
     it('should create draft constraint from two objects', async () => {
       // Create two connector objects
-      const connectorAsset = assetService.getAssetById('connector:l-bracket:2020-stub')!;
-      
-      const connectorA = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Connector A',
-        transform: {
-          position: { x: 0, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const connectorAsset = assetService.getAssetById(
+        'connector:l-bracket:2020-stub'
+      )!;
+
+      const connectorA = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Connector A',
+          transform: {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(connectorA);
 
-      const connectorB = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Connector B',
-        transform: {
-          position: { x: 100, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const connectorB = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Connector B',
+          transform: {
+            position: { x: 100, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(connectorB);
 
       // Add draft constraint
@@ -177,28 +187,36 @@ describe('AssemblyCommandHandler', () => {
     });
 
     it('should use specified anchor IDs when provided', async () => {
-      const connectorAsset = assetService.getAssetById('connector:l-bracket:2020-stub')!;
-      
-      const connectorA = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Connector A',
-        transform: {
-          position: { x: 0, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const connectorAsset = assetService.getAssetById(
+        'connector:l-bracket:2020-stub'
+      )!;
+
+      const connectorA = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Connector A',
+          transform: {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(connectorA);
 
-      const connectorB = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Connector B',
-        transform: {
-          position: { x: 100, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const connectorB = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Connector B',
+          transform: {
+            position: { x: 100, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(connectorB);
 
       const anchorsA = anchorService.getAnchors(connectorA);
@@ -222,31 +240,39 @@ describe('AssemblyCommandHandler', () => {
   describe('Connector Placement with Constraint Solving', () => {
     it('should place connector and solve constraints', async () => {
       // Create anchor object
-      const connectorAsset = assetService.getAssetById('connector:l-bracket:2020-stub')!;
-      
-      const anchorObject = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Anchor Object',
-        transform: {
-          position: { x: 100, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const connectorAsset = assetService.getAssetById(
+        'connector:l-bracket:2020-stub'
+      )!;
+
+      const anchorObject = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Anchor Object',
+          transform: {
+            position: { x: 100, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(anchorObject);
 
       const anchors = anchorService.getAnchors(anchorObject);
 
       // Create a second object to establish the draft
-      const objectB = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Object B',
-        transform: {
-          position: { x: 200, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const objectB = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Object B',
+          transform: {
+            position: { x: 200, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(objectB);
 
       // Add draft constraint
@@ -296,28 +322,36 @@ describe('AssemblyCommandHandler', () => {
 
     it('should not place connector without selected asset', async () => {
       // Create draft
-      const connectorAsset = assetService.getAssetById('connector:l-bracket:2020-stub')!;
-      
-      const objA = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Object A',
-        transform: {
-          position: { x: 0, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const connectorAsset = assetService.getAssetById(
+        'connector:l-bracket:2020-stub'
+      )!;
+
+      const objA = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Object A',
+          transform: {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(objA);
 
-      const objB = objectManager['modelFactory'].createFromAsset(connectorAsset.id, {
-        name: 'Object B',
-        transform: {
-          position: { x: 100, y: 0, z: 0 },
-          rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
-          scale: { x: 1, y: 1, z: 1 },
-        },
-        userParams: {},
-      });
+      const objB = objectManager['modelFactory'].createFromAsset(
+        connectorAsset.id,
+        {
+          name: 'Object B',
+          transform: {
+            position: { x: 100, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0, order: 'XYZ' },
+            scale: { x: 1, y: 1, z: 1 },
+          },
+          userParams: {},
+        }
+      );
       objectManager.addObject(objB);
 
       assemblyHandler['handleAddConstraintDraft']({

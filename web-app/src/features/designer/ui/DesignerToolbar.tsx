@@ -182,9 +182,9 @@ const Toolbar: React.FC<ToolbarProps> = () => {
     React.useState(false);
 
   // 约束模式状态
-  const { 
-    constraintModeEnabled, 
-    drafts, 
+  const {
+    constraintModeEnabled,
+    drafts,
     activeDraftId,
     selectedConnectorAssetId,
     setConstraintMode,
@@ -243,12 +243,12 @@ const Toolbar: React.FC<ToolbarProps> = () => {
       console.warn('[Toolbar] No active draft constraint selected');
       return;
     }
-    
+
     if (!selectedConnectorAssetId) {
       console.warn('[Toolbar] No connector asset selected');
       return;
     }
-    
+
     sendCommand('command:assembly:place-connector-on-active-constraint', {
       connectorAssetId: selectedConnectorAssetId,
     });
@@ -323,9 +323,9 @@ const Toolbar: React.FC<ToolbarProps> = () => {
 
         {/* 高级功能 */}
         <ButtonGroup title="高级">
-          <ToolButton 
-            icon="🔗" 
-            label="约束模式" 
+          <ToolButton
+            icon="🔗"
+            label="约束模式"
             onClick={handleToggleConstraintMode}
             active={constraintModeEnabled}
             variant={constraintModeEnabled ? 'primary' : 'default'}
@@ -344,7 +344,7 @@ const Toolbar: React.FC<ToolbarProps> = () => {
                 </span>
                 <select
                   value={selectedConnectorAssetId || ''}
-                  onChange={(e) => handleSelectConnector(e.target.value)}
+                  onChange={e => handleSelectConnector(e.target.value)}
                   className="px-2 py-1 text-xs bg-slate-700 text-white border border-slate-600 rounded"
                 >
                   <option value="">选择连接件...</option>
@@ -360,9 +360,7 @@ const Toolbar: React.FC<ToolbarProps> = () => {
                   草稿数: {drafts.length}
                 </span>
                 {activeDraftId && (
-                  <span className="text-[10px] text-green-400">
-                    (已选中)
-                  </span>
+                  <span className="text-[10px] text-green-400">(已选中)</span>
                 )}
               </div>
 
