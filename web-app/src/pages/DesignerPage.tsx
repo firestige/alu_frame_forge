@@ -116,9 +116,9 @@ const DesignerPage: React.FC = () => {
       coreServices.assetService
     );
 
-    setFeatureServices(prev => ({ 
-      ...prev, 
-      creation, 
+    setFeatureServices(prev => ({
+      ...prev,
+      creation,
       editor,
       assemblyCommandHandler,
     }));
@@ -147,15 +147,12 @@ const DesignerPage: React.FC = () => {
     );
 
     // 初始化 SnappingService
-    const snappingService = new SnappingService(
-      coreServices.anchorService,
-      {
-        searchRadius: 500, // 500mm
-        snapThreshold: 100, // 100mm
-        enabled: true,
-        priority: ['endpoint', 't-slot', 'face'],
-      }
-    );
+    const snappingService = new SnappingService(coreServices.anchorService, {
+      searchRadius: 500, // 500mm
+      snapThreshold: 100, // 100mm
+      enabled: true,
+      priority: ['endpoint', 't-slot', 'face'],
+    });
 
     // 创建 PlacementController，传入 SnappingService
     const placement = new PlacementController(
@@ -352,7 +349,7 @@ const DesignerPage: React.FC = () => {
               scale: { x: 1, y: 1, z: 1 },
             },
             userParams: {
-              length: 500, // 500mm长度
+              length: 20, // 20mm长度（2cm）
             },
           }
         );

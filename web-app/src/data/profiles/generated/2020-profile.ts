@@ -59,7 +59,7 @@ export const profile2020Asset: ProfileAsset = {
   lengthConstraints: {
     min: 100,
     max: 3000,
-    default: 500,
+    default: 20, // 20mm默认长度（2cm）
     step: 50,
   },
 

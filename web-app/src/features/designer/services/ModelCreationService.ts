@@ -142,7 +142,7 @@ export class ModelCreationService {
         },
       },
       userParams: {
-        length: 1500,
+        length: 20, // 20mm长度（2cm）
       },
     });
 
