@@ -22,6 +22,7 @@ import { ProfileInstanceStrategy } from './strategies/ProfileInstanceStrategy';
 import { ConnectorInstanceStrategy } from './strategies/ConnectorInstanceStrategy';
 import { FastenerInstanceStrategy } from './strategies/FastenerInstanceStrategy';
 import { AssetType as AssetTypeEnum } from '../asset/types/enums';
+import { eventBus } from '../services/eventBus';
 
 /**
  * 对象管理器事件类型
@@ -128,8 +129,11 @@ export class ObjectManager {
   public addObject(object: SceneObject): void {
     this.objects.set(object.id, object);
 
-    // 发布事件
+    // 发布事件（实例 EventEmitter）
     this.emit('object:added', { object });
+    
+    // 同时发射到全局 eventBus（架构统一）
+    eventBus.emit('object:added', { object });
 
     // 同步到渲染器
     if (this.renderer && object.visual && object.visual.mesh) {
@@ -140,7 +144,8 @@ export class ObjectManager {
       });
     }
 
-    console.log(`Object ${object.name} (${object.id}) added`);
+    console.log(`[ObjectManager] ✅ Object added: ${object.name} (${object.id})`);
+    console.log('[ObjectManager] 📢 Emitting object:added to global eventBus');
   }
 
   /**
@@ -162,10 +167,14 @@ export class ObjectManager {
     // 从存储移除
     this.objects.delete(objectId);
 
-    // 发布事件
+    // 发布事件（实例 EventEmitter）
     this.emit('object:removed', { objectId });
+    
+    // 同时发射到全局 eventBus（架构统一）
+    eventBus.emit('object:removed', { objectId });
 
-    console.log(`Object ${object.name} (${objectId}) removed`);
+    console.log(`[ObjectManager] ✅ Object removed: ${object.name} (${objectId})`);
+    console.log('[ObjectManager] 📢 Emitting object:removed to global eventBus');
     return true;
   }
 
@@ -264,8 +273,11 @@ export class ObjectManager {
       this.objects.set(objectId, updatedObject);
     }
 
-    // 发布事件
+    // 发布事件（实例 EventEmitter）
     this.emit('object:updated', { objectId, object: updatedObject, updates });
+    
+    // 同时发射到全局 eventBus（架构统一）
+    eventBus.emit('object:updated', { objectId, object: updatedObject, updates });
 
     // 同步到渲染器
     if (this.renderer && object.visual) {
@@ -275,7 +287,14 @@ export class ObjectManager {
           rotation: updates.transform.rotation,
           scale: updates.transform.scale,
         });
+        // 发布事件（实例 EventEmitter）
         this.emit('object:transform-changed', {
+          objectId,
+          transform: updates.transform,
+        });
+        
+        // 同时发射到全局 eventBus（架构统一）
+        eventBus.emit('object:transform-changed', {
           objectId,
           transform: updates.transform,
         });
@@ -286,7 +305,14 @@ export class ObjectManager {
           object.visual.mesh,
           updates.visual.isVisible
         );
+        // 发布事件（实例 EventEmitter）
         this.emit('object:visibility-changed', {
+          objectId,
+          visible: updates.visual.isVisible,
+        });
+        
+        // 同时发射到全局 eventBus（架构统一）
+        eventBus.emit('object:visibility-changed', {
           objectId,
           visible: updates.visual.isVisible,
         });
@@ -520,8 +546,11 @@ export class ObjectManager {
 
     this.objects.clear();
 
-    // 发布事件
+    // 发布事件（实例 EventEmitter）
     this.emit('objects:cleared', undefined);
+    
+    // 同时发射到全局 eventBus（架构统一）
+    eventBus.emit('objects:cleared', undefined);
 
     console.log('All objects cleared');
   }

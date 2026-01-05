@@ -16,6 +16,11 @@ const ObjectManagerSidebar: React.FC = () => {
   // 通过 Hook 获取对象列表
   const objects = useDesignerObjects();
 
+  // 调试：输出对象列表状态
+  React.useEffect(() => {
+    console.log('[ObjectManagerSidebar] 对象列表更新:', objects.length, objects);
+  }, [objects]);
+
   // 内部管理选中状态
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
 

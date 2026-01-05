@@ -133,7 +133,14 @@ export class PlacementController {
       if (this.snappingService && this.anchorService && !shiftPressed) {
         // 获取预览对象的锚点（从当前资产）
         const previewAnchors = this.getPreviewAnchors();
-
+          console.log('[PlacementController] 🔍 吸附检测:', {
+            hasSnappingService: !!this.snappingService,
+            hasAnchorService: !!this.anchorService,
+            shiftPressed,
+            previewAnchorsCount: previewAnchors.length,
+            previewAnchors,
+            hitPoint: hit.point,
+          });
         if (previewAnchors.length > 0) {
           const snapResult = this.snappingService.findSnap(
             hit.point,
@@ -155,6 +162,9 @@ export class PlacementController {
             finalPosition = snapResult.snapPosition;
             this.currentSnapResult = snapResult;
 
+            // 渲染吸附高亮
+            this.renderSnapHighlight(snapResult);
+
             // 发布吸附状态
             publishState('state:placement:snapStatus', {
               isSnapped: true,
@@ -164,6 +174,7 @@ export class PlacementController {
             });
           } else {
             this.currentSnapResult = null;
+            this.clearSnapHighlight();
             publishState('state:placement:snapStatus', {
               isSnapped: false,
               snapDistance: null,
@@ -177,22 +188,20 @@ export class PlacementController {
 
       this.currentPosition = finalPosition;
 
-      console.log(
-        '[PlacementController] Updated position:',
-        this.currentPosition,
-        this.currentSnapResult ? '(snapped)' : ''
-      );
-
       // 更新预览位置
       this.renderer.updatePreviewTransform(this.previewHandle, {
         position: finalPosition,
       });
     } else {
-      // 如果没有命中，保持上一个有效位置
-      console.warn(
-        '[PlacementController] No raycast hit, keeping last position. Current position:',
-        this.currentPosition
-      );
+      // 如果没有命中，使用工作平面中心作为默认位置
+      if (!this.currentPosition) {
+        this.currentPosition = workPlane.point;
+        console.log('[PlacementController] 初始化默认位置:', this.currentPosition);
+      }
+      // 更新预览到当前位置
+      this.renderer.updatePreviewTransform(this.previewHandle, {
+        position: this.currentPosition,
+      });
     }
   };
 
@@ -619,21 +628,18 @@ export class PlacementController {
     const assetType = this.currentAsset.type;
 
     if (assetType === 'profile') {
-      // 型材：两个端点锚点
-      return [
-        {
-          id: 'preview-anchor-front',
-          type: 'endpoint',
-          localPosition: { x: 0, y: 0, z: 0.75 }, // 假设长度1.5m，前端
-          worldPosition: { x: 0, y: 0, z: 0 },
-          objectId: 'preview',
-        },
-        {
-          id: 'preview-anchor-back',
-          type: 'endpoint',
-          localPosition: { x: 0, y: 0, z: -0.75 }, // 后端
-          worldPosition: { x: 0, y: 0, z: 0 },
-          objectId: 'preview',
+        // 型材：两个端点锚点（使用 position 表示本地坐标）
+        return [
+          {
+            id: 'preview-anchor-front',
+            type: 'endpoint',
+            position: { x: 0, y: 0, z: 0.75 }, // 假设长度1.5m，前端（本地坐标）
+            objectId: 'preview',
+          },
+          {
+            id: 'preview-anchor-back',
+            type: 'endpoint',
+            position: { x: 0, y: 0, z: -0.75 }, // 后端（本地坐标）
         },
       ];
     }

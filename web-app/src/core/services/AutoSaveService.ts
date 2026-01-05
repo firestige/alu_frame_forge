@@ -5,6 +5,7 @@ import {
   saveProjectToNetwork,
 } from './queryService';
 import mitt, { type Emitter } from 'mitt';
+import { eventBus } from './EventBus';
 
 /**
  * 自动保存事件类型
@@ -133,10 +134,10 @@ export class AutoSaveService {
    */
   private setupListeners() {
     // 对象增删改都会触发自动保存
-    this.objectManager.on('object:added', this.markDirty);
-    this.objectManager.on('object:removed', this.markDirty);
-    this.objectManager.on('object:updated', this.markDirty);
-    this.objectManager.on('object:transform-changed', this.markDirty);
+    eventBus.on('object:added', this.markDirty);
+    eventBus.on('object:removed', this.markDirty);
+    eventBus.on('object:updated', this.markDirty);
+    eventBus.on('object:transform-changed', this.markDirty);
 
     console.log('[AutoSaveService] 已监听 ObjectManager 变更事件');
   }
@@ -349,10 +350,10 @@ export class AutoSaveService {
     }
 
     // 移除监听器
-    this.objectManager.off('object:added', this.markDirty);
-    this.objectManager.off('object:removed', this.markDirty);
-    this.objectManager.off('object:updated', this.markDirty);
-    this.objectManager.off('object:transform-changed', this.markDirty);
+    eventBus.off('object:added', this.markDirty);
+    eventBus.off('object:removed', this.markDirty);
+    eventBus.off('object:updated', this.markDirty);
+    eventBus.off('object:transform-changed', this.markDirty);
 
     // 清空事件
     this.eventEmitter.all.clear();

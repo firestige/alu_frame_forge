@@ -47,6 +47,9 @@ export interface SnapResult {
   /** 吸附位置（世界坐标） */
   snapPosition: Vector3;
 
+  /** 目标锚点位置（世界坐标，用于高亮渲染） */
+  targetAnchorPosition: Vector3;
+
   /** 目标锚点 ID */
   targetAnchorId: string;
 
@@ -128,12 +131,22 @@ export class SnappingService {
     candidateAnchors: AnchorPoint[],
     options?: SnapOptions
   ): SnapResult | null {
+    console.log('[SnappingService] 🔍 findSnap 调用:', {
+      candidatePosition,
+      candidateAnchorsCount: candidateAnchors.length,
+      candidateAnchors,
+      options,
+      config: this.config,
+    });
+
     // 检查是否禁用
     if (!this.config.enabled || options?.disabled) {
+      console.log('[SnappingService] 吸附已禁用');
       return null;
     }
 
     if (candidateAnchors.length === 0) {
+      console.log('[SnappingService] 无候选锚点');
       return null;
     }
 
@@ -143,9 +156,15 @@ export class SnappingService {
       this.config.searchRadius
     );
 
+    // 如果没有找到任何附近的锚点，直接返回（避免第一个对象错误吸附）
     if (nearbyAnchors.length === 0) {
       return null;
     }
+
+    console.log('[SnappingService] 🔍 附近锚点:', {
+      searchRadius: this.config.searchRadius,
+      nearbyAnchorsCount: nearbyAnchors.length,
+    });
 
     // 2. 过滤排除的对象
     const filteredAnchors = options?.excludeObjects
@@ -154,7 +173,13 @@ export class SnappingService {
         )
       : nearbyAnchors;
 
+    console.log('[SnappingService] 🔍 过滤后锚点:', {
+      excludeObjects: options?.excludeObjects,
+      filteredCount: filteredAnchors.length,
+    });
+
     if (filteredAnchors.length === 0) {
+      console.log('[SnappingService] 过滤后无可用锚点');
       return null;
     }
 
@@ -172,6 +197,14 @@ export class SnappingService {
           candidatePosition
         );
 
+        console.log('[SnappingService] 🔍 计算匹配:', {
+          targetAnchor: targetAnchor.id,
+          candidateIndex: i,
+          candidateLocalPos: candidateAnchor.position,
+          candidateWorldPos,
+          targetPos: targetAnchor.position,
+        });
+
         const distance = this.calculateDistance(
           candidateWorldPos,
           targetAnchor.position // 使用 position 而不是 worldPosition
@@ -184,6 +217,12 @@ export class SnappingService {
             distance
           );
 
+          console.log('[SnappingService] ✅ 找到匹配:', {
+            distance,
+            score,
+            threshold: minDistance,
+          });
+
           matches.push({
             targetAnchor,
             candidateAnchor,
@@ -195,7 +234,18 @@ export class SnappingService {
       }
     }
 
+    console.log('[SnappingService] 🔍 匹配结果:', {
+      matchesCount: matches.length,
+      matches: matches.map(m => ({
+        distance: m.distance,
+        score: m.score,
+        targetAnchor: m.targetAnchor.id,
+        candidateIndex: m.candidateIndex,
+      })),
+    });
+
     if (matches.length === 0) {
+      console.log('[SnappingService] 无符合阈值的匹配');
       return null;
     }
 
@@ -207,9 +257,27 @@ export class SnappingService {
       return best;
     });
 
+    console.log('[SnappingService] ✅ 吸附成功');
+
     // 5. 生成吸附结果
+    // 计算对象的正确位置：目标锚点位置 - 候选锚点的局部偏移
+    // 这样当对象放置在 snapPosition 时，其 candidateAnchor 就会与 targetAnchor 对齐
+    const candidateAnchor = candidateAnchors[bestMatch.candidateIndex];
+    const snapPosition = {
+      x: bestMatch.targetAnchor.position.x - candidateAnchor.position.x,
+      y: bestMatch.targetAnchor.position.y - candidateAnchor.position.y,
+      z: bestMatch.targetAnchor.position.z - candidateAnchor.position.z,
+    };
+
+    console.log('[SnappingService] 📍 计算对象位置:', {
+      targetAnchorPos: bestMatch.targetAnchor.position,
+      candidateAnchorOffset: candidateAnchor.position,
+      objectSnapPosition: snapPosition,
+    });
+
     return {
-      snapPosition: bestMatch.targetAnchor.position, // 使用 position
+      snapPosition, // 对象的中心位置
+      targetAnchorPosition: bestMatch.targetAnchor.position, // 目标锚点位置（用于高亮渲染）
       targetAnchorId: bestMatch.targetAnchor.id,
       targetObjectId: bestMatch.targetAnchor.objectId,
       candidateAnchorIndex: bestMatch.candidateIndex,

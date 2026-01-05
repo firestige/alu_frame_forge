@@ -1,6 +1,7 @@
 import type { ObjectManager } from '@/core/object';
 import type { ObjectManagerEvents } from '@/core/object/ObjectManager';
 import type { IRenderer } from '@/core/renderer/renderer-types';
+import { eventBus } from '@/core/services/EventBus';
 
 /**
  * 渲染同步服务
@@ -70,19 +71,10 @@ export class RenderSyncService {
    * 设置事件监听器
    */
   private setupEventListeners(): void {
-    this.objectManager.on('object:added', this.handleObjectAdded.bind(this));
-    this.objectManager.on(
-      'object:updated',
-      this.handleObjectUpdated.bind(this)
-    );
-    this.objectManager.on(
-      'object:removed',
-      this.handleObjectRemoved.bind(this)
-    );
-    this.objectManager.on(
-      'objects:cleared',
-      this.handleObjectsCleared.bind(this)
-    );
+    eventBus.on('object:added', this.handleObjectAdded.bind(this));
+    eventBus.on('object:updated', this.handleObjectUpdated.bind(this));
+    eventBus.on('object:removed', this.handleObjectRemoved.bind(this));
+    eventBus.on('objects:cleared', this.handleObjectsCleared.bind(this));
   }
 
   /**
@@ -231,19 +223,10 @@ export class RenderSyncService {
    */
   public dispose(): void {
     // 取消事件监听
-    this.objectManager.off('object:added', this.handleObjectAdded.bind(this));
-    this.objectManager.off(
-      'object:updated',
-      this.handleObjectUpdated.bind(this)
-    );
-    this.objectManager.off(
-      'object:removed',
-      this.handleObjectRemoved.bind(this)
-    );
-    this.objectManager.off(
-      'objects:cleared',
-      this.handleObjectsCleared.bind(this)
-    );
+    eventBus.off('object:added', this.handleObjectAdded.bind(this));
+    eventBus.off('object:updated', this.handleObjectUpdated.bind(this));
+    eventBus.off('object:removed', this.handleObjectRemoved.bind(this));
+    eventBus.off('objects:cleared', this.handleObjectsCleared.bind(this));
 
     // 清空映射
     this.objectRenderMap.clear();

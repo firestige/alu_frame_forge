@@ -27,6 +27,7 @@ import {
   onState,
   offState,
 } from '@/core/services/eventBus';
+import { eventBus } from '@/core/services/EventBus';
 import type { IRenderer } from '@/core/renderer/renderer-types';
 
 /**
@@ -162,6 +163,23 @@ const DesignerPage: React.FC = () => {
       coreServices.anchorService,
       coreServices.constraintService
     );
+
+    // 设置 ConstraintService 的求解完成回调
+    // 当约束求解完成时，通过事件总线发送变换更新命令
+    coreServices.constraintService.onSolveCompleted = (result) => {
+      console.log('[DesignerPage] 🔧 约束求解完成回调触发:', result);
+      
+      if (result.success) {
+        for (const [objectId, transform] of result.adjustedTransforms.entries()) {
+          designerEventBus.emit('command:object:updateTransform', {
+            objectId,
+            transform,
+            source: 'constraint-solver',
+            timestamp: Date.now(),
+          });
+        }
+      }
+    };
 
     // 初始化 SelectionService
     const selection = new SelectionService(rendererRef.current);
@@ -437,6 +455,28 @@ const DesignerPage: React.FC = () => {
       }
     };
 
+    // 处理约束求解后的变换更新
+    const handleObjectTransformUpdate = (data: {
+      objectId: string;
+      transform: {
+        position: { x: number; y: number; z: number };
+        rotation: { x: number; y: number; z: number };
+      };
+      source?: string;
+    }) => {
+      console.log('[DesignerPage] 🔧 收到变换更新命令:', data);
+      const objectManager = coreServices.objectManager;
+      const obj = objectManager.getObject(data.objectId);
+      if (!obj) {
+        console.warn('[DesignerPage] ⚠️ 对象不存在:', data.objectId);
+        return;
+      }
+
+      objectManager.updatePosition(data.objectId, data.transform.position);
+      objectManager.updateRotation(data.objectId, data.transform.rotation);
+      console.log('[DesignerPage] ✅ 变换已更新:', data.objectId);
+    };
+
     onCommand('command:create:cube', handleCreateCube);
     onCommand('command:create:box', handleCreateBox);
     onCommand('command:create:aluminumProfile', handleCreateProfile);
@@ -446,6 +486,7 @@ const DesignerPage: React.FC = () => {
     onCommand('command:model:delete', handleDelete);
     onCommand('command:model:toggleVisibility', handleToggleVisibility);
     onCommand('command:model:update', handleModelUpdate);
+    onCommand('command:object:updateTransform', handleObjectTransformUpdate);
 
     return () => {
       offCommand('command:create:cube', handleCreateCube);
@@ -457,6 +498,7 @@ const DesignerPage: React.FC = () => {
       offCommand('command:model:delete', handleDelete);
       offCommand('command:model:toggleVisibility', handleToggleVisibility);
       offCommand('command:model:update', handleModelUpdate);
+      offCommand('command:object:updateTransform', handleObjectTransformUpdate);
     };
   }, [
     featureServices.creation,
@@ -469,23 +511,35 @@ const DesignerPage: React.FC = () => {
   React.useEffect(() => {
     const syncToStore = () => {
       const objects = coreServices.objectManager.getAllObjects();
+      console.log('[DesignerPage] 🔄 syncToStore 被调用，对象数量:', objects.length);
+      if (objects.length > 0) {
+        console.log('[DesignerPage] 对象列表:', objects.map(o => ({ id: o.id, name: o.name })));
+      }
       useDesignerObjectStore.getState().setObjects(objects);
+      console.log('[DesignerPage] ✅ Store 已更新');
     };
 
     // 初始同步
+    console.log('[DesignerPage] 🚀 设置对象事件监听器（监听全局 eventBus）');
     syncToStore();
 
     // 监听变更
-    coreServices.objectManager.on('object:added', syncToStore);
-    coreServices.objectManager.on('object:removed', syncToStore);
-    coreServices.objectManager.on('object:updated', syncToStore);
-    coreServices.objectManager.on('objects:cleared', syncToStore);
+    const onAdded = () => { console.log('[DesignerPage] 📥 收到 object:added 事件'); syncToStore(); };
+    const onRemoved = () => { console.log('[DesignerPage] 📥 收到 object:removed 事件'); syncToStore(); };
+    const onUpdated = () => { console.log('[DesignerPage] 📥 收到 object:updated 事件'); syncToStore(); };
+    const onCleared = () => { console.log('[DesignerPage] 📥 收到 objects:cleared 事件'); syncToStore(); };
+    
+    eventBus.on('object:added', onAdded);
+    eventBus.on('object:removed', onRemoved);
+    eventBus.on('object:updated', onUpdated);
+    eventBus.on('objects:cleared', onCleared);
 
     return () => {
-      coreServices.objectManager.off('object:added', syncToStore);
-      coreServices.objectManager.off('object:removed', syncToStore);
-      coreServices.objectManager.off('object:updated', syncToStore);
-      coreServices.objectManager.off('objects:cleared', syncToStore);
+      console.log('[DesignerPage] 🧹 清理对象事件监听器');
+      eventBus.off('object:added', onAdded);
+      eventBus.off('object:removed', onRemoved);
+      eventBus.off('object:updated', onUpdated);
+      eventBus.off('objects:cleared', onCleared);
     };
   }, [coreServices.objectManager]);
 

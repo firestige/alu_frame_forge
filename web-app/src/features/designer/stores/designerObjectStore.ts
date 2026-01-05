@@ -43,7 +43,13 @@ export const useDesignerObjectStore = create<DesignerObjectState>(set => ({
   objects: [],
 
   // 设置对象列表（完全替换）
-  setObjects: objects => set({ objects }),
+  setObjects: objects => {
+    console.log('[DesignerObjectStore] setObjects 被调用，对象数量:', objects.length);
+    if (objects.length > 0) {
+      console.log('[DesignerObjectStore] 对象:', objects.map(o => ({ id: o.id, name: o.name })));
+    }
+    set({ objects });
+  },
 
   // 添加单个对象
   addObject: object =>

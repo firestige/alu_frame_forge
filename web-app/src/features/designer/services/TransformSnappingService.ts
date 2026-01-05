@@ -67,7 +67,10 @@ export class TransformSnappingService {
   /**
    * 处理拖拽中的变换（实时吸附检测）
    */
-  handleTransformChanging(data: TransformData, shiftPressed: boolean = false): void {
+  handleTransformChanging(
+    data: TransformData,
+    shiftPressed: boolean = false
+  ): void {
     if (!this.isDragging || !this.draggedObjectId) return;
 
     // Shift 键禁用吸附
@@ -85,39 +88,37 @@ export class TransformSnappingService {
     this.lastSnapCheckTime = now;
 
     // 获取被拖拽对象的锚点
-    const draggedAnchors = this.anchorService.getAnchorsByObjectId(
-      this.draggedObjectId
-    );
+    const draggedAnchors = this.anchorService.getAnchors(this.draggedObjectId);
 
     if (!draggedAnchors || draggedAnchors.length === 0) {
       return;
     }
 
-    // 将锚点转换为世界坐标（考虑当前变换）
-    const worldAnchors = draggedAnchors.map(anchor => ({
-      ...anchor,
-      position: {
-        x: anchor.position.x + data.transform.position.x,
-        y: anchor.position.y + data.transform.position.y,
-        z: anchor.position.z + data.transform.position.z,
-      },
-    }));
+    // 直接传递局部锚点，findSnap 内部会用 candidatePosition 进行变换
+    // 避免双重平移（之前预先加了 position，findSnap 内部又加一次）
+    const localAnchors = draggedAnchors;
 
     // 查找吸附目标
     const snapResult = this.snappingService.findSnap(
       data.transform.position,
-      worldAnchors
+      localAnchors
     );
 
     if (snapResult) {
       // 找到吸附目标
       this.currentSnapResult = snapResult;
 
-      // 应用吸附位置到渲染对象
-      const nativeObject = this.renderer['sceneManager']?.['objects']?.get(
-        this.draggedObjectId
-      );
-      if (nativeObject && typeof nativeObject === 'object' && 'position' in nativeObject) {
+      // 应用吸附位置到渲染对象（直接访问内部 THREE.js 对象）
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const nativeObject = (this.renderer as any)['sceneManager']?.[
+        'objects'
+      ]?.get(this.draggedObjectId);
+      if (
+        nativeObject &&
+        typeof nativeObject === 'object' &&
+        'position' in nativeObject
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const position = nativeObject.position as any;
         position.x = snapResult.snapPosition.x;
         position.y = snapResult.snapPosition.y;
@@ -136,7 +137,7 @@ export class TransformSnappingService {
   /**
    * 处理拖拽完成
    */
-  async handleTransformCompleted(data: TransformData): Promise<void> {
+  async handleTransformCompleted(_data: TransformData): Promise<void> {
     if (!this.isDragging || !this.draggedObjectId) return;
 
     console.log('[TransformSnappingService] Transform completed:', {
@@ -182,7 +183,7 @@ export class TransformSnappingService {
     snapResult: SnapResult
   ): Promise<void> {
     // 获取对象的锚点
-    const objectAnchors = this.anchorService.getAnchorsByObjectId(objectId);
+    const objectAnchors = this.anchorService.getAnchors(objectId);
     if (!objectAnchors || objectAnchors.length === 0) {
       console.warn(
         '[TransformSnappingService] No anchors found for object:',
